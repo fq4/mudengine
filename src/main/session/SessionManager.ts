@@ -86,6 +86,10 @@ import { chargedInCopper, coinReader, type CoinNames } from '../../shared/coins'
 import { Wards } from '../automation/Wards';
 import { RealmMenu } from './RealmMenu';
 import { Events } from '../automation/Events';
+import { AutonomousAgent } from '../ai/Agent';
+import { OpenRouterProvider } from '../ai/OpenRouter';
+import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
+import type { SessionModule } from '../automation/Module';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
 import {
@@ -988,6 +992,8 @@ export class SessionManager {
   };
 
   readonly queue: CommandQueue;
+  private readonly aiAgent: AutonomousAgent;
+  private readonly aiProvider: OpenRouterProvider;
   readonly rules: RuleEngine;
   /** The realm's message table, answering the realm. See `MessageTriggers`. */
   readonly messages: MessageTriggers;
@@ -1623,6 +1629,8 @@ export class SessionManager {
       unavailable: (command) => this.wordUnavailable(command),
       connected: () => this.client.connected
     });
+    this.aiProvider = new OpenRouterProvider();
+    this.aiAgent = new AutonomousAgent(this.aiProvider, { execute: async (action) => this.executeAiAction(action) });
 
     this.routines = new Routines(this.entryProbes(automation), this.queue, {
       notice: (message) => this.sink.notice(message)
@@ -3239,6 +3247,43 @@ export class SessionManager {
 
   get character(): CharacterState {
     return this.tracker.current;
+  }
+
+  private aiObservation(): AiObservation {
+    const state = this.tracker.current;
+    return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'execute_supported_command', 'wait'] };
+  }
+
+  get aiSnapshot(): AiSnapshot { return { state: this.aiAgent.state, observation: this.aiObservation() }; }
+  aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; }
+  aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
+  aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
+  aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); return this.aiSnapshot; }
+  async aiTick(): Promise<void> { await this.aiAgent.tick(this.aiObservation()); }
+  async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
+    if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };
+    const candidate = action as Partial<AiAction>;
+    if (typeof candidate.name !== 'string' || typeof candidate.reason !== 'string') return { ok: false, message: 'Invalid AI action' };
+    return this.executeAiAction(candidate as AiAction);
+  }
+  private async executeAiAction(action: AiAction): Promise<{ ok: boolean; message: string }> {
+    if (action.name === 'inspect_character' || action.name === 'inspect_room' || action.name === 'inspect_inventory' || action.name === 'inspect_map' || action.name === 'inspect_combat_result') return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
+    if (action.name === 'recover_health') return { ok: this.queue.enqueue({ command: 'rest', priority: 'emergency', reason: action.reason }), message: 'Recovery delegated to CommandQueue' };
+    if (action.name === 'engage_enemy') {
+      const name = typeof action.args?.name === 'string' ? action.args.name : '';
+      if (!name || name.startsWith('@')) return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
+      this.combat.alsoFight(name); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
+    }
+    if (action.name === 'execute_supported_command') {
+      const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
+      if (!command || /^(kill|attack|hit)\s+@/i.test(command)) return { ok: false, message: 'Refused unsupported or PvP command' };
+      return { ok: this.queue.enqueue({ command, priority: 'user', reason: action.reason }), message: 'Command delegated to CommandQueue' };
+    }
+    return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };
+  }
+
+  get players(): PlayerRegistry {
+    return this.tracker.players;
   }
 
   /**
@@ -5504,6 +5549,7 @@ export class SessionManager {
      */
     if (this.releaseRestsIfFull(state)) return;
     this.publishCharacter();
+    void this.aiTick();
     /*
      * Walking out to the menu is a character *leaving*, and everything
      * automated is about the one that was here. Before the modules below

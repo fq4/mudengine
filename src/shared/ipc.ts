@@ -18,6 +18,7 @@ import type { MessageImport, MessageTable, MessageTrigger } from './messageTrigg
 import type { MonsterImport, MonsterRule, MonsterTable } from './monsterRules';
 import type { LoopImport, MegaMudPath } from './megamudPaths';
 import type { AutomationSnapshot } from './automation';
+import type { AiAction, AiSnapshot } from './ai';
 import type { Block } from './blocks';
 import type { LocalMap } from './map';
 import type { Discovery } from './memory';
@@ -606,6 +607,12 @@ export const Send = {
 
 /** Renderer -> main, request/response. */
 export const Invoke = {
+  aiSnapshot: 'ai:snapshot',
+  aiEnable: 'ai:enable',
+  aiPause: 'ai:pause',
+  aiStop: 'ai:stop',
+  aiGoal: 'ai:goal',
+  aiAction: 'ai:action',
   // -- per session
   connect: 'session:connect',
   disconnect: 'session:disconnect',
@@ -1221,6 +1228,12 @@ export interface IpcApi {
   draftLoop(session: SessionId, rooms: RoomId[]): Promise<LoopDraft>;
   getWalk(session: SessionId): Promise<WalkProgress>;
   getAutomation(session: SessionId): Promise<AutomationSnapshot>;
+  aiSnapshot(session: SessionId): Promise<AiSnapshot>;
+  aiEnable(session: SessionId, model?: string): Promise<AiSnapshot>;
+  aiPause(session: SessionId): Promise<AiSnapshot>;
+  aiStop(session: SessionId): Promise<AiSnapshot>;
+  aiGoal(session: SessionId, goal: string): Promise<AiSnapshot>;
+  aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
 
   listSessions(): Promise<SessionSummary[]>;
   listProfiles(): Promise<ProfileSummary[]>;

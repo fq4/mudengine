@@ -159,6 +159,7 @@ import { roomsWithFinds, type Find } from '@shared/finds';
 import type { Addressed, ResetNotice } from '@shared/ipc';
 import MovementPrompt from './components/MovementPrompt';
 import ResetPrompt from './components/ResetPrompt';
+import AiPanel from './components/AiPanel';
 import type { GlobalDraft, ProfileDraft, ServerDraft } from '@shared/drafts';
 import {
   linkNotices,
@@ -5785,6 +5786,7 @@ export default function App() {
           layer would swallow every click meant for the game.
         */}
         <FloatLayer boxRef={workspaceRef} layout={cards} render={renderCard} />
+        {session && <AiPanel session={session} />}
         {sessions
           .filter((entry) => entry.id !== session)
           .map((entry) => (
