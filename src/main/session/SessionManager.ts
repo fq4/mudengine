@@ -64,7 +64,7 @@ import { Safety } from './Safety';
 import { FleeGoto } from './FleeGoto';
 import { Events } from '../automation/Events';
 import { AutonomousAgent } from '../ai/Agent'; import { OpenRouterProvider } from '../ai/OpenRouter'; import { executeGameplayAction } from '../ai/GameplayAdapter';
-import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
+import type { AiAction, AiObservation, AiPersistedState, AiSnapshot } from '../../shared/ai';
 import type { SessionModule } from '../automation/Module';
 import type { Loop } from '../../shared/loops';
 import {
@@ -2076,6 +2076,7 @@ export class SessionManager {
   private aiObservation(): AiObservation { const state = this.tracker.current; return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'execute_supported_command', 'wait'] }; }
   get aiSnapshot(): AiSnapshot { return { state: this.aiAgent.state, observation: this.aiObservation() }; } aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; } aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; } aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; } aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); return this.aiSnapshot; } async aiTick(): Promise<void> { await this.aiAgent.tick(this.aiObservation()); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> { const candidate = action as Partial<AiAction>; return !candidate || typeof candidate.name !== 'string' || typeof candidate.reason !== 'string' ? { ok: false, message: 'Invalid AI action' } : this.executeAiAction(candidate as AiAction); }
+  aiRestore(saved: AiPersistedState): AiSnapshot { this.aiAgent.restore(saved); return this.aiSnapshot; }
   private executeAiAction(action: AiAction): { ok: boolean; message: string } { return executeGameplayAction(action, { character: this.tracker.current, world: this.world, queue: this.queue, combat: this.combat, traveller: this.travellerNow(this.tracker.current), walkRoute: (route, run) => this.walkRoute(route, run) }); }
 
   get players(): PlayerRegistry { return this.tracker.players; }

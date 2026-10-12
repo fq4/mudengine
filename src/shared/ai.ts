@@ -36,6 +36,7 @@ export interface AiState {
   model: string; lastObservationHash?: string; consecutiveFailures: number;
 }
 export interface AiSnapshot { state: AiState; observation: AiObservation; }
+export interface AiPersistedState { objective: string; memories: AiMemory[]; recent: string[]; lastActionResult: string; }
 
 export const AI_ACTIONS: readonly AiActionName[] = [
   'inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map',

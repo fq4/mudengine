@@ -9,12 +9,15 @@ export default function AiPanel({ session }: { session: SessionId }) {
   const refresh = () => api.aiSnapshot(session).then(setSnapshot);
   useEffect(() => {
     const saved = localStorage.getItem(`mudengine.ai.goal.${session}`) ?? '';
+    const savedState = localStorage.getItem(`mudengine.ai.state.${session}`);
     setGoal(saved);
     void api.aiSnapshot(session).then((value) => {
       setSnapshot(value);
-      if (saved && !value.state.objective) void api.aiGoal(session, saved).then(setSnapshot);
+      if (savedState) { try { void api.aiRestore(session, JSON.parse(savedState)).then(setSnapshot); } catch { /* corrupt local state is ignored */ } }
+      else if (saved && !value.state.objective) void api.aiGoal(session, saved).then(setSnapshot);
     });
   }, [session]);
+  useEffect(() => { if (snapshot) localStorage.setItem(`mudengine.ai.state.${session}`, JSON.stringify({ objective: snapshot.state.objective, memories: snapshot.state.memories.slice(-50), recent: snapshot.state.recent.slice(-8), lastActionResult: snapshot.state.lastActionResult })); }, [session, snapshot]);
   if (!snapshot) return null;
   const run = (promise: Promise<AiSnapshot>) => promise.then(setSnapshot);
   const action: AiAction = { name: 'inspect_character', reason: 'Player requested an observation' };

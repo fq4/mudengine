@@ -114,6 +114,7 @@ import { DEFAULT_INTERNAL } from '../shared/internal';
 import { isRemoteName, REMOTE_NAMES, type RemoteGrant, type RemoteName } from '../shared/remotes';
 import { UNSTATED_REALM_WORDS, type Profile } from '../shared/profiles';
 import type { SessionSummary } from '../shared/ipc';
+import type { AiPersistedState } from '../shared/ai';
 import { EMPTY_CHARACTER } from '../shared/character';
 import { IDLE_WALK } from '../shared/walk';
 import { isLoopScope, mergeLoops, NO_LOOP } from '../shared/loops';
@@ -1592,6 +1593,7 @@ function registerIpc(): void {
   handle(Invoke.aiStop, (_caller, session: SessionId) => host?.get(session)?.manager.aiStop());
   handle(Invoke.aiGoal, (_caller, session: SessionId, goal: string) => host?.get(session)?.manager.aiGoal(goal));
   handle(Invoke.aiAction, (_caller, session: SessionId, action: unknown) => host?.get(session)?.manager.aiAction(action));
+  handle(Invoke.aiRestore, (_caller, session: SessionId, state: unknown) => host?.get(session)?.manager.aiRestore(state as AiPersistedState));
 
   /**
    * Who is walking, for pricing a route against them.

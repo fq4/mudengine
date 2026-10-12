@@ -1,4 +1,4 @@
-import { observationHash, type AiAction, type AiDecision, type AiObservation, type AiProvider, type AiState } from '../../shared/ai';
+import { observationHash, type AiAction, type AiDecision, type AiObservation, type AiPersistedState, type AiProvider, type AiState } from '../../shared/ai';
 
 export interface AiExecutor { execute(action: AiAction): Promise<{ ok: boolean; message: string }>; }
 export class AutonomousAgent {
@@ -10,6 +10,7 @@ export class AutonomousAgent {
   enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; }
+  restore(saved: AiPersistedState): void { this.state.objective = saved.objective; this.state.memories = saved.memories.slice(-50); this.state.recent = saved.recent.slice(-8); this.state.lastActionResult = saved.lastActionResult; }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
     if (!this.state.enabled || this.state.status === 'paused' || !this.state.objective) return null;
     const hash = observationHash(observation); if (hash === this.state.lastObservationHash) return null;

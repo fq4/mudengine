@@ -15,7 +15,7 @@
  * no session, because they belong to the client rather than to a character.
  */
 import type { AutomationSnapshot } from './automation';
-import type { AiAction, AiSnapshot } from './ai';
+import type { AiAction, AiPersistedState, AiSnapshot } from './ai';
 import type { Block } from './blocks';
 import type { LocalMap } from './map';
 import type { RoutePages, WalkPages } from './routeLegs';
@@ -626,6 +626,7 @@ export const Invoke = {
   aiStop: 'ai:stop',
   aiGoal: 'ai:goal',
   aiAction: 'ai:action',
+  aiRestore: 'ai:restore',
   // -- per session
   connect: 'session:connect',
   disconnect: 'session:disconnect',
@@ -1252,6 +1253,7 @@ export interface IpcApi {
   aiStop(session: SessionId): Promise<AiSnapshot>;
   aiGoal(session: SessionId, goal: string): Promise<AiSnapshot>;
   aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
+  aiRestore(session: SessionId, state: AiPersistedState): Promise<AiSnapshot>;
 
   listSessions(): Promise<SessionSummary[]>;
   listProfiles(): Promise<ProfileSummary[]>;
