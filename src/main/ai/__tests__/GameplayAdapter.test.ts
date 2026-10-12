@@ -23,4 +23,12 @@ describe('GameplayAdapter', () => {
     expect(executeGameplayAction({ name: 'engage_enemy', args: { name: '@player' }, reason: 'unsafe' }, d)).toMatchObject({ ok: false });
     expect((d.combat as { alsoFight: ReturnType<typeof vi.fn> }).alsoFight).toHaveBeenCalledWith('rat');
   });
+  it('returns structured inspection detail and resolves named destinations through the world graph', () => {
+    const d = deps();
+    const world = { searchByName: vi.fn().mockReturnValue([{ map: 1, room: 9, name: 'Bank of Godfrey' }]), route: vi.fn().mockReturnValue({ steps: [{ command: 'e' }] }) };
+    const withWorld = { ...d, world: world as never, inspect: () => '{"room":"Guild Street"}' };
+    expect(executeGameplayAction({ name: 'inspect_room', reason: 'read state' }, withWorld).message).toContain('Guild Street');
+    expect(executeGameplayAction({ name: 'navigate_to', args: { destination: 'Bank of Godfrey' }, reason: 'goal' }, withWorld)).toMatchObject({ ok: true, phase: 'accepted' });
+    expect(world.route).toHaveBeenCalledWith('1/1', '1/9', {}, { alternatives: false });
+  });
 });
