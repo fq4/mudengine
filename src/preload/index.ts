@@ -107,6 +107,7 @@ const api: IpcApi = {
   aiEnable: (session, model) => ipcRenderer.invoke(Invoke.aiEnable, session, model),
   aiPause: (session) => ipcRenderer.invoke(Invoke.aiPause, session),
   aiStop: (session) => ipcRenderer.invoke(Invoke.aiStop, session),
+  aiClear: (session) => ipcRenderer.invoke(Invoke.aiClear, session),
   aiGoal: (session, goal) => ipcRenderer.invoke(Invoke.aiGoal, session, goal),
   aiAction: (session, action) => ipcRenderer.invoke(Invoke.aiAction, session, action),
   aiRestore: (session, state) => ipcRenderer.invoke(Invoke.aiRestore, session, state),
