@@ -15,6 +15,7 @@ describe('GameplayAdapter', () => {
     expect(executeGameplayAction({ name: 'recover_health', reason: 'low hp' }, d)).toMatchObject({ ok: true });
     expect(executeGameplayAction({ name: 'execute_supported_command', args: { command: 'look' }, reason: 'observe' }, d)).toMatchObject({ ok: true });
     expect((d.queue as { enqueue: ReturnType<typeof vi.fn> }).enqueue).toHaveBeenCalledTimes(2);
+    expect(executeGameplayAction({ name: 'recover_health', reason: 'low hp' }, d).phase).toBe('accepted');
   });
   it('delegates authorized combat and refuses PvP', () => {
     const d = deps();

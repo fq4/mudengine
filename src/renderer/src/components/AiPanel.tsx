@@ -18,7 +18,7 @@ export default function AiPanel({ session }: { session: SessionId }) {
       else if (saved && !value.state.objective) void api.aiGoal(session, saved).then(setSnapshot);
     });
   }, [session]);
-  useEffect(() => { if (snapshot) localStorage.setItem(`mudengine.ai.state.${session}`, JSON.stringify({ objective: snapshot.state.objective, memories: snapshot.state.memories.slice(-50), recent: snapshot.state.recent.slice(-8), lastActionResult: snapshot.state.lastActionResult })); }, [session, snapshot]);
+  useEffect(() => { if (snapshot) localStorage.setItem(`mudengine.ai.state.${session}`, JSON.stringify({ objective: snapshot.state.objective, subgoal: snapshot.state.subgoal, plan: snapshot.state.plan.slice(0, 8), knowledge: snapshot.state.knowledge.slice(-50), memories: snapshot.state.memories.slice(-50), recent: snapshot.state.recent.slice(-8), lastActionResult: snapshot.state.lastActionResult })); }, [session, snapshot]);
   if (!snapshot) return null;
   const run = (promise: Promise<AiSnapshot>) => promise.then((value) => { setError(''); setSnapshot(value); }).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
   const start = () => {
@@ -32,6 +32,7 @@ export default function AiPanel({ session }: { session: SessionId }) {
     <div className="ai-panel-row"><label>Goal</label><input value={goal} onChange={(e) => { setGoal(e.target.value); localStorage.setItem(`mudengine.ai.goal.${session}`, e.target.value); }} onKeyDown={(e) => { if (e.key === 'Enter' && goal.trim()) { run(api.aiGoal(session, goal.trim())); } }} placeholder="Explore nearby safe rooms" /></div>
     <div className="ai-panel-actions"><button onClick={start}>Start / Resume</button><button onClick={() => run(api.aiPause(session))}>Pause</button><button onClick={() => run(api.aiStop(session))}>Stop</button><button onClick={() => api.aiAction(session, action).then(refresh).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))}>Observe</button></div>
     <div className="ai-panel-copy"><strong>{snapshot.state.objective || 'No objective'}</strong><br />{snapshot.state.explanation || (snapshot.state.enabled ? 'AI is waiting for its first decision.' : 'AI is disabled.')}</div>
+    <div className="ai-panel-copy">Subgoal: {snapshot.state.subgoal || '—'}<br />Action: {snapshot.state.currentAction ? `${snapshot.state.currentAction.name} (${snapshot.state.currentAction.phase})` : '—'}<br />Room: {snapshot.observation.state?.room.name ?? 'unknown'}{snapshot.observation.state?.navigation.destination ? ` · To: ${snapshot.observation.state.navigation.destination} (${snapshot.observation.state.navigation.done}/${snapshot.observation.state.navigation.total})` : ''}<br />HP: {snapshot.observation.state?.character.vitals.hp.value ?? '?'} / {snapshot.observation.state?.character.vitals.hpMax.value ?? '?'} · Resource: {snapshot.observation.state?.character.vitals.mana.value ?? '?'}</div>
     {error && <div className="ai-panel-copy">Error: {error}</div>}
     <div className="ai-panel-copy">Last result: {snapshot.state.lastActionResult || '—'}</div>
     <div className="ai-panel-copy">Requests: {snapshot.state.usage.requests} · Tokens: {snapshot.state.usage.inputTokens + snapshot.state.usage.outputTokens} · Est. ${snapshot.state.usage.estimatedCostUsd.toFixed(4)}</div>

@@ -10,6 +10,7 @@ export class OpenRouterProvider implements AiProvider {
     this.model = options.model ?? process.env.MUDENGINE_AI_MODEL ?? 'openai/gpt-4o-mini';
   }
   usage(): AiUsage { return { ...this.stats }; }
+  modelName(): string { return this.model; }
   setModel(model: string): void { if (model.trim()) this.model = model.trim(); }
   async decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision> {
     if (!this.key) throw new Error('OpenRouter is not configured. Set OPENROUTER_API_KEY in the main-process environment.');
@@ -20,7 +21,7 @@ export class OpenRouterProvider implements AiProvider {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', signal: controller.signal,
         headers: { Authorization: `Bearer ${this.key}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com/rayzorben/mudengine' },
         body: JSON.stringify({ model: this.model, temperature: 0.1, max_tokens: 350, response_format: { type: 'json_object' },
-          messages: [{ role: 'system', content: 'You control a MUD character at a high level. Return only JSON: {objective, explanation, action:{name,args?,reason}, done?}. Never PvP, irreversible actions, or unsupported commands. Delegate combat and movement.', }, { role: 'user', content: JSON.stringify({ objective, observation }) }] }) });
+          messages: [{ role: 'system', content: 'You control a MUD character at a high level. Use the structured state as authoritative; null means unknown, not zero or false. Choose one high-level action at a time and let deterministic MudEngine systems handle movement, combat, recovery, and command scheduling. Do not manually emit compass steps when navigate_to can route. Return only JSON: {objective, subgoal?, plan?:string[], explanation, action:{name,args?,reason}, done?}. Never PvP, irreversible actions, credentials, or unsupported commands. For navigation use action args {destination:"map/room" or a known room name}; for inspection choose the matching inspect action.', }, { role: 'user', content: JSON.stringify({ objective, observation }) }] }) });
       if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}`);
       const body = await response.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } };
       const content = body.choices?.[0]?.message?.content; if (!content) throw new Error('OpenRouter returned no decision');
