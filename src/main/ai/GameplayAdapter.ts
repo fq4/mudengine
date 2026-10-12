@@ -16,6 +16,7 @@ export interface GameplayAdapterDeps {
   inspect?(action: AiActionName): string | null;
   equipment?: EquipmentManager;
   moving?: boolean;
+  knownPlayers?: string[];
   walkRoute(route: Route, run?: boolean): string | null;
 }
 
@@ -36,6 +37,18 @@ export function executeGameplayAction(action: AiAction, deps: GameplayAdapterDep
     return { ok: true, phase: 'accepted', message: 'Equipment strategy delegated to EquipmentManager; awaiting inventory confirmation' };
   }
   if (action.name === 'wait') return { ok: true, phase: 'completed', message: 'Waiting for the next game-state update' };
+  if (action.name === 'send_message') {
+    const channel = action.args?.channel;
+    const message = typeof action.args?.message === 'string' ? action.args.message.trim() : '';
+    const target = typeof action.args?.target === 'string' ? action.args.target.trim() : '';
+    if (!['local', 'gossip', 'tell', 'telepath', 'broadcast'].includes(String(channel)) || message.length === 0 || message.length > 240)
+      return { ok: false, phase: 'failed', message: 'Refused: message channel or length is invalid' };
+    if ((channel === 'tell' || channel === 'telepath') && target.length === 0)
+      return { ok: false, phase: 'failed', message: `Refused: ${channel} communication requires a target` };
+    const command = channel === 'local' ? `.${message}` : channel === 'gossip' ? `gossip ${message}` : channel === 'broadcast' ? `-${message}` : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
+    const accepted = deps.queue.enqueue({ command, priority: 'user', reason: action.reason });
+    return { ok: accepted, phase: accepted ? 'accepted' : 'failed', message: accepted ? `${channel} message accepted by CommandQueue` : 'Message was refused by CommandQueue' };
+  }
   if (action.name === 'engage_enemy') {
     const name = typeof action.args?.name === 'string' ? action.args.name : '';
     if (!name || name.startsWith('@')) return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
@@ -46,6 +59,8 @@ export function executeGameplayAction(action: AiAction, deps: GameplayAdapterDep
     const destination: unknown = action.args?.destination;
     const match = typeof destination === 'string' ? destination.match(/^(\d+)\/(\d+)$/) : null;
     const here = deps.character.room;
+    if (typeof destination === 'string' && deps.knownPlayers?.some((player) => player.toLowerCase() === destination.trim().toLowerCase()))
+      return { ok: false, phase: 'failed', message: `Refused: ${destination} is a player, not a known room; player location is unknown` };
     if (!route && deps.world && here?.map !== null && here?.number !== null) {
       const target = match
         ? `${Number(match[1])}/${Number(match[2])}`

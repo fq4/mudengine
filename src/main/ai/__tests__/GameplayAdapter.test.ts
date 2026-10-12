@@ -31,4 +31,12 @@ describe('GameplayAdapter', () => {
     expect(executeGameplayAction({ name: 'navigate_to', args: { destination: 'Bank of Godfrey' }, reason: 'goal' }, withWorld)).toMatchObject({ ok: true, phase: 'accepted' });
     expect(world.route).toHaveBeenCalledWith('1/1', '1/9', {}, { alternatives: false });
   });
+  it('refuses player names as destinations and routes social actions through the queue', () => {
+    const d = { ...deps(), knownPlayers: ['Sunwolf'] };
+    expect(executeGameplayAction({ name: 'navigate_to', args: { destination: 'Sunwolf' }, reason: 'social goal' }, d)).toMatchObject({ ok: false, phase: 'failed' });
+    expect(executeGameplayAction({ name: 'send_message', args: { channel: 'gossip', message: 'hello, world' }, reason: 'roleplay' }, d)).toMatchObject({ ok: true, phase: 'accepted' });
+    expect(executeGameplayAction({ name: 'send_message', args: { channel: 'local', message: 'hello room' }, reason: 'roleplay' }, d)).toMatchObject({ ok: true });
+    expect((d.queue as { enqueue: ReturnType<typeof vi.fn> }).enqueue).toHaveBeenCalledWith(expect.objectContaining({ command: 'gossip hello, world' }));
+    expect((d.queue as { enqueue: ReturnType<typeof vi.fn> }).enqueue).toHaveBeenCalledWith(expect.objectContaining({ command: '.hello room' }));
+  });
 });

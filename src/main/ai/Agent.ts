@@ -31,7 +31,7 @@ export class AutonomousAgent {
       const decision = await this.provider.decide(observation, this.state.objective, this.aborter.signal);
       this.state.subgoal = decision.subgoal ?? this.state.subgoal; this.state.plan = decision.plan?.slice(0, 8) ?? this.state.plan; this.state.activity = decision.action.name; this.state.explanation = decision.explanation; this.state.status = 'executing'; this.state.currentAction = { name: decision.action.name, phase: 'requested', at: Date.now(), message: 'Action requested' }; this.remember('note', decision.explanation);
       const result = await this.executor.execute(decision.action); const phase = result.phase ?? (result.ok ? 'completed' : 'failed'); this.state.currentAction = { name: decision.action.name, phase, at: Date.now(), message: result.message }; this.remember(result.ok ? 'success' : 'failure', result.message);
-      this.state.lastActionResult = result.message; if (result.ok) this.learn(observation, decision); this.state.consecutiveFailures = result.ok ? 0 : this.state.consecutiveFailures + 1; this.state.status = result.ok ? 'idle' : 'error'; this.state.usage = this.provider.usage();
+      this.state.lastActionResult = result.message; if (result.ok) { this.learn(observation, decision); this.state.lastFailure = undefined; } else { this.state.lastFailure = { action: decision.action.name, message: result.message, phase, at: Date.now() }; } this.state.consecutiveFailures = result.ok ? 0 : this.state.consecutiveFailures + 1; this.state.status = result.ok ? 'idle' : 'error'; this.state.usage = this.provider.usage();
       return decision;
     } catch (error) {
       if (this.aborter?.signal.aborted) { this.state.status = this.state.enabled ? 'paused' : 'disabled'; return null; }

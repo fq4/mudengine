@@ -37,3 +37,19 @@ While Walker is walking, the agent does not spend another provider request for
 each confirmed step; it waits for arrival or an interruption before planning
 again. This keeps deterministic movement in MudEngine and reserves provider
 calls for meaningful decisions.
+
+## Social objectives and failures
+
+For roleplay objectives the agent can use `send_message` with `local`,
+`gossip`, `tell`, `telepath`, or `broadcast`. Local speech uses the room's
+communication prefix; gossip and remote channels are kept distinct in the
+action trace. Player names from presence data are never treated as room
+destinations. A player outside the current room has no navigable location
+unless the existing state explicitly provides one.
+
+OpenRouter failures include the provider's bounded error body and a category
+such as invalid request, unsupported parameter, context limit, authentication,
+rate limit, or server error. Authorization headers and keys are never included.
+Permanent HTTP 400 failures are not retried against the same request. Failed
+gameplay actions are passed back as planner feedback so the next decision can
+change strategy instead of repeating an impossible action.

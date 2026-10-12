@@ -49,7 +49,7 @@ export function aiStateView(character: CharacterState, navigation: WalkProgress,
     items: character.room.items.map((item) => ({ name: item.name, quantity: item.count ?? null }))
   };
   const walk: AiNavigationView = { status: navigation.status, destination: navigation.destination, destinationRoom: navigation.destinationRoom, done: navigation.done, total: navigation.total, ahead: navigation.ahead.slice(0, 25), reason: navigation.reason, hold: navigation.hold };
-  return { capturedAt: now, character: view, room, navigation: walk, event };
+  return { capturedAt: now, character: view, room, navigation: walk, presence: { online: character.online.map((player) => player.name).slice(0, 50), here: character.room.occupants.filter((occupant) => occupant.kind === 'player').map((occupant) => occupant.name) }, event };
 }
 
 export function describeAiInspection(action: AiActionName, view: AiStateView): string {

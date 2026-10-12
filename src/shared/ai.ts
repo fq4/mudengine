@@ -20,14 +20,14 @@ export interface AiRoomView {
   items: Array<{ name: string; quantity: number | null }>;
 }
 export interface AiNavigationView { status: string; destination: string | null; destinationRoom: { map: number; room: number } | null; done: number; total: number; ahead: string[]; reason: string | null; hold: string | null; }
-export interface AiStateView { capturedAt: number; character: AiCharacterView; room: AiRoomView; navigation: AiNavigationView; event: string | null; }
+export interface AiStateView { capturedAt: number; character: AiCharacterView; room: AiRoomView; navigation: AiNavigationView; presence: { online: string[]; here: string[] }; event: string | null; }
 
 /** Public, provider-neutral contract for optional autonomous gameplay. */
 export type AiStatus = 'disabled' | 'paused' | 'idle' | 'thinking' | 'executing' | 'error';
 export type AiActionName =
   | 'inspect_character' | 'inspect_room' | 'inspect_inventory' | 'inspect_map'
   | 'navigate_to' | 'engage_enemy' | 'recover_health' | 'inspect_combat_result'
-  | 'manage_equipment' | 'execute_supported_command' | 'wait';
+  | 'manage_equipment' | 'send_message' | 'execute_supported_command' | 'wait';
 
 export interface AiObservation {
   state?: AiStateView;
@@ -37,6 +37,7 @@ export interface AiObservation {
   map?: unknown;
   availableActions: readonly AiActionName[];
   event?: string;
+  feedback?: { action: AiActionName; message: string; phase: AiActionPhase };
 }
 
 export interface AiAction {
@@ -62,7 +63,7 @@ export interface AiProvider { decide(observation: AiObservation, objective: stri
 export interface AiState {
   enabled: boolean; status: AiStatus; objective: string; subgoal: string; plan: string[]; activity: string;
   explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
-  model: string; currentAction: { name: AiActionName; phase: AiActionPhase; at: number; message: string } | null; lastObservationHash?: string; consecutiveFailures: number;
+  model: string; currentAction: { name: AiActionName; phase: AiActionPhase; at: number; message: string } | null; lastFailure?: { action: AiActionName; message: string; phase: AiActionPhase; at: number }; lastObservationHash?: string; consecutiveFailures: number;
   knowledge: Array<{ at: number; topic: string; fact: string }>;
 }
 export interface AiSnapshot { state: AiState; observation: AiObservation; }
@@ -71,7 +72,7 @@ export interface AiPersistedState { objective: string; memories: AiMemory[]; rec
 export const AI_ACTIONS: readonly AiActionName[] = [
   'inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map',
   'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result',
-  'manage_equipment', 'execute_supported_command', 'wait'
+  'manage_equipment', 'send_message', 'execute_supported_command', 'wait'
 ];
 
 export function validateDecision(value: unknown): AiDecision {
