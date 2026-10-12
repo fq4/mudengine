@@ -6,6 +6,7 @@ import type { AutoCombat } from '../automation/AutoCombat';
 import type { CharacterState } from '../../shared/character';
 import type { AiActionName } from '../../shared/ai';
 import type { EquipmentManager } from '../automation/EquipmentManager';
+import { SocialController, type SocialChannel } from './SocialController';
 
 export interface GameplayAdapterDeps {
   character: CharacterState;
@@ -18,6 +19,7 @@ export interface GameplayAdapterDeps {
   moving?: boolean;
   knownPlayers?: string[];
   walkRoute(route: Route, run?: boolean): string | null;
+  social?: SocialController;
 }
 
 export function executeGameplayAction(action: AiAction, deps: GameplayAdapterDeps): AiActionResult {
@@ -45,6 +47,8 @@ export function executeGameplayAction(action: AiAction, deps: GameplayAdapterDep
       return { ok: false, phase: 'failed', message: 'Refused: message channel or length is invalid' };
     if ((channel === 'tell' || channel === 'telepath') && target.length === 0)
       return { ok: false, phase: 'failed', message: `Refused: ${channel} communication requires a target` };
+    const pacing = deps.social?.beforeSend({ channel: channel as SocialChannel, target, message });
+    if (pacing && !pacing.ok) return { ok: false, phase: 'failed', message: pacing.message };
     const command = channel === 'local' ? `.${message}` : channel === 'gossip' ? `gossip ${message}` : channel === 'broadcast' ? `-${message}` : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
     const accepted = deps.queue.enqueue({ command, priority: 'user', reason: action.reason });
     return { ok: accepted, phase: accepted ? 'accepted' : 'failed', message: accepted ? `${channel} message accepted by CommandQueue` : 'Message was refused by CommandQueue' };
@@ -75,6 +79,7 @@ export function executeGameplayAction(action: AiAction, deps: GameplayAdapterDep
   if (action.name === 'execute_supported_command') {
     const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
     if (!command || /^(kill|attack|hit)\s+@/i.test(command)) return { ok: false, phase: 'failed', message: 'Refused unsupported or PvP command' };
+    if (/^(gossip\s+|say\s+|tell\s+|telepath\s+|broadcast\s+|[.>-])\S?/i.test(command)) return { ok: false, phase: 'failed', message: 'Refused: use send_message for social communication' };
     const accepted = deps.queue.enqueue({ command, priority: 'user', reason: action.reason }); return { ok: accepted, phase: accepted ? 'accepted' : 'failed', message: accepted ? 'Command accepted by CommandQueue; awaiting parsed result' : 'Command was refused by CommandQueue' };
   }
   return { ok: false, phase: 'failed', message: `Action ${action.name} requires a route or deterministic adapter` };

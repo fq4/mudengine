@@ -20,6 +20,7 @@ export class AutonomousAgent {
       if (action === 'navigate_to' && navigation?.status === 'walking') {
         this.state.status = 'executing'; this.state.lastObservationHash = hash; return null;
       }
+      if (action === 'send_message' && !observation.event) return null;
       if (hash !== this.state.lastObservationHash) {
         this.state.currentAction = { ...this.state.currentAction, phase: 'completed', at: Date.now(), message: `Verified state change after ${action}` };
         this.state.lastActionResult = this.state.currentAction.message;

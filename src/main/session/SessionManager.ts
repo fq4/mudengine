@@ -63,7 +63,7 @@ import { Grounded } from './Grounded';
 import { Safety } from './Safety';
 import { FleeGoto } from './FleeGoto';
 import { Events } from '../automation/Events';
-import { AutonomousAgent } from '../ai/Agent'; import { OpenRouterProvider } from '../ai/OpenRouter'; import { executeGameplayAction } from '../ai/GameplayAdapter'; import { aiStateView, describeAiInspection } from '../ai/StateView';
+import { AutonomousAgent } from '../ai/Agent'; import { OpenRouterProvider } from '../ai/OpenRouter'; import { executeGameplayAction } from '../ai/GameplayAdapter'; import { aiStateView, describeAiInspection } from '../ai/StateView'; import { SocialController } from '../ai/SocialController';
 import type { AiAction, AiActionResult, AiObservation, AiPersistedState, AiSnapshot } from '../../shared/ai';
 import type { SessionModule } from '../automation/Module';
 import type { Loop } from '../../shared/loops';
@@ -392,7 +392,7 @@ export class SessionManager {
   private endedBy: ConnectionEnd | null = null;
 
   readonly queue: CommandQueue;
-  private readonly aiAgent: AutonomousAgent; private readonly aiProvider: OpenRouterProvider;
+  private readonly aiAgent: AutonomousAgent; private readonly aiProvider: OpenRouterProvider; private readonly social = new SocialController();
   readonly rules: RuleEngine;
   readonly walker: Walker;
   private readonly combatLease: CombatLease;
@@ -2074,10 +2074,10 @@ export class SessionManager {
     return this.tracker.current;
   }
   private aiObservation(event: string | null = null): AiObservation { const state = this.tracker.current; const view = aiStateView(state, this.walker.progress, event); return { state: view, character: view.character, room: view.room, inventory: view.character.inventory, map: view.navigation, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event === null ? {} : { event }), ...(this.aiAgent.state.lastFailure ? { feedback: this.aiAgent.state.lastFailure } : {}) }; }
-  get aiSnapshot(): AiSnapshot { return { state: this.aiAgent.state, observation: this.aiObservation() }; } aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); void this.aiTick(); return this.aiSnapshot; } aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; } aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; } aiGoal(goal: string): AiSnapshot { this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(goal); void this.aiTick(); return this.aiSnapshot; } async aiTick(): Promise<void> { await this.aiAgent.tick(this.aiObservation()); }
+  get aiSnapshot(): AiSnapshot { return { state: this.aiAgent.state, observation: this.aiObservation() }; } aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); void this.aiTick(); return this.aiSnapshot; } aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; } aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; } aiGoal(goal: string): AiSnapshot { this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(goal); void this.aiTick(); return this.aiSnapshot; } async aiTick(event: string | null = null): Promise<void> { await this.aiAgent.tick(this.aiObservation(event)); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> { const candidate = action as Partial<AiAction>; return !candidate || typeof candidate.name !== 'string' || typeof candidate.reason !== 'string' ? { ok: false, message: 'Invalid AI action' } : this.executeAiAction(candidate as AiAction); }
   aiRestore(saved: AiPersistedState): AiSnapshot { this.aiAgent.restore(saved); return this.aiSnapshot; }
-  private executeAiAction(action: AiAction): AiActionResult { return executeGameplayAction(action, { character: this.tracker.current, world: this.world, queue: this.queue, combat: this.combat, traveller: this.travellerNow(this.tracker.current), inspect: (name) => describeAiInspection(name, aiStateView(this.tracker.current, this.walker.progress)), equipment: this.gear, moving: this.walker.walking || this.loops.progress.status === 'running', knownPlayers: this.tracker.current.online.map((player) => player.name), walkRoute: (route, run) => this.walkRoute(route, run) }); }
+  private executeAiAction(action: AiAction): AiActionResult { return executeGameplayAction(action, { character: this.tracker.current, world: this.world, queue: this.queue, combat: this.combat, traveller: this.travellerNow(this.tracker.current), inspect: (name) => describeAiInspection(name, aiStateView(this.tracker.current, this.walker.progress)), equipment: this.gear, moving: this.walker.walking || this.loops.progress.status === 'running', knownPlayers: this.tracker.current.online.map((player) => player.name), social: this.social, walkRoute: (route, run) => this.walkRoute(route, run) }); }
 
   get players(): PlayerRegistry { return this.tracker.players; }
   /**
@@ -3185,7 +3185,14 @@ export class SessionManager {
     if (changed) {
       const state = this.tracker.current;
       this.publishCharacter();
-      void this.aiTick();
+      const socialTypes = new Set(['conversation-gossip', 'conversation-broadcast', 'conversation-telepath', 'conversation-directed', 'conversation-yell', 'conversation-local']);
+      const speaker = block.groups['player'];
+      const incomingSocial = socialTypes.has(block.type) && typeof speaker === 'string' && speaker.length > 0 && speaker.toLowerCase() !== 'you' && typeof block.groups['message'] === 'string';
+      if (incomingSocial) {
+        const channel = block.type === 'conversation-gossip' ? 'gossip' : block.type === 'conversation-broadcast' ? 'broadcast' : block.type === 'conversation-telepath' ? 'telepath' : 'local';
+        this.social.observeIncoming(channel, speaker, block.at);
+      }
+      void this.aiTick(incomingSocial ? `${block.type}: ${speaker}: ${block.groups['message']}` : null);
       /*
        * Walking out to the menu is a character *leaving*, and everything
        * automated is about the one that was here. Before the modules below
