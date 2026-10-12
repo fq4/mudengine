@@ -22,10 +22,12 @@ export function aiStateView(character: CharacterState, navigation: WalkProgress,
       expNeeded: known(character.progress.expNeeded, character.progress.expNeeded === null ? null : now),
       lives: known(character.progress.lives, character.progress.lives === null ? null : now)
     },
+    stats: { strength: character.progress.strength, intellect: character.progress.intellect, willpower: character.progress.willpower, agility: character.progress.agility, health: character.progress.health, charm: character.progress.charm, perception: character.progress.perception, stealth: character.progress.stealthSkill, thievery: character.progress.thievery, traps: character.progress.traps, tracking: character.progress.tracking, spellcasting: character.progress.spellcasting, armourClass: character.progress.armourClass, damageResist: character.progress.damageResist, magicResist: character.progress.magicRes, martialArts: character.progress.martialArts },
     conditions: {
       inCombat: character.inCombat, mortallyWounded: character.mortallyWounded, afflictions: character.afflictions,
       buffs: character.buffs.slice(-20).map((buff) => ({ spell: buff.spell, appliedAt: buff.appliedAt, expiresAt: buff.expiresAt ?? null }))
     },
+    combat: { engaged: character.combat.engaged, target: character.combat.target, attackers: character.combat.attackers.slice(), health: character.combat.health ? { name: character.combat.health.name, remaining: character.combat.health.remaining, observed: character.combat.health.observed } : null, blows: character.combat.blows },
     inventory: {
       knownAt: inventory.listedAt,
       items: inventory.items.map((item) => ({ name: item.name, quantity: item.count ?? null, equipped: item.equipped, slot: item.slot })),

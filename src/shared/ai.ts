@@ -6,7 +6,9 @@ export interface AiCharacterView {
   race: string | null; className: string | null;
   vitals: { hp: AiKnown<number>; hpMax: AiKnown<number>; mana: AiKnown<number>; manaMax: AiKnown<number>; manaType: CharacterState['vitals']['manaType']; resting: boolean; meditating: boolean };
   progress: { level: AiKnown<number>; exp: AiKnown<number>; expNeeded: AiKnown<number>; lives: AiKnown<number> };
+  stats: Record<string, number | null>;
   conditions: { inCombat: boolean; mortallyWounded: boolean; afflictions: CharacterState['afflictions']; buffs: Array<{ spell: string; appliedAt: number; expiresAt: number | null }> };
+  combat: { engaged: boolean; target: string | null; attackers: string[]; health: { name: string; remaining: number | null; observed: string | null } | null; blows: number };
   inventory: { knownAt: number | null; items: Array<{ name: string; quantity: number | null; equipped: boolean; slot: string | null }>; wealth: AiKnown<number>; encumbrance: AiKnown<number>; encumbranceMax: AiKnown<number>; keys: string[] };
   abilities: { spellsKnownAt: number | null; spells: Array<{ name: string; short: string | null; level: number | null; cost: number | null }>; abilitiesKnownAt: number | null };
 }
