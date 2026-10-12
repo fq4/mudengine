@@ -103,6 +103,12 @@ const api: IpcApi = {
   runLoop: (session, loop) => ipcRenderer.invoke(Invoke.runLoop, session, loop),
   getWalk: (session) => ipcRenderer.invoke(Invoke.getWalk, session),
   getAutomation: (session) => ipcRenderer.invoke(Invoke.getAutomation, session),
+  aiSnapshot: (session) => ipcRenderer.invoke(Invoke.aiSnapshot, session),
+  aiEnable: (session, model) => ipcRenderer.invoke(Invoke.aiEnable, session, model),
+  aiPause: (session) => ipcRenderer.invoke(Invoke.aiPause, session),
+  aiStop: (session) => ipcRenderer.invoke(Invoke.aiStop, session),
+  aiGoal: (session, goal) => ipcRenderer.invoke(Invoke.aiGoal, session, goal),
+  aiAction: (session, action) => ipcRenderer.invoke(Invoke.aiAction, session, action),
 
   listSessions: () => ipcRenderer.invoke(Invoke.listSessions),
   listProfiles: () => ipcRenderer.invoke(Invoke.listProfiles),
