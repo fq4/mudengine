@@ -5,6 +5,7 @@ import type { CommandQueue } from '../automation/CommandQueue';
 import type { AutoCombat } from '../automation/AutoCombat';
 import type { CharacterState } from '../../shared/character';
 import type { AiActionName } from '../../shared/ai';
+import type { EquipmentManager } from '../automation/EquipmentManager';
 
 export interface GameplayAdapterDeps {
   character: CharacterState;
@@ -13,6 +14,8 @@ export interface GameplayAdapterDeps {
   combat: AutoCombat;
   traveller: unknown;
   inspect?(action: AiActionName): string | null;
+  equipment?: EquipmentManager;
+  moving?: boolean;
   walkRoute(route: Route, run?: boolean): string | null;
 }
 
@@ -27,6 +30,12 @@ export function executeGameplayAction(action: AiAction, deps: GameplayAdapterDep
     const accepted = deps.queue.enqueue({ command: 'rest', priority: 'emergency', reason: action.reason });
     return { ok: accepted, phase: accepted ? 'accepted' : 'failed', message: accepted ? 'Recovery requested through CommandQueue; awaiting server confirmation' : 'Recovery was refused by CommandQueue' };
   }
+  if (action.name === 'manage_equipment') {
+    if (!deps.equipment) return { ok: false, phase: 'failed', message: 'Equipment automation is unavailable' };
+    deps.equipment.onCharacter(deps.character, deps.moving ?? false);
+    return { ok: true, phase: 'accepted', message: 'Equipment strategy delegated to EquipmentManager; awaiting inventory confirmation' };
+  }
+  if (action.name === 'wait') return { ok: true, phase: 'completed', message: 'Waiting for the next game-state update' };
   if (action.name === 'engage_enemy') {
     const name = typeof action.args?.name === 'string' ? action.args.name : '';
     if (!name || name.startsWith('@')) return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
