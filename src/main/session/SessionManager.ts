@@ -2073,15 +2073,12 @@ export class SessionManager {
   get character(): CharacterState {
     return this.tracker.current;
   }
-
   private aiObservation(): AiObservation { const state = this.tracker.current; return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'execute_supported_command', 'wait'] }; }
   get aiSnapshot(): AiSnapshot { return { state: this.aiAgent.state, observation: this.aiObservation() }; } aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; } aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; } aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; } aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); return this.aiSnapshot; } async aiTick(): Promise<void> { await this.aiAgent.tick(this.aiObservation()); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> { const candidate = action as Partial<AiAction>; return !candidate || typeof candidate.name !== 'string' || typeof candidate.reason !== 'string' ? { ok: false, message: 'Invalid AI action' } : this.executeAiAction(candidate as AiAction); }
   private executeAiAction(action: AiAction): { ok: boolean; message: string } { return executeGameplayAction(action, { character: this.tracker.current, world: this.world, queue: this.queue, combat: this.combat, traveller: this.travellerNow(this.tracker.current), walkRoute: (route, run) => this.walkRoute(route, run) }); }
 
-  get players(): PlayerRegistry {
-    return this.tracker.players;
-  }
+  get players(): PlayerRegistry { return this.tracker.players; }
 
   /**
    * Which lineage's arithmetic the *server* runs, as the wire stated it.
@@ -2092,9 +2089,7 @@ export class SessionManager {
    * main answers out of the realm file, which have to read a column the way
    * this server reads it. Null until the wire has said.
    */
-  get family(): RealmFamily | null {
-    return this.vocabulary.family;
-  }
+  get family(): RealmFamily | null { return this.vocabulary.family; }
 
   /**
    * This character's level, for a query out of the realm file that has to
@@ -2102,29 +2097,19 @@ export class SessionManager {
    * on level (todo 01). Null until a status line or a sheet has said, which
    * `hazardFor` reads as *keep the whole hazard*.
    */
-  get level(): number | null {
-    return this.tracker.current.progress.level;
-  }
+  get level(): number | null { return this.tracker.current.progress.level; }
 
   /** The class row's combat and magery and the wire's family, read once. See `Errands.realmClass`. */
-  get realmClass(): RealmClass {
-    return this.errands.realmClass();
-  }
+  get realmClass(): RealmClass { return this.errands.realmClass(); }
 
   /** What this character has learned about the realm the data does not have. See `Records`. */
-  get learned(): Discovery[] {
-    return this.records.learned;
-  }
+  get learned(): Discovery[] { return this.records.learned; }
 
   /** Strikes an observation out because the player says it is wrong. See `Records.forget`. */
-  forget(discovery: Pick<Discovery, 'from' | 'command'>): boolean {
-    return this.records.forget(discovery);
-  }
+  forget(discovery: Pick<Discovery, 'from' | 'command'>): boolean { return this.records.forget(discovery); }
 
   /** Strikes a find out because the player says it is wrong. See `Records.forgetFind`. */
-  forgetFind(find: Pick<Find, 'room' | 'name'>): boolean {
-    return this.records.forgetFind(find);
-  }
+  forgetFind(find: Pick<Find, 'room' | 'name'>): boolean { return this.records.forgetFind(find); }
 
   /** Everything a search has turned up in this realm. See `RealmFinds`. */
   get foundHere(): Find[] {

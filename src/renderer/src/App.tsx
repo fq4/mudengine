@@ -89,8 +89,7 @@ import { movementOf } from '@shared/movement';
 import { IDLE_QUEST_RUN } from '@shared/quests';
 import type { Addressed, ResetNotice } from '@shared/ipc';
 import MovementPrompt from './components/MovementPrompt';
-import ResetPrompt from './components/ResetPrompt';
-import AiPanel from './components/AiPanel';
+import ResetPrompt from './components/ResetPrompt'; import AiPanel from './components/AiPanel';
 import type { GlobalDraft, ProfileDraft, ServerDraft } from '@shared/drafts';
 import { type ProfileSummary, type SessionId, type SessionSummary } from '@shared/ipc';
 import type { ConnectionState, TerminalActionName, TerminalSize } from '@shared/types';
@@ -1561,8 +1560,7 @@ export default function App() {
           layer — only the cards themselves take the pointer, or an empty float
           layer would swallow every click meant for the game.
         */}
-        <FloatLayer boxRef={workspaceRef} layout={cards} render={renderCard} />
-        {session && <AiPanel session={session} />}
+        <FloatLayer boxRef={workspaceRef} layout={cards} render={renderCard} />{session && <AiPanel session={session} />}
         {sessions
           .filter((entry) => entry.id !== session)
           .map((entry) => (
