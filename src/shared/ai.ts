@@ -32,7 +32,7 @@ export interface AiUsage { requests: number; inputTokens: number; outputTokens: 
 export interface AiProvider { decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision>; usage(): AiUsage; }
 export interface AiState {
   enabled: boolean; status: AiStatus; objective: string; activity: string;
-  explanation: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
+  explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
   model: string; lastObservationHash?: string; consecutiveFailures: number;
 }
 export interface AiSnapshot { state: AiState; observation: AiObservation; }
