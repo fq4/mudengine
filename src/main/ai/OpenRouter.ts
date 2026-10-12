@@ -28,6 +28,12 @@ export class OpenRouterProvider implements AiProvider {
       const input = body.usage?.prompt_tokens ?? 0, output = body.usage?.completion_tokens ?? 0;
       this.stats = { requests: this.stats.requests + 1, inputTokens: this.stats.inputTokens + input, outputTokens: this.stats.outputTokens + output, estimatedCostUsd: this.stats.estimatedCostUsd + ((input * 0.15 + output * 0.6) / 1_000_000) };
       return decision;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('OpenRouter ')) throw error;
+      const code = error && typeof error === 'object' && 'cause' in error
+        ? String((error as { cause?: { code?: string; message?: string } }).cause?.code ?? (error as { cause?: { message?: string } }).cause?.message ?? '')
+        : '';
+      throw new Error(`OpenRouter request failed${code ? ` (${code})` : ''}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     } finally { clearTimeout(timer); }
   }
 }
