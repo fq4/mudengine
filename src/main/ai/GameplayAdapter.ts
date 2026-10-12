@@ -49,7 +49,7 @@ export function executeGameplayAction(action: AiAction, deps: GameplayAdapterDep
       return { ok: false, phase: 'failed', message: `Refused: ${channel} communication requires a target` };
     const pacing = deps.social?.beforeSend({ channel: channel as SocialChannel, target, message });
     if (pacing && !pacing.ok) return { ok: false, phase: 'failed', message: pacing.message };
-    const command = channel === 'local' ? `.${message}` : channel === 'gossip' ? `gossip ${message}` : channel === 'broadcast' ? `-${message}` : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
+    const command = channel === 'local' ? `.${message}` : channel === 'gossip' ? `gos ${message}` : channel === 'broadcast' ? `-${message}` : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
     const accepted = deps.queue.enqueue({ command, priority: 'user', reason: action.reason });
     return { ok: accepted, phase: accepted ? 'accepted' : 'failed', message: accepted ? `${channel} message accepted by CommandQueue` : 'Message was refused by CommandQueue' };
   }

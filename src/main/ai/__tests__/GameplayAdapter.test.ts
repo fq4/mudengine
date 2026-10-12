@@ -36,7 +36,7 @@ describe('GameplayAdapter', () => {
     expect(executeGameplayAction({ name: 'navigate_to', args: { destination: 'Sunwolf' }, reason: 'social goal' }, d)).toMatchObject({ ok: false, phase: 'failed' });
     expect(executeGameplayAction({ name: 'send_message', args: { channel: 'gossip', message: 'hello, world' }, reason: 'roleplay' }, d)).toMatchObject({ ok: true, phase: 'accepted' });
     expect(executeGameplayAction({ name: 'send_message', args: { channel: 'local', message: 'hello room' }, reason: 'roleplay' }, d)).toMatchObject({ ok: true });
-    expect((d.queue as { enqueue: ReturnType<typeof vi.fn> }).enqueue).toHaveBeenCalledWith(expect.objectContaining({ command: 'gossip hello, world' }));
+    expect((d.queue as { enqueue: ReturnType<typeof vi.fn> }).enqueue).toHaveBeenCalledWith(expect.objectContaining({ command: 'gos hello, world' }));
     expect((d.queue as { enqueue: ReturnType<typeof vi.fn> }).enqueue).toHaveBeenCalledWith(expect.objectContaining({ command: '.hello room' }));
   });
 });
