@@ -10,6 +10,7 @@ export class AutonomousAgent {
   enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; }
+  clear(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; this.state.objective = ''; this.state.subgoal = ''; this.state.plan = []; this.state.activity = ''; this.state.explanation = ''; this.state.currentAction = null; this.state.lastFailure = undefined; this.state.lastObservationHash = undefined; }
   restore(saved: AiPersistedState): void { this.state.objective = saved.objective; this.state.subgoal = saved.subgoal ?? ''; this.state.plan = (saved.plan ?? []).slice(0, 8); this.state.knowledge = (saved.knowledge ?? []).slice(-50); this.state.memories = saved.memories.slice(-50); this.state.recent = saved.recent.slice(-8); this.state.lastActionResult = saved.lastActionResult; }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
     if (!this.state.enabled || this.state.status === 'paused' || !this.state.objective) return null;

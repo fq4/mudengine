@@ -624,6 +624,7 @@ export const Invoke = {
   aiEnable: 'ai:enable',
   aiPause: 'ai:pause',
   aiStop: 'ai:stop',
+  aiClear: 'ai:clear',
   aiGoal: 'ai:goal',
   aiAction: 'ai:action',
   aiRestore: 'ai:restore',
@@ -1251,6 +1252,7 @@ export interface IpcApi {
   aiEnable(session: SessionId, model?: string): Promise<AiSnapshot>;
   aiPause(session: SessionId): Promise<AiSnapshot>;
   aiStop(session: SessionId): Promise<AiSnapshot>;
+  aiClear(session: SessionId): Promise<AiSnapshot>;
   aiGoal(session: SessionId, goal: string): Promise<AiSnapshot>;
   aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
   aiRestore(session: SessionId, state: AiPersistedState): Promise<AiSnapshot>;
