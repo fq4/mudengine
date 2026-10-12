@@ -2079,7 +2079,6 @@ export class SessionManager {
   private executeAiAction(action: AiAction): { ok: boolean; message: string } { return executeGameplayAction(action, { character: this.tracker.current, world: this.world, queue: this.queue, combat: this.combat, traveller: this.travellerNow(this.tracker.current), walkRoute: (route, run) => this.walkRoute(route, run) }); }
 
   get players(): PlayerRegistry { return this.tracker.players; }
-
   /**
    * Which lineage's arithmetic the *server* runs, as the wire stated it.
    *
