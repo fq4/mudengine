@@ -13,7 +13,19 @@ export class AutonomousAgent {
   restore(saved: AiPersistedState): void { this.state.objective = saved.objective; this.state.subgoal = saved.subgoal ?? ''; this.state.plan = (saved.plan ?? []).slice(0, 8); this.state.knowledge = (saved.knowledge ?? []).slice(-50); this.state.memories = saved.memories.slice(-50); this.state.recent = saved.recent.slice(-8); this.state.lastActionResult = saved.lastActionResult; }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
     if (!this.state.enabled || this.state.status === 'paused' || !this.state.objective) return null;
-    const hash = observationHash(observation); if (hash === this.state.lastObservationHash) return null;
+    const hash = observationHash(observation);
+    if (this.state.currentAction?.phase === 'accepted') {
+      const navigation = observation.state?.navigation;
+      const action = this.state.currentAction.name;
+      if (action === 'navigate_to' && navigation?.status === 'walking') {
+        this.state.status = 'executing'; this.state.lastObservationHash = hash; return null;
+      }
+      if (hash !== this.state.lastObservationHash) {
+        this.state.currentAction = { ...this.state.currentAction, phase: 'completed', at: Date.now(), message: `Verified state change after ${action}` };
+        this.state.lastActionResult = this.state.currentAction.message;
+      }
+    }
+    if (hash === this.state.lastObservationHash) return null;
     this.state.lastObservationHash = hash; this.state.status = 'thinking'; this.aborter = new AbortController();
     try {
       const decision = await this.provider.decide(observation, this.state.objective, this.aborter.signal);

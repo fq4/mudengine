@@ -33,3 +33,7 @@ model never supplies a route that is accepted without engine validation.
 Action results distinguish completed inspection from an action accepted by a
 deterministic subsystem and still awaiting server/state confirmation. The
 panel shows the current subgoal, action phase, room, and navigation progress.
+While Walker is walking, the agent does not spend another provider request for
+each confirmed step; it waits for arrival or an interruption before planning
+again. This keeps deterministic movement in MudEngine and reserves provider
+calls for meaningful decisions.

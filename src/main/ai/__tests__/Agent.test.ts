@@ -18,4 +18,16 @@ describe('AutonomousAgent', () => {
     const agent = new AutonomousAgent(provider, { execute: vi.fn() }); agent.enable('x'); const pending = agent.tick(observation); agent.pause(); reject(new Error('aborted')); await pending;
     expect(agent.state.status).toBe('paused');
   });
+  it('waits for deterministic navigation instead of asking on every step', async () => {
+    const decide = vi.fn()
+      .mockResolvedValueOnce({ objective: 'travel', explanation: 'Go there', action: { name: 'navigate_to', reason: 'route' } })
+      .mockResolvedValueOnce({ objective: 'travel', explanation: 'Arrived, inspect', action: { name: 'inspect_room', reason: 'arrival' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const execute = vi.fn().mockResolvedValue({ ok: true, phase: 'accepted', message: 'walking' });
+    const agent = new AutonomousAgent(provider, { execute }); agent.enable('travel');
+    const walking: any = { state: { navigation: { status: 'walking' } }, character: {}, room: {}, availableActions: [] };
+    const arrived: any = { state: { navigation: { status: 'arrived' } }, character: {}, room: {}, availableActions: [] };
+    await agent.tick(walking); await agent.tick({ ...walking, state: { navigation: { status: 'walking' }, step: 2 } }); await agent.tick(arrived);
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
 });
