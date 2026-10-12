@@ -3274,6 +3274,12 @@ export class SessionManager {
       if (!name || name.startsWith('@')) return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
       this.combat.alsoFight(name); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
     }
+    if (action.name === 'navigate_to') {
+      const route = action.args?.route as Route | undefined;
+      if (!route || !Array.isArray(route.steps)) return { ok: false, message: 'Refused: navigation requires a validated route' };
+      const refusal = this.walkRoute(route, true);
+      return { ok: refusal === null, message: refusal ?? 'Navigation delegated to Walker' };
+    }
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
       if (!command || /^(kill|attack|hit)\s+@/i.test(command)) return { ok: false, message: 'Refused unsupported or PvP command' };
