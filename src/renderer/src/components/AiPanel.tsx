@@ -17,6 +17,7 @@ export default function AiPanel({ session }: { session: SessionId }) {
     <div className="ai-panel-row"><label>Goal</label><input value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && goal.trim()) { run(api.aiGoal(session, goal.trim())); setGoal(''); } }} placeholder="Explore nearby safe rooms" /></div>
     <div className="ai-panel-actions"><button onClick={() => run(api.aiEnable(session))}>Start / Resume</button><button onClick={() => run(api.aiPause(session))}>Pause</button><button onClick={() => run(api.aiStop(session))}>Stop</button><button onClick={() => api.aiAction(session, action).then(refresh)}>Observe</button></div>
     <div className="ai-panel-copy"><strong>{snapshot.state.objective || 'No objective'}</strong><br />{snapshot.state.explanation || 'AI is disabled.'}</div>
+    <div className="ai-panel-copy">Last result: {snapshot.state.lastActionResult || '—'}</div>
     <div className="ai-panel-copy">Requests: {snapshot.state.usage.requests} · Tokens: {snapshot.state.usage.inputTokens + snapshot.state.usage.outputTokens} · Est. ${snapshot.state.usage.estimatedCostUsd.toFixed(4)}</div>
     <ul>{snapshot.state.recent.map((item, i) => <li key={`${i}-${item}`}>{item}</li>)}</ul>
   </aside>;

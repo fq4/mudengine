@@ -2103,7 +2103,14 @@ export class SessionManager {
       this.combat.alsoFight(name); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
     }
     if (action.name === 'navigate_to') {
-      const route = action.args?.route as Route | undefined;
+      let route = action.args?.route as Route | undefined;
+      if (!route && typeof action.args?.destination === 'string' && this.world) {
+        const match = action.args.destination.match(/^(\d+)\/(\d+)$/);
+        const here = this.tracker.current.room;
+        if (match && here?.map !== null && here?.number !== null) {
+          route = this.world.route(roomId(here.map, here.number), roomId(Number(match[1]), Number(match[2])), this.travellerNow(this.tracker.current), { alternatives: false });
+        }
+      }
       if (!route || !Array.isArray(route.steps)) return { ok: false, message: 'Refused: navigation requires a validated route' };
       const refusal = this.walkRoute(route, true);
       return { ok: refusal === null, message: refusal ?? 'Navigation delegated to Walker' };

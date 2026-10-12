@@ -1586,7 +1586,7 @@ function registerIpc(): void {
     Invoke.getAutomation,
     (_caller, session: SessionId) => host?.get(session)?.manager.automation ?? EMPTY_AUTOMATION
   );
-  handle(Invoke.aiSnapshot, (_caller, session: SessionId) => host?.get(session)?.manager.aiSnapshot ?? { state: { enabled: false, status: 'disabled', objective: '', activity: '', explanation: '', memories: [], recent: [], usage: { requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }, model: 'openrouter', consecutiveFailures: 0 }, observation: { character: {}, room: null, availableActions: [] } });
+  handle(Invoke.aiSnapshot, (_caller, session: SessionId) => host?.get(session)?.manager.aiSnapshot ?? { state: { enabled: false, status: 'disabled', objective: '', activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: { requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }, model: 'openrouter', consecutiveFailures: 0 }, observation: { character: {}, room: null, availableActions: [] } });
   handle(Invoke.aiEnable, (_caller, session: SessionId, model?: string) => host?.get(session)?.manager.aiEnable(model));
   handle(Invoke.aiPause, (_caller, session: SessionId) => host?.get(session)?.manager.aiPause());
   handle(Invoke.aiStop, (_caller, session: SessionId) => host?.get(session)?.manager.aiStop());
