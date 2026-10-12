@@ -6,7 +6,7 @@ AI is disabled by default and is deliberately a high-level controller. It observ
 
 Set `OPENROUTER_API_KEY` in the environment of the main Electron process. The key is never sent to the renderer or included in logs. Select a model with `MUDENGINE_AI_MODEL` (default: `openai/gpt-4o-mini`). If the key is absent, enabling AI reports a configuration error and performs no gameplay.
 
-The agent is opt-in per character. Enable it only after connecting, enter a natural-language objective, and use pause or stop for immediate takeover. Any manual input should pause the agent before deterministic automation resumes. Repeated unchanged observations are suppressed, and the agent records bounded recent memories and provider usage for the character.
+The agent is opt-in per character. Enable it only after connecting, enter a natural-language objective, and use pause or stop for immediate takeover. Any manual input pauses the agent before deterministic automation resumes. Repeated unchanged observations are suppressed. The panel restores each character's objective, bounded recent memories, recent activity, and last action result across renderer/application restarts; this persisted state contains no credentials.
 
 ## Safety and limitations
 
