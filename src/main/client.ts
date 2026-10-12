@@ -1435,12 +1435,16 @@ function registerIpc(): void {
   });
 
   on(Send.input, (_caller, session: SessionId, data: string) => {
-    host?.get(session)?.manager.send(data);
+    const manager = host?.get(session)?.manager;
+    manager?.aiPause();
+    manager?.send(data);
   });
 
   // Parsed again in main; a payload that is not a string is not a line.
   on(Send.macro, (_caller, session: SessionId, line: unknown) => {
-    if (typeof line === 'string') host?.get(session)?.manager.sendMacro(line);
+    const manager = host?.get(session)?.manager;
+    manager?.aiPause();
+    if (typeof line === 'string') manager?.sendMacro(line);
   });
 
   on(Send.dropMacro, (_caller, session: SessionId) => {
