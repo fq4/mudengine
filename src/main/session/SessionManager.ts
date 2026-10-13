@@ -93,6 +93,7 @@ import { classifyCommand, type AiPermissionLayers, type AiAuthorization } from '
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
 import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../ai/navigation';
+import { compactCharacterObservation } from '../ai/observation';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import type { AiAction, AiObservation, AiPolicyRule, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
@@ -3358,7 +3359,9 @@ export class SessionManager {
     // Room and inventory are already provided as dedicated authoritative
     // observation fields. Do not serialize those large structures a second
     // time inside the character object on every provider request.
-    const { room, inventory, ...character } = state;
+    const room = state.room;
+    const inventory = state.inventory;
+    const character = compactCharacterObservation(state);
     const memories = (
       this.aiMemory?.relevant(this.aiAgent.state.objective || event || '') ?? []
     ).map(({ category, text, provenance, confidence, verified }) => ({

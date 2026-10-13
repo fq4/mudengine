@@ -200,3 +200,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   1.8k while inspection and two-room navigation remained correct.
 - Renderer and Node typechecks plus the production Electron build passed after
   the observation change; the existing large-renderer-chunk warning remains.
+- The compact-character projection is now isolated and unit-tested. A fresh
+  bounded `kefka` run passed all eight scenarios with zero violations; the
+  inspection request used 1,694 input tokens.
