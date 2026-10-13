@@ -37,7 +37,7 @@ export interface AiProviderDiagnostic { ok: boolean; provider: string; model?: s
 export interface AiState {
   enabled: boolean; status: AiStatus; objective: string; objectiveComplete?: boolean; activity: string;
   explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
-  model: string; lastObservationHash?: string; consecutiveFailures: number;
+  model: string; lastObservationHash?: string; consecutiveFailures: number; budgetResetAt?: number;
   currentAction?: { name: AiActionName; phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed' | 'interrupted'; message: string } | null;
   pendingApprovals: AiApproval[]; approvalHistory: AiApproval[]; temporaryGrants?: AiTemporaryGrant[];
 }
