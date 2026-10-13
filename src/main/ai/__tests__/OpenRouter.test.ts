@@ -37,6 +37,11 @@ describe('OpenRouterProvider', () => {
     fetch.mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'x', action: { name: 'dance', reason: 'x' } }) } }] }), { status: 200 }));
     await expect(new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: [] }, 'x')).rejects.toThrow('dance');
   });
+  it('keeps safe inspection decisions auditable when the model omits reason', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'inspect', explanation: 'look', action: { name: 'inspect_character' }, done: true }) } }] }), { status: 200 }));
+    const decision = await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['inspect_character'] }, 'inspect the character');
+    expect(decision.action.reason).toBe('Model requested inspect_character');
+  });
   it('reports provider connectivity without exposing credentials', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const result = await new OpenRouterProvider({ apiKey: 'secret', model: 'test/model' }).testConnection();
