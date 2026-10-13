@@ -28,7 +28,14 @@ export class AutonomousAgent {
     if (this.state.currentAction?.phase === 'accepted') {
       if (this.delegatedOperationActive?.(this.state.currentAction.name)) return null;
       if (hash === this.state.lastObservationHash) return null;
-      this.state.currentAction = { ...this.state.currentAction, phase: 'completed', message: 'Observed a state change after the delegated action' };
+      if (this.isFailureEvent(observation.event)) {
+        this.state.currentAction = { ...this.state.currentAction, phase: 'failed', message: `Delegated action failed: ${observation.event}` };
+        this.state.lastActionResult = this.state.currentAction.message;
+        this.state.consecutiveFailures += 1;
+        this.lastFailedAction = this.state.currentAction.name;
+      } else {
+        this.state.currentAction = { ...this.state.currentAction, phase: 'completed', message: 'Observed a state change after the delegated action' };
+      }
     }
     if (hash === this.state.lastObservationHash) return null;
     if (this.state.consecutiveFailures >= 2 && this.lastFailedAction) { this.state.status = 'error'; this.state.lastActionResult = 'Repeated action suppressed; change the objective or strategy'; return null; }
@@ -60,4 +67,7 @@ export class AutonomousAgent {
     finally { this.aborter = null; this.ticking = false; }
   }
   private remember(kind: 'success' | 'failure' | 'note', text: string): void { this.state.memories.push({ at: Date.now(), kind, text }); this.state.memories = this.state.memories.slice(-50); this.state.recent = this.state.memories.slice(-8).map((m) => m.text); }
+  private isFailureEvent(event: string | undefined): boolean {
+    return event === 'direction-failed' || event === 'peek-failed' || event === 'command-not-understood' || event === 'command-refused' || event === 'user-search-failed' || event === 'spell-refused' || event === 'user-dies';
+  }
 }

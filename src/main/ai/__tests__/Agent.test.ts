@@ -38,6 +38,18 @@ describe('AutonomousAgent', () => {
     await agent.tick({ ...observation, room: { id: 2 } });
     expect(decide).toHaveBeenCalledTimes(1);
   });
+  it('treats a meaningful failure event as delegated-action failure', async () => {
+    const decide = vi.fn()
+      .mockResolvedValueOnce({ objective: 'travel', explanation: 'Route', action: { name: 'navigate_to', reason: 'travel' } })
+      .mockResolvedValueOnce({ objective: 'travel', explanation: 'Try another route', action: { name: 'inspect_room', reason: 'reassess' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const execute = vi.fn().mockResolvedValue({ ok: true, message: 'accepted' });
+    const agent = new AutonomousAgent(provider, { execute }); agent.enable('travel');
+    await agent.tick(observation);
+    await agent.tick({ ...observation, event: 'direction-failed' });
+    expect(agent.state.currentAction?.name).toBe('inspect_room');
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
   it('coalesces provider calls while a decision is in flight', async () => {
     let release!: (decision: unknown) => void;
     const decide = vi.fn().mockImplementation(() => new Promise((resolve) => { release = resolve; }));
