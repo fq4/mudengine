@@ -90,6 +90,7 @@ import { AutonomousAgent } from '../ai/Agent';
 import { OpenRouterProvider } from '../ai/OpenRouter';
 import { classifyCommand } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
+import { ApprovalStore } from '../ai/Approvals';
 import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
@@ -996,6 +997,7 @@ export class SessionManager {
   private readonly aiAgent: AutonomousAgent;
   private readonly aiProvider: OpenRouterProvider;
   private readonly aiSocial = new SocialGate();
+  private readonly aiApprovals = new ApprovalStore();
   readonly rules: RuleEngine;
   /** The realm's message table, answering the realm. See `MessageTriggers`. */
   readonly messages: MessageTriggers;
@@ -3256,10 +3258,12 @@ export class SessionManager {
     return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'] };
   }
 
-  get aiSnapshot(): AiSnapshot { return { state: this.aiAgent.state, observation: this.aiObservation() }; }
+  get aiSnapshot(): AiSnapshot { const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history }, observation: this.aiObservation() }; }
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
+  aiApprove(id: string): AiSnapshot { this.aiApprovals.approve(id); return this.aiSnapshot; }
+  aiReject(id: string): AiSnapshot { this.aiApprovals.reject(id); return this.aiSnapshot; }
   aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); void this.aiTick(); return this.aiSnapshot; }
   async aiTick(): Promise<void> { await this.aiAgent.tick(this.aiObservation()); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
@@ -3306,7 +3310,7 @@ export class SessionManager {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
       const classification = classifyCommand(command);
       if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
-      if (classification.authorization === 'ask-first') return { ok: false, message: `Approval required: ${classification.reason}` };
+      if (classification.authorization === 'ask-first') { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown'); return { ok: false, message: `Approval required (${approval.id}): ${classification.reason}` }; }
       return { ok: this.queue.enqueue({ command, priority: 'user', reason: action.reason }), message: 'Command delegated to CommandQueue' };
     }
     return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };

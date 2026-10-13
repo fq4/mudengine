@@ -28,6 +28,7 @@ export interface AiDecision {
 }
 
 export interface AiMemory { at: number; kind: 'success' | 'failure' | 'note'; text: string; }
+export interface AiApproval { id: string; command: string; reason: string; risk: 'high' | 'unknown'; createdAt: number; expiresAt: number; status: 'pending' | 'approved' | 'rejected' | 'expired'; }
 export interface AiUsage { requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number; }
 export interface AiProvider { decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision>; usage(): AiUsage; }
 export interface AiState {
@@ -35,6 +36,7 @@ export interface AiState {
   explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
   model: string; lastObservationHash?: string; consecutiveFailures: number;
   currentAction?: { name: AiActionName; phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed'; message: string } | null;
+  pendingApprovals: AiApproval[]; approvalHistory: AiApproval[];
 }
 export interface AiSnapshot { state: AiState; observation: AiObservation; }
 

@@ -19,6 +19,7 @@ export default function AiPanel({ session }: { session: SessionId }) {
     <div className="ai-panel-copy"><strong>{snapshot.state.objective || 'No objective'}</strong><br />{snapshot.state.explanation || 'AI is disabled.'}</div>
     <div className="ai-panel-copy">Last result: {snapshot.state.lastActionResult || '—'}</div>
     <div className="ai-panel-copy">Requests: {snapshot.state.usage.requests} · Tokens: {snapshot.state.usage.inputTokens + snapshot.state.usage.outputTokens} · Est. ${snapshot.state.usage.estimatedCostUsd.toFixed(4)}</div>
+    {snapshot.state.pendingApprovals.length > 0 && <div className="ai-panel-copy"><strong>Pending approvals</strong>{snapshot.state.pendingApprovals.map((approval) => <div key={approval.id}><div>{approval.command}</div><small>{approval.reason} · {approval.risk} · expires {new Date(approval.expiresAt).toLocaleTimeString()}</small><div className="ai-panel-actions"><button onClick={() => run(api.aiApprove(session, approval.id))}>Approve</button><button onClick={() => run(api.aiReject(session, approval.id))}>Reject</button></div></div>)}</div>}
     <ul>{snapshot.state.recent.map((item, i) => <li key={`${i}-${item}`}>{item}</li>)}</ul>
   </aside>;
 }

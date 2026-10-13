@@ -613,6 +613,8 @@ export const Invoke = {
   aiStop: 'ai:stop',
   aiGoal: 'ai:goal',
   aiAction: 'ai:action',
+  aiApprove: 'ai:approve',
+  aiReject: 'ai:reject',
   // -- per session
   connect: 'session:connect',
   disconnect: 'session:disconnect',
@@ -1234,6 +1236,8 @@ export interface IpcApi {
   aiStop(session: SessionId): Promise<AiSnapshot>;
   aiGoal(session: SessionId, goal: string): Promise<AiSnapshot>;
   aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
+  aiApprove(session: SessionId, id: string): Promise<AiSnapshot>;
+  aiReject(session: SessionId, id: string): Promise<AiSnapshot>;
 
   listSessions(): Promise<SessionSummary[]>;
   listProfiles(): Promise<ProfileSummary[]>;

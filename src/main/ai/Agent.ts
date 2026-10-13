@@ -6,7 +6,7 @@ export class AutonomousAgent {
   readonly state: AiState;
   private aborter: AbortController | null = null;
   constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
-    this.state = { enabled: false, status: 'disabled', objective: '', activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, ...initial };
+    this.state = { enabled: false, status: 'disabled', objective: '', activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], ...initial };
   }
   enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
