@@ -343,3 +343,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - AI suite passed 83/83. The bounded `kefka` harness passed all eight scenarios
   with zero violations; exact navigation, approvals, budgets, interruption,
   and emergency stop remained green.
+
+### 2026-10-13 - safe general-command queue coverage
+
+- Added connected simulated-server coverage proving a known safe `look` command
+  is delegated directly to CommandQueue, reaches the wire, and creates no
+  approval request. This complements the existing unknown-command approval
+  coverage.
+- The focused regression passed and both typechecks passed.

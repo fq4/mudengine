@@ -269,6 +269,23 @@ describe('AI reconnect lifecycle', () => {
     expect(manager.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
   });
 
+  it('queues a known safe command immediately without creating approval', async () => {
+    const { sink } = collect();
+    manager = new SessionManager(sink);
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const socket = await client();
+    let wire = '';
+    socket.on('data', (chunk) => { wire += chunk.toString('latin1'); });
+    const result = await manager.aiAction({
+      name: 'execute_supported_command',
+      args: { command: 'look' },
+      reason: 'inspect the current room'
+    });
+    expect(result).toEqual({ ok: true, message: 'Command delegated to CommandQueue' });
+    expect(manager.aiSnapshot.state.pendingApprovals).toHaveLength(0);
+    await until(() => wire.includes('look\r\n'));
+  });
+
   it('does not resume AI while the session is outside the realm', () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
