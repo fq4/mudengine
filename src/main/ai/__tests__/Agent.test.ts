@@ -29,4 +29,12 @@ describe('AutonomousAgent', () => {
     await agent.tick({ ...observation, room: { id: 2 }, availableActions: ['navigate_to'] });
     expect(decide).toHaveBeenCalledTimes(2);
   });
+  it('coalesces provider calls while a decision is in flight', async () => {
+    let release!: (decision: unknown) => void;
+    const decide = vi.fn().mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'done' }) }); agent.enable('observe');
+    const first = agent.tick(observation); const second = agent.tick({ ...observation, room: { id: 2 } });
+    expect(decide).toHaveBeenCalledTimes(1); release({ objective: 'observe', explanation: 'look', action: { name: 'inspect_room', reason: 'observe' } }); await Promise.all([first, second]);
+  });
 });
