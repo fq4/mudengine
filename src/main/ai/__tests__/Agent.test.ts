@@ -62,6 +62,24 @@ describe('AutonomousAgent', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     expect(agent.state.status).toBe('idle');
   });
+  it('reassesses after an explicit resume even when the observation is unchanged', async () => {
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'observe',
+      explanation: 'Inspect current state',
+      action: { name: 'inspect_character', reason: 'reassess' }
+    });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({ requests: decide.mock.calls.length, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
+    };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'observed' }) });
+    agent.enable('observe');
+    await agent.tick(observation);
+    agent.pause();
+    agent.enable('observe');
+    await agent.tick(observation);
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
   it('cancels pending inference on pause', async () => {
     let reject!: (e: Error) => void;
     const provider: AiProvider = {

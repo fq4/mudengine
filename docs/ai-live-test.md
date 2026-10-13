@@ -139,3 +139,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   socket reconnect, with no automatic resume of stale actions.
 - Resume is now refused while the session is outside the realm; the user must
   reconnect and obtain an authoritative in-game state before enabling AI.
+- Explicit resume now clears the prior observation fingerprint and forces a
+  fresh provider decision, even when the visible state is unchanged; this is
+  covered by an agent regression test.

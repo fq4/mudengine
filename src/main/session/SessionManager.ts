@@ -3433,7 +3433,7 @@ export class SessionManager {
     };
   }
   aiEnable(model?: string): AiSnapshot {
-    if (this.current.phase !== 'in-game') {
+    if (this.tracker.current.phase !== 'in-game') {
       this.aiAgent.stop();
       this.aiAgent.state.lastActionResult = 'AI cannot resume until the active character is in-game';
       return this.aiSnapshot;
