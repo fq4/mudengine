@@ -13,4 +13,8 @@ describe('AiBudget', () => {
     const budget = new AiBudget({ requestsPerMinute: 2, requestsPerHour: 10, sessionCostUsd: 0.25 });
     expect(budget.check({ ...usage, estimatedCostUsd: 0.25 })).toMatchObject({ ok: false });
   });
+  it('pauses when provider-reported session tokens are exhausted', () => {
+    const budget = new AiBudget({ requestsPerMinute: 6, requestsPerHour: 60, sessionCostUsd: 1, sessionTokens: 100 });
+    expect(budget.check({ ...usage, inputTokens: 60, outputTokens: 40 })).toMatchObject({ ok: false });
+  });
 });

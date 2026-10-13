@@ -27,7 +27,7 @@ export class AutonomousAgent {
     if (hash === this.state.lastObservationHash) return null;
     if (this.state.consecutiveFailures >= 2 && this.lastFailedAction) { this.state.status = 'error'; this.state.lastActionResult = 'Repeated action suppressed; change the objective or strategy'; return null; }
     const budget = this.budget.check(this.provider.usage());
-    if (!budget.ok) { this.state.status = 'error'; this.state.lastActionResult = `Budget Paused: ${budget.reason}`; return null; }
+    if (!budget.ok) { this.state.status = 'budget-paused'; this.state.lastActionResult = `Budget Paused: ${budget.reason}`; return null; }
     this.state.lastObservationHash = hash; this.state.status = 'thinking'; this.aborter = new AbortController(); this.ticking = true;
     this.budget.noteRequest();
     try {

@@ -1,5 +1,5 @@
 /** Public, provider-neutral contract for optional autonomous gameplay. */
-export type AiStatus = 'disabled' | 'paused' | 'idle' | 'thinking' | 'executing' | 'error';
+export type AiStatus = 'disabled' | 'paused' | 'budget-paused' | 'idle' | 'thinking' | 'executing' | 'error';
 export type AiActionName =
   | 'inspect_character' | 'inspect_room' | 'inspect_inventory' | 'inspect_map'
   | 'navigate_to' | 'engage_enemy' | 'recover_health' | 'inspect_combat_result' | 'send_message'
