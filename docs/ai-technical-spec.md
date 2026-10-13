@@ -137,7 +137,7 @@ Keep provider, memory, permission, and AI UI modules independently testable. Reb
 2. ~~Inventory and codify named capabilities and command evidence/risk metadata from actual MudEngine behavior.~~ Completed for the current repository; live-server command verification remains required.
 3. ~~Add provider-neutral decision contract and OpenRouter adapter with budgets/diagnostics.~~ Implemented; provider diagnostics and budget enforcement remain under runtime validation.
 4. ~~Add permission gateway, Ask First lifecycle, manual override, and emergency stop.~~ Implemented for the current session agent and UI surface.
-5. Deterministic event-driven execution monitoring and one-action planning. Navigation is implemented through Walker with verified arrival; combat, recovery, equipment, and reconnect lifecycle adapters still require end-to-end validation.
+5. Deterministic event-driven execution monitoring and one-action planning. Navigation is implemented through Walker with verified arrival; NPC combat now has an explicit AutoCombat lifecycle adapter, while recovery, equipment, and reconnect adapters still require end-to-end validation.
 6. ~~Add structured memory, persistence scopes, revalidation, and management UI.~~ Implemented with scoped records, confidence/provenance, retention, editing, and panel controls; relevance/consolidation needs broader scenario coverage.
 7. ~~Add AI panel/IPC integration and provider configuration.~~ Implemented for Electron and web bridges, including session budget controls.
 8. Validate realistic offline parser/queue/approval/reconnect/provider/budget scenarios and conduct supervised live opt-in testing.
