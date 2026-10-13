@@ -3355,6 +3355,10 @@ export class SessionManager {
 
   private aiObservation(event?: string): AiObservation {
     const state = this.tracker.current;
+    // Room and inventory are already provided as dedicated authoritative
+    // observation fields. Do not serialize those large structures a second
+    // time inside the character object on every provider request.
+    const { room, inventory, ...character } = state;
     const memories = (
       this.aiMemory?.relevant(this.aiAgent.state.objective || event || '') ?? []
     ).map(({ category, text, provenance, confidence, verified }) => ({
@@ -3365,9 +3369,9 @@ export class SessionManager {
       verified
     }));
     return {
-      character: state,
-      room: state.room,
-      inventory: state.inventory,
+      character,
+      room,
+      inventory,
       map: {
         current:
           state.room.map !== null && state.room.number !== null

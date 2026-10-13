@@ -188,3 +188,13 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - The full suite reported 242 passed files, 6,881 passed tests, and 2 skipped;
   one Windows migration cleanup test failed transiently with `ENOTEMPTY` and
   passed when rerun in isolation.
+
+### 2026-10-13 — compact observation verification
+
+- The provider observation now avoids serializing the authoritative room and
+  inventory twice; they remain available as dedicated fields while the
+  character projection retains the other state.
+- AI/session regressions passed: 317 tests. Node typecheck passed.
+- The bounded `kefka` run passed all eight scenarios with zero violations.
+  Input usage for the inspection scenario fell from roughly 2.3k tokens to
+  1.8k while inspection and two-room navigation remained correct.

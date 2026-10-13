@@ -48,7 +48,7 @@ if (!process.env.OPENROUTER_API_KEY)
 
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: Number(valueOf('--max-ms') ?? 120_000),
-  maxMoves: Number(valueOf('--max-moves') ?? 3),
+  maxMoves: Number(valueOf('--max-moves') ?? 4),
   maxRequests: Number(valueOf('--max-requests') ?? 8),
   maxTokens: Number(valueOf('--max-tokens') ?? 30_000),
   maxCostUsd: Number(valueOf('--max-cost') ?? 0.05),
