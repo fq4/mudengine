@@ -185,3 +185,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   warning remains.
 - Repository lint remains blocked by the existing Prettier baseline: 615 files
   report formatting drift. No broad formatting rewrite was applied.
+- The full suite reported 242 passed files, 6,881 passed tests, and 2 skipped;
+  one Windows migration cleanup test failed transiently with `ENOTEMPTY` and
+  passed when rerun in isolation.
