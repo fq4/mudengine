@@ -83,6 +83,23 @@ describe('AutonomousAgent', () => {
     expect(decide).toHaveBeenCalledTimes(2);
     expect(agent.state.currentAction?.name).toBe('inspect_room');
   });
+  it('stops a bounded navigation objective when Walker reports completion', async () => {
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'Explore one adjacent room using an available exit, then stop',
+      explanation: 'Take the south exit',
+      action: { name: 'navigate_to', reason: 'explore one room', args: { destination: '1/2' } }
+    });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 1, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'Walker accepted route' }) });
+    agent.setDelegatedOperationStatus(() => 'completed');
+    agent.enable('Explore one adjacent room using an available exit, then stop');
+    await agent.tick({ ...observation, room: { id: 1 } });
+    await agent.tick({ ...observation, room: { id: 2 } });
+    expect(agent.state.objectiveComplete).toBe(true);
+    expect(agent.state.enabled).toBe(false);
+    expect(agent.state.explanation).toContain('Bounded objective completed');
+    expect(decide).toHaveBeenCalledTimes(1);
+  });
   it('uses the delegated combat lifecycle after an NPC engagement settles', async () => {
     const decide = vi.fn()
       .mockResolvedValueOnce({ objective: 'fight', explanation: 'Engage the NPC', action: { name: 'engage_enemy', reason: 'fight' } })

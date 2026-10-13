@@ -41,6 +41,14 @@ export class AutonomousAgent {
         this.state.currentAction = { ...this.state.currentAction, phase: 'completed', message: 'Observed a state change after the delegated action' };
         this.state.consecutiveFailures = 0;
         this.lastFailedAction = '';
+        if (this.shouldStopAfterDelegatedAction(this.state.currentAction.name)) {
+          this.state.objectiveComplete = true;
+          this.state.enabled = false;
+          this.state.activity = 'objective_complete';
+          this.state.explanation = 'Bounded objective completed; AI stopped.';
+          this.state.lastActionResult = this.state.currentAction.message;
+          return null;
+        }
       }
     }
     if (hash === this.state.lastObservationHash) return null;
@@ -88,5 +96,9 @@ export class AutonomousAgent {
   private remember(kind: 'success' | 'failure' | 'note', text: string): void { this.state.memories.push({ at: Date.now(), kind, text }); this.state.memories = this.state.memories.slice(-50); this.state.recent = this.state.memories.slice(-8).map((m) => m.text); }
   private isFailureEvent(event: string | undefined): boolean {
     return event === 'direction-failed' || event === 'peek-failed' || event === 'command-not-understood' || event === 'command-refused' || event === 'user-search-failed' || event === 'spell-refused' || event === 'user-dies';
+  }
+  private shouldStopAfterDelegatedAction(action: AiActionName): boolean {
+    if (action !== 'navigate_to') return false;
+    return /\b(stop|then stop|one adjacent|one room|single room|once)\b/i.test(this.state.objective);
   }
 }
