@@ -3279,7 +3279,7 @@ export class SessionManager {
 
   private aiObservation(event?: string): AiObservation {
     const state = this.tracker.current;
-    const memories = (this.aiMemory?.list() ?? []).slice(-12).map(({ category, text, provenance, confidence, verified }) => ({ category, text: text.slice(0, 400), provenance: provenance.slice(0, 160), confidence, verified }));
+    const memories = (this.aiMemory?.relevant(this.aiAgent.state.objective || event || '') ?? []).map(({ category, text, provenance, confidence, verified }) => ({ category, text: text.slice(0, 400), provenance: provenance.slice(0, 160), confidence, verified }));
     return { character: state, room: state.room, inventory: state.inventory, ...(memories.length ? { memories } : {}), availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event ? { event } : {}) };
   }
 
