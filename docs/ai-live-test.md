@@ -286,3 +286,13 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   gameplay regression.
 - The separate realm suite passed: 2 files and 18 tests. The isolated
   migration regression and all AI tests also passed.
+
+### 2026-10-13 - live regression after full audit
+
+- The authorized `kefka` harness again passed all eight bounded scenarios with
+  zero violations. Inspection and exact one-/two-room navigation completed,
+  invalid destinations were refused, unknown commands stayed behind approval,
+  manual interruption remained available, budgets paused safely, and emergency
+  stop canceled AI work without blocking manual play.
+- The run used four provider requests for navigation and issued no combat,
+  social, equipment, item, or spending commands.
