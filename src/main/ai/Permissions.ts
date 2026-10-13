@@ -10,7 +10,8 @@ const ROUTINE = /^(go|north|south|east|west|up|down|n|s|e|w|u|d|rest|med|wear|re
 export function classifyCommand(command: string): CommandClassification {
   const value = command.trim();
   if (!value) return { risk: 'unknown', authorization: 'rejected', reason: 'Empty command' };
-  if (/[;&|`\r\n]/.test(value)) return { risk: 'unknown', authorization: 'ask-first', reason: 'Command chaining or macro syntax is not verified and requires approval' };
+  if (/[;&|`\r\n]/.test(value)) return { risk: 'prohibited', authorization: 'rejected', reason: 'Compound commands must be submitted as individually validated actions' };
+  if (/^[.>\/\-]/.test(value) || /^(gos\w*|say|tell|telepath|broadcast|talk|yell|shout)\b/i.test(value)) return { risk: 'prohibited', authorization: 'rejected', reason: 'Use send_message so communication pacing and duplicate safeguards apply' };
   if (PROHIBITED.test(value)) return { risk: 'prohibited', authorization: 'rejected', reason: 'Command is prohibited by the default safety policy' };
   if (SAFE.test(value)) return { risk: 'safe', authorization: 'autonomous', reason: 'Known informational command' };
   if (HIGH_RISK.test(value)) return { risk: 'high', authorization: 'ask-first', reason: 'Command can spend, transfer, or permanently alter game resources' };

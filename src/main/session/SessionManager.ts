@@ -3339,6 +3339,7 @@ export class SessionManager {
       const channel = action.args?.channel;
       const message = typeof action.args?.message === 'string' ? action.args.message.trim() : '';
       const target = typeof action.args?.target === 'string' ? action.args.target.trim() : undefined;
+      if (/[\r\n\x00]/.test(message) || (target !== undefined && !/^[\p{L}\p{N}_'-]+$/u.test(target))) return { ok: false, message: 'Refused: message or target contains invalid command syntax' };
       if (!['local', 'gossip', 'tell', 'telepath', 'broadcast'].includes(String(channel)) || message.length === 0 || message.length > 240) return { ok: false, message: 'Refused: invalid social channel or message length' };
       if ((channel === 'tell' || channel === 'telepath') && !target) return { ok: false, message: 'Refused: private communication requires a target' };
       const allowed = this.aiSocial.allow({ channel: channel as AiSocialChannel, target, message });
