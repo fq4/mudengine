@@ -276,3 +276,13 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - The run used four provider requests for the navigation scenarios and stayed
   within the harness limits. No combat, social, equipment, item, or spending
   commands were issued.
+
+### 2026-10-13 - full regression audit
+
+- The complete application suite reached 244 passing test files/suites and
+  6,888 passing tests, with one migration test failing only under the
+  concurrent full-suite run. The same migration test passes in isolation,
+  indicating the known shared temporary-home race rather than an AI or
+  gameplay regression.
+- The separate realm suite passed: 2 files and 18 tests. The isolated
+  migration regression and all AI tests also passed.
