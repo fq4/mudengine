@@ -186,6 +186,27 @@ describe('creating a character', () => {
   });
 });
 
+describe('AI policy persistence', () => {
+  it('writes and removes exact global and profile rules without dropping other YAML', () => {
+    fs.writeFileSync(home.options, `${OPTIONS}ui:\n  density: compact\n`, 'utf8');
+    expect(editor.saveAiPolicy('global', null, '  inspect altar ', 'ask-first')).toEqual({ ok: true });
+    const global = parse(fs.readFileSync(home.options, 'utf8')) as Record<string, any>;
+    expect(global.ui.density).toBe('compact');
+    expect(global.aiPolicy.commands['inspect altar']).toBe('ask-first');
+    expect(editor.saveProfile('Vaelor', draft())).toEqual({ ok: true });
+    expect(editor.saveAiPolicy('profile', 'Vaelor', 'inspect altar', 'autonomous')).toEqual({ ok: true });
+    expect(read('Vaelor').aiPolicy.commands['inspect altar']).toBe('autonomous');
+    expect(editor.saveAiPolicy('profile', 'Vaelor', 'inspect altar', null)).toEqual({ ok: true });
+    expect(read('Vaelor').aiPolicy).toBeUndefined();
+  });
+
+  it('refuses malformed command lines before writing', () => {
+    const before = fs.readFileSync(home.options, 'utf8');
+    expect(editor.saveAiPolicy('global', null, 'look\nscore', 'autonomous').ok).toBe(false);
+    expect(fs.readFileSync(home.options, 'utf8')).toBe(before);
+  });
+});
+
 /*
  * The designs are a list, judged against what the character would inherit
  * rather than the shipped six: the form shows the resolved list, and writing

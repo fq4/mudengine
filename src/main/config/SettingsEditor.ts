@@ -160,6 +160,8 @@ export class SettingsEditor {
         const path = ['aiPolicy', 'commands', key];
         if (authorization === null) document.deleteIn(path);
         else document.setIn(path, authorization);
+        const commands = document.getIn(['aiPolicy', 'commands']);
+        if (authorization === null && isMap(commands) && commands.items.length === 0) document.deleteIn(['aiPolicy']);
       },
       verify: (value) => {
         const policy = normalizeConfig(value).aiPolicy;
