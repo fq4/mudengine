@@ -713,8 +713,8 @@ function readFloat(value: unknown): FloatState | null {
     // Clamped on the way in as well as on the way out: a layout written by an
     // older build, or by a window that was a different shape, must not put a
     // card somewhere it cannot be dragged back from.
-    x: clamp(number('x', 0.4), 0, 0.98),
-    y: clamp(number('y', 0.3), 0, 0.98),
+    x: clamp(number('x', 0.4), 0, 1 - clamp(number('w', DEFAULT_FLOAT.w), MIN_FLOAT.w, 1)),
+    y: clamp(number('y', 0.3), 0, 1 - clamp(number('h', DEFAULT_FLOAT.h), MIN_FLOAT.h, 1)),
     w: clamp(number('w', DEFAULT_FLOAT.w), MIN_FLOAT.w, 1),
     h: clamp(number('h', DEFAULT_FLOAT.h), MIN_FLOAT.h, 1),
     // `opacity` is what this field was called when it meant the fill alpha
@@ -988,7 +988,11 @@ export function useCardLayout(session: SessionId): CardLayoutApi {
         const base = without(layout, id);
         store({ ...base, floats: [...base.floats, lifted(id, existing, at, size)] });
       },
-      moveFloat: (id, at) => patchFloat(id, { x: clamp(at.x, 0, 0.98), y: clamp(at.y, 0, 0.98) }),
+      moveFloat: (id, at) => {
+        const found = layout.floats.find((entry) => entry.id === id);
+        if (!found) return;
+        patchFloat(id, { x: clamp(at.x, 0, 1 - found.w), y: clamp(at.y, 0, 1 - found.h) });
+      },
       sizeFloat: (id, size) =>
         patchFloat(id, {
           w: clamp(size.w, MIN_FLOAT.w, 1),

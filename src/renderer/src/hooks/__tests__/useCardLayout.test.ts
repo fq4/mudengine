@@ -126,6 +126,15 @@ describe('a float read back off disk', () => {
     expect(float.solidity).toBeLessThanOrEqual(1);
   });
 
+  it('keeps a restored float inside the viewport including its full width and height', () => {
+    const layout = normalizeLayout({
+      floats: [{ id: 'map', x: 0.98, y: 0.98, w: 0.4, h: 0.3, solidity: 0.8 }]
+    });
+    const float = layout.floats[0]!;
+    expect(float.x + float.w).toBeLessThanOrEqual(1);
+    expect(float.y + float.h).toBeLessThanOrEqual(1);
+  });
+
   it('discards a float with nonsense in it rather than failing the whole layout', () => {
     const layout = normalizeLayout({
       floats: [

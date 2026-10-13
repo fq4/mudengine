@@ -92,6 +92,7 @@ import { OpenRouterProvider } from '../ai/OpenRouter';
 import { classifyCommand, type AiPermissionLayers, type AiAuthorization } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
+import { resolveAiNavigationTarget } from '../ai/navigation';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import type { AiAction, AiObservation, AiPolicyRule, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
@@ -3438,16 +3439,17 @@ export class SessionManager {
       this.combat.alsoFight(name); this.aiMemory?.upsert({ category: 'strategy', text: `Engage ordinary NPC ${name} through AutoCombat`, provenance: 'AI capability delegation', confidence: 0.6, verified: false, expiresAt: Date.now() + 86_400_000, pinned: false }); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
     }
     if (action.name === 'navigate_to') {
-      const destination = typeof action.args?.destination === 'string' ? action.args.destination.trim() : '';
-      const match = destination.match(/^(\d+)\/(\d+)$/);
-      const route = match
-        ? this.planFromHere(roomId(Number(match[1]), Number(match[2])))
-        : null;
-      if (!route || typeof route === 'string') return { ok: false, message: typeof route === 'string' ? route : 'Refused: navigation requires a map/room destination' };
-      this.aiNavigationDestination = destination;
+      const raw = action.args?.destination;
+      const destination = typeof raw === 'string' ? raw.trim() : '';
+      const current = this.tracker.current.room;
+      const target = resolveAiNavigationTarget(destination, current.exits);
+      if (!target) return { ok: false, message: `Refused: navigation destination "${destination || '—'}" is not an authoritative room address or available exit` };
+      const route = this.planFromHere(target);
+      if (typeof route === 'string') return { ok: false, message: `Refused: navigation to ${target} is unavailable: ${route}` };
+      this.aiNavigationDestination = target;
       const refused = this.walkRoute(route, true);
       if (refused !== null) this.aiNavigationDestination = null;
-      if (refused === null) this.aiMemory?.upsert({ category: 'strategy', text: `Navigation route accepted to ${destination}`, provenance: 'Walker accepted validated route', confidence: 0.8, verified: false, expiresAt: null, pinned: false });
+      if (refused === null) this.aiMemory?.upsert({ category: 'strategy', text: `Navigation route accepted to ${target}`, provenance: 'Walker accepted validated route', confidence: 0.8, verified: false, expiresAt: null, pinned: false });
       return { ok: refused === null, message: refused ?? 'Navigation delegated to Walker' };
     }
     if (action.name === 'execute_supported_command') {
