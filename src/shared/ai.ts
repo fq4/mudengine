@@ -13,6 +13,7 @@ export interface AiObservation {
   map?: unknown;
   availableActions: readonly AiActionName[];
   event?: string;
+  execution?: { action: AiState['currentAction']; lastResult: string; recent: string[] };
 }
 
 export interface AiAction {

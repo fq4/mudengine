@@ -48,7 +48,8 @@ export class AutonomousAgent {
     const controller = this.aborter;
     this.budget.noteRequest();
     try {
-      const decision = await this.provider.decide(observation, this.state.objective, controller.signal);
+      const context: AiObservation = { ...observation, execution: { action: this.state.currentAction ? { ...this.state.currentAction } : null, lastResult: this.state.lastActionResult, recent: this.state.recent.map((text) => text.slice(0, 400)) } };
+      const decision = await this.provider.decide(context, this.state.objective, controller.signal);
       if (controller.signal.aborted) { this.state.usage = this.provider.usage(); return null; }
       this.state.activity = decision.action.name; this.state.explanation = decision.explanation; this.state.status = 'executing'; this.state.currentAction = { name: decision.action.name, phase: 'requested', message: 'Action requested' }; this.remember('note', decision.explanation);
       this.state.currentAction = { ...this.state.currentAction!, phase: 'executing', message: 'Executing through MudEngine capability' };

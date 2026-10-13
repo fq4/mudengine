@@ -64,6 +64,7 @@ describe('AutonomousAgent', () => {
     await agent.tick({ ...observation, event: 'direction-failed' });
     expect(agent.state.currentAction?.name).toBe('inspect_room');
     expect(decide).toHaveBeenCalledTimes(2);
+    expect(decide.mock.calls[1]?.[0]).toMatchObject({ execution: { action: { name: 'navigate_to', phase: 'failed' }, lastResult: 'Delegated action failed: direction-failed' } });
   });
   it('suppresses provider calls after repeated delegated failures', async () => {
     const decide = vi.fn().mockResolvedValue({ objective: 'travel', explanation: 'Route', action: { name: 'navigate_to', reason: 'travel' } });
