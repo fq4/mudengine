@@ -1,11 +1,12 @@
-import type { AiBudgetLimits, AiUsage } from '../../shared/ai';
+import type { AiAggregateBudgetSnapshot, AiBudgetLimits, AiUsage } from '../../shared/ai';
 
 export const DEFAULT_AI_BUDGETS: AiBudgetLimits = { requestsPerMinute: 6, requestsPerHour: 60, sessionCostUsd: 0.25, sessionTokens: 25_000 };
 
 /** Shared quota for all agents in one MudEngine client. */
 export class AiAggregateBudget {
   private readonly requests: number[] = [];
-  private tokens = 0;
+  private inputTokens = 0;
+  private outputTokens = 0;
   private cost = 0;
   private pendingTokens = 0;
   private pendingCost = 0;
@@ -27,12 +28,13 @@ export class AiAggregateBudget {
     const minute = this.requests.filter((at) => at > now - 60_000).length;
     if (minute >= this.limits.requestsPerMinute) return { ok: false, reason: `Aggregate request budget reached (${this.limits.requestsPerMinute}/minute)`, resetAt: (this.requests.find((at) => at > now - 60_000) ?? now) + 60_000 };
     if (this.requests.length >= this.limits.requestsPerHour) return { ok: false, reason: `Aggregate request budget reached (${this.limits.requestsPerHour}/hour)`, resetAt: (this.requests[0] ?? now) + 3_600_000 };
-    if (this.limits.sessionTokens !== undefined && this.tokens + this.pendingTokens >= this.limits.sessionTokens) return { ok: false, reason: `Aggregate token budget reached (${this.limits.sessionTokens.toLocaleString()} tokens)`, resetAt: now };
+    if (this.limits.sessionTokens !== undefined && this.inputTokens + this.outputTokens + this.pendingTokens >= this.limits.sessionTokens) return { ok: false, reason: `Aggregate token budget reached (${this.limits.sessionTokens.toLocaleString()} tokens)`, resetAt: now };
     if (this.cost + this.pendingCost >= this.limits.sessionCostUsd) return { ok: false, reason: `Aggregate spending budget reached ($${this.limits.sessionCostUsd.toFixed(2)})`, resetAt: now };
     return { ok: true };
   }
   reserve(at = Date.now()): void { this.requests.push(at); }
-  settle(delta: { inputTokens: number; outputTokens: number; estimatedCostUsd: number }): void { this.tokens += delta.inputTokens + delta.outputTokens; this.cost += delta.estimatedCostUsd; }
+  settle(delta: { inputTokens: number; outputTokens: number; estimatedCostUsd: number }): void { this.inputTokens += delta.inputTokens; this.outputTokens += delta.outputTokens; this.cost += delta.estimatedCostUsd; }
+  snapshot(): AiAggregateBudgetSnapshot { return { limits: this.getLimits(), requests: this.requests.length, inputTokens: this.inputTokens, outputTokens: this.outputTokens, estimatedCostUsd: this.cost }; }
 }
 
 export class AiBudget {

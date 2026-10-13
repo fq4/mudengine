@@ -35,6 +35,7 @@ export interface AiApproval { id: string; command: string; reason: string; risk:
 export interface AiTemporaryGrant { id: string; command: string; contextHash: string; createdAt: number; expiresAt: number; remainingUses: number | null; status: 'active' | 'expired' | 'exhausted' | 'revoked'; }
 export interface AiUsage { requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number; }
 export interface AiBudgetLimits { requestsPerMinute: number; requestsPerHour: number; sessionCostUsd: number; sessionTokens?: number; }
+export interface AiAggregateBudgetSnapshot { limits: AiBudgetLimits; requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number; }
 export interface AiProvider { decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision>; usage(): AiUsage; }
 export interface AiProviderDiagnostic { ok: boolean; provider: string; model?: string; message: string; at: number; }
 export interface AiState {
@@ -45,7 +46,7 @@ export interface AiState {
   pendingApprovals: AiApproval[]; approvalHistory: AiApproval[]; temporaryGrants?: AiTemporaryGrant[];
 }
 export interface AiPolicyRule { command: string; authorization: 'autonomous' | 'ask-first' | 'rejected'; source: 'global' | 'server' | 'profile'; }
-export interface AiSnapshot { state: AiState; observation: AiObservation; policy?: AiPolicyRule[]; }
+export interface AiSnapshot { state: AiState; observation: AiObservation; policy?: AiPolicyRule[]; aggregateBudget?: AiAggregateBudgetSnapshot; }
 
 export const AI_ACTIONS: readonly AiActionName[] = [
   'inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map',

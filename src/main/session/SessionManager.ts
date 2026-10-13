@@ -1001,6 +1001,7 @@ export class SessionManager {
   private readonly aiPermissionLayers: AiPermissionLayers;
   /** Persistent global/server/profile layers, kept separate from session rules. */
   private readonly aiBasePermissionLayers: AiPermissionLayers;
+  private readonly aiAggregateBudget?: AiAggregateBudget;
   private readonly aiSessionPolicyOverrides: Record<string, AiAuthorization> = {};
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
@@ -1450,6 +1451,7 @@ export class SessionManager {
     aiPermissionLayers: AiPermissionLayers = {},
     aiAggregateBudget?: AiAggregateBudget
   ) {
+    this.aiAggregateBudget = aiAggregateBudget;
     this.aiPermissionLayers = aiPermissionLayers;
     this.aiBasePermissionLayers = {
       global: aiPermissionLayers.global,
@@ -3328,7 +3330,7 @@ export class SessionManager {
         policy.push({ command, authorization, source });
       }
     }
-    return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation(), policy };
+    return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation(), policy, aggregateBudget: this.aiAggregateBudget?.snapshot() };
   }
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
