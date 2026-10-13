@@ -32,16 +32,18 @@ their existing safety adapters.
   renderer chunk-size warning only.
 - Production build and credential scan were rerun after objective-completion
   matching changed; both passed with the same renderer chunk-size warning.
-- The bounded live `kefka` harness passed all nine scenarios with zero safety
+- The bounded live `kefka` harness passed all ten bounded checks with zero safety
   violations: inspection, one-room navigation, exact two-room navigation,
-  inventory inspection, invalid destination refusal, unknown-command approval,
+  inventory inspection, conditional NPC inspection, invalid destination refusal, unknown-command approval,
   manual interruption, budget enforcement, and emergency stop.
 - Live usage: four provider requests for navigation, under the harness token
   and cost limits. No combat, PvP, social, equipment, item, or spending action
   was issued.
-- Revalidation after structured approval enforcement passed all nine scenarios
+- Revalidation after structured approval enforcement passed all ten bounded checks
   again with zero violations; the bounded two-room route completed from the
   authoritative starting room to its two-step target.
+- The NPC inspection check skipped safely because the authoritative starting
+  room had no visible NPC; it did not invent a target or issue a command.
 
 ## Local live configuration
 

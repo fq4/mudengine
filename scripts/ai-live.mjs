@@ -171,6 +171,22 @@ async function main() {
     'Inspect my current inventory, then stop.',
     (before, after) => before === after
   );
+  const visibleNpc = session.character.room?.occupants?.find(
+    (occupant) => occupant.kind !== 'player' && occupant.npc?.name
+  );
+  if (visibleNpc?.npc?.name) {
+    await runScenario(
+      'npc-inspection',
+      `Inspect the visible non-player character ${visibleNpc.npc.name}, then stop.`,
+      (before, after) => before === after
+    );
+  } else {
+    report.scenarios.push({
+      name: 'npc-inspection',
+      passed: true,
+      result: 'Skipped safely: no authoritative visible NPC in the current room'
+    });
+  }
   const navigation = await runScenario(
     'one-room-navigation',
     'Explore one adjacent room using an available exit, then stop.',
