@@ -14,8 +14,9 @@ The runner enforces runtime, movement, request, token, cost, repetition, and
 unsafe-command limits. It reports structured, secret-safe traces and exits
 nonzero on a failed scenario. It never runs as part of `npm test`.
 
-If the profile is not available in the current MudEngine home, it exits with a
-clear `SKIPPED` result rather than guessing credentials. The source-based
+If the profile is not available in the current MudEngine home, it fails with a
+clear configuration error rather than guessing credentials. The runner is
+restricted to the explicitly authorized `kefka` profile. The source-based
 runner requires the Node version supported by the repository loader (Node 22+
 with the current `tsx` dependency).
 

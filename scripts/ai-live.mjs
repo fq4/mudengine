@@ -12,8 +12,10 @@ import { setTimeout as wait } from 'node:timers/promises';
 import { SessionManager } from '../src/main/session/SessionManager.ts';
 import { RealmLibrary } from '../src/main/world/RealmLibrary.ts';
 import { LiveHarnessMonitor } from '../src/main/ai/LiveHarness.ts';
-import { localProfileNamed, skip } from './lib/local-realm.mjs';
 import { homePaths } from './lib/home.mjs';
+import fs from 'node:fs';
+import YAML from 'yaml';
+import { resolveProfile } from '../src/shared/profiles.ts';
 
 const args = process.argv.slice(2);
 const has = (flag) => args.includes(flag);
@@ -24,9 +26,20 @@ const valueOf = (flag) => {
 if (!has('--live')) skip('live mode is opt-in; rerun with --live');
 
 const profileId = valueOf('--profile') ?? 'kefka';
-const profile = localProfileNamed(profileId);
-if (!profile) skip(`profile ${profileId} is not configured for the sanctioned test realm`);
-if (!process.env.OPENROUTER_API_KEY) skip('OPENROUTER_API_KEY is not present in the environment');
+if (profileId !== 'kefka')
+  throw new Error('The live harness is restricted to the authorized kefka profile');
+const configuredHome = homePaths();
+const profileFile = configuredHome.profile(profileId).file;
+if (!fs.existsSync(profileFile))
+  throw new Error(`profile ${profileId} is not configured in the active MudEngine home`);
+const resolved = resolveProfile(profileId, YAML.parse(fs.readFileSync(profileFile, 'utf8')), {});
+if (resolved.error !== undefined)
+  throw new Error(`profile ${profileId} could not be resolved: ${resolved.error}`);
+const profile = resolved.profile;
+if (!profile.config.connection.login.username || !profile.config.connection.login.password)
+  throw new Error(`profile ${profileId} has no complete login configuration`);
+if (!process.env.OPENROUTER_API_KEY)
+  throw new Error('OPENROUTER_API_KEY is not present in the environment');
 
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: Number(valueOf('--max-ms') ?? 120_000),
@@ -50,7 +63,7 @@ const sink = {
   command: (command) => monitor.command(command)
 };
 
-const home = homePaths();
+const home = configuredHome;
 const realms = new RealmLibrary({
   shippedDir: path.join(process.cwd(), 'resources', 'world'),
   resourcesDir: path.join(process.cwd(), 'resources'),
