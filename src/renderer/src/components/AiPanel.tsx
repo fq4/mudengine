@@ -14,7 +14,8 @@ export default function AiPanel({ session }: { session: SessionId }) {
   useEffect(() => {
     void refresh();
     void api.aiMemories(session).then(setMemories);
-    const timer = window.setInterval(() => { void refresh(); }, 1_000);
+    const refreshIntervalMs = 1_000;
+    const timer = window.setInterval(() => { void refresh(); }, refreshIntervalMs);
     return () => window.clearInterval(timer);
   }, [session]);
   if (!snapshot) return null;
