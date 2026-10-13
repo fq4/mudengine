@@ -50,6 +50,17 @@ describe('AutonomousAgent', () => {
     expect(agent.state.currentAction?.name).toBe('inspect_room');
     expect(decide).toHaveBeenCalledTimes(2);
   });
+  it('suppresses provider calls after repeated delegated failures', async () => {
+    const decide = vi.fn().mockResolvedValue({ objective: 'travel', explanation: 'Route', action: { name: 'navigate_to', reason: 'travel' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'accepted' }) }); agent.enable('travel');
+    await agent.tick({ ...observation, room: { id: 1 } });
+    await agent.tick({ ...observation, room: { id: 2 }, event: 'direction-failed' });
+    await agent.tick({ ...observation, room: { id: 3 }, event: 'direction-failed' });
+    expect(decide).toHaveBeenCalledTimes(2);
+    expect(agent.state.status).toBe('error');
+    expect(agent.state.lastActionResult).toContain('Repeated action suppressed');
+  });
   it('coalesces provider calls while a decision is in flight', async () => {
     let release!: (decision: unknown) => void;
     const decide = vi.fn().mockImplementation(() => new Promise((resolve) => { release = resolve; }));

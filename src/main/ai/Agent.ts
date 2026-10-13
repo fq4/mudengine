@@ -35,6 +35,8 @@ export class AutonomousAgent {
         this.lastFailedAction = this.state.currentAction.name;
       } else {
         this.state.currentAction = { ...this.state.currentAction, phase: 'completed', message: 'Observed a state change after the delegated action' };
+        this.state.consecutiveFailures = 0;
+        this.lastFailedAction = '';
       }
     }
     if (hash === this.state.lastObservationHash) return null;
@@ -58,7 +60,7 @@ export class AutonomousAgent {
         return decision;
       }
       this.remember(result.ok ? 'success' : 'failure', result.message);
-      const delegated = new Set(['navigate_to', 'engage_enemy', 'recover_health', 'manage_equipment']); const phase = result.ok ? (delegated.has(decision.action.name) ? 'accepted' : 'completed') : 'failed'; this.state.currentAction = { name: decision.action.name, phase, message: result.message }; this.state.lastActionResult = result.message; this.state.consecutiveFailures = result.ok ? 0 : this.state.consecutiveFailures + 1; this.state.status = result.ok ? 'idle' : 'error'; this.state.usage = this.provider.usage(); this.lastFailedAction = result.ok ? '' : JSON.stringify(decision.action);
+      const delegated = new Set(['navigate_to', 'engage_enemy', 'recover_health', 'manage_equipment']); const phase = result.ok ? (delegated.has(decision.action.name) ? 'accepted' : 'completed') : 'failed'; this.state.currentAction = { name: decision.action.name, phase, message: result.message }; this.state.lastActionResult = result.message; if (!result.ok) { this.state.consecutiveFailures += 1; this.lastFailedAction = JSON.stringify(decision.action); } else if (phase === 'completed') { this.state.consecutiveFailures = 0; this.lastFailedAction = ''; } this.state.status = result.ok ? 'idle' : 'error'; this.state.usage = this.provider.usage();
       if (result.ok && decision.done === true && phase === 'completed') { this.state.objectiveComplete = true; this.state.activity = 'objective_complete'; this.state.explanation = 'Objective completed; waiting for a new objective.'; this.state.enabled = false; }
       return decision;
     } catch (error) {
