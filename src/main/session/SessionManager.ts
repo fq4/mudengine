@@ -999,6 +999,7 @@ export class SessionManager {
   private readonly aiProvider: OpenRouterProvider;
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
+  private aiNavigationDestination: string | null = null;
   readonly rules: RuleEngine;
   /** The realm's message table, answering the realm. See `MessageTriggers`. */
   readonly messages: MessageTriggers;
@@ -1642,6 +1643,18 @@ export class SessionManager {
       if (action === 'engage_enemy') return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
       if (action === 'recover_health') return Boolean(this.recovery.recovering);
       return false;
+    });
+    this.aiAgent.setDelegatedOperationStatus((action) => {
+      if (action !== 'navigate_to' || this.aiNavigationDestination === null) return null;
+      const room = this.tracker.current.room;
+      const current = room.map !== null && room.number !== null ? `${room.map}/${room.number}` : null;
+      if (current === this.aiNavigationDestination) {
+        this.aiNavigationDestination = null;
+        return 'completed';
+      }
+      if (this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running') return 'active';
+      this.aiNavigationDestination = null;
+      return 'failed';
     });
 
     this.routines = new Routines(this.entryProbes(automation), this.queue, {
@@ -3361,7 +3374,9 @@ export class SessionManager {
         ? this.planFromHere(roomId(Number(match[1]), Number(match[2])))
         : null;
       if (!route || typeof route === 'string') return { ok: false, message: typeof route === 'string' ? route : 'Refused: navigation requires a map/room destination' };
+      this.aiNavigationDestination = destination;
       const refused = this.walkRoute(route, true);
+      if (refused !== null) this.aiNavigationDestination = null;
       if (refused === null) this.aiMemory?.upsert({ category: 'strategy', text: `Navigation route accepted to ${destination}`, provenance: 'Walker accepted validated route', confidence: 0.8, verified: false, expiresAt: null, pinned: false });
       return { ok: refused === null, message: refused ?? 'Navigation delegated to Walker' };
     }

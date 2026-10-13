@@ -7,6 +7,7 @@ export class AutonomousAgent {
   private aborter: AbortController | null = null;
   private ticking = false;
   private delegatedOperationActive: ((action: AiActionName) => boolean) | null = null;
+  private delegatedOperationStatus: ((action: AiActionName) => 'active' | 'completed' | 'failed' | null) | null = null;
   private lastFailedAction = '';
   constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
     this.state = { enabled: false, status: 'disabled', objective: '', objectiveComplete: false, activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], budgetLimits: budget.getLimits(), ...initial };
@@ -16,6 +17,7 @@ export class AutonomousAgent {
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; if (this.state.currentAction && ['requested', 'accepted', 'executing'].includes(this.state.currentAction.phase)) this.state.currentAction = { ...this.state.currentAction, phase: 'interrupted', message: 'AI action interrupted' }; }
   setDelegatedOperationActive(check: (action: AiActionName) => boolean): void { this.delegatedOperationActive = check; }
+  setDelegatedOperationStatus(check: (action: AiActionName) => 'active' | 'completed' | 'failed' | null): void { this.delegatedOperationStatus = check; }
   approvalResolved(message: string): void {
     if (this.state.status !== 'paused' || this.state.currentAction?.phase !== 'requested') return;
     this.state.status = this.state.enabled ? 'idle' : 'disabled';
@@ -27,9 +29,10 @@ export class AutonomousAgent {
     if (this.ticking) return null;
     const hash = observationHash(observation);
     if (this.state.currentAction?.phase === 'accepted') {
-      if (this.delegatedOperationActive?.(this.state.currentAction.name)) return null;
+      const delegatedStatus = this.delegatedOperationStatus?.(this.state.currentAction.name) ?? null;
+      if (delegatedStatus === 'active' || (delegatedStatus === null && this.delegatedOperationActive?.(this.state.currentAction.name))) return null;
       if (hash === this.state.lastObservationHash) return null;
-      if (this.isFailureEvent(observation.event)) {
+      if (delegatedStatus === 'failed' || this.isFailureEvent(observation.event)) {
         this.state.currentAction = { ...this.state.currentAction, phase: 'failed', message: `Delegated action failed: ${observation.event}` };
         this.state.lastActionResult = this.state.currentAction.message;
         this.state.consecutiveFailures += 1;
