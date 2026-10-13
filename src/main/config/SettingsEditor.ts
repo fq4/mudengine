@@ -14,6 +14,7 @@ import {
   mergeServers,
   normalizeConfig,
   type AutomationSwitch,
+  type AiCommandAuthorization,
   type LoginStep,
   type RetreatConfig,
   type SupplyItem
@@ -134,6 +135,37 @@ export class SettingsEditor {
   constructor(options: SettingsEditorOptions) {
     this.home = options.home;
     this.spells = options.spells;
+  }
+
+  /** Persist one exact AI command rule without replacing unrelated YAML. */
+  saveAiPolicy(
+    scope: 'global' | 'profile' | 'server',
+    owner: string | null,
+    command: string,
+    authorization: AiCommandAuthorization | null
+  ): EditResult {
+    const key = command.trim().toLowerCase();
+    if (!key || key.length > 160 || /[\r\n]/.test(key)) return { ok: false, error: 'AI policy command must be one exact line' };
+    let file: string;
+    if (scope === 'global') file = this.home.options;
+    else if (!owner) return { ok: false, error: `AI ${scope} policy requires an owner` };
+    else if (scope === 'profile') file = this.profilePath(owner);
+    else {
+      const id = this.tree().servers.idFor(owner);
+      if (!id) return { ok: false, error: `Unknown AI policy server: ${owner}` };
+      file = this.home.server(id).file;
+    }
+    return editYaml(file, {
+      mutate: (document) => {
+        const path = ['aiPolicy', 'commands', key];
+        if (authorization === null) document.deleteIn(path);
+        else document.setIn(path, authorization);
+      },
+      verify: (value) => {
+        const policy = normalizeConfig(value).aiPolicy;
+        return authorization !== null && !policy?.commands[key] ? 'AI policy did not survive configuration validation' : null;
+      }
+    });
   }
 
   private profilePath(id: string): string {
