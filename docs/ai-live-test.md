@@ -217,3 +217,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   eligible; routine parser churn remains suppressed.
 - Targeted tests passed, including the existing session approval path, and a
   fresh bounded `kefka` run passed all eight scenarios with zero violations.
+- Full regression verification passed 243 files, 6,883 tests, and 2 skips;
+  two Windows timing-sensitive tests failed only under the concurrent full
+  run and both passed in isolation.
