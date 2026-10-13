@@ -63,4 +63,6 @@ key remain outside the repository.
 - Repeat permitted live checks only after each adapter is covered locally.
 - The live harness continues to reject `rest` as an unsafe wire command until
   the recovery adapter has an explicit proof that it cannot consume resources;
-  no live recovery command has been issued.
+  no live recovery command has been issued. Recovery's own documentation records
+  that combat or poison can refuse or break a rest, so the restriction is
+  evidence-based rather than a harness omission.
