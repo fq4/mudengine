@@ -16,7 +16,7 @@ The inventory maps AI-facing decisions to existing MudEngine owners. The AI must
 | Send local speech | Existing Talk/parser/`CommandQueue` path | Message, current session | Parsed local conversation block or refusal | Queue pacing, manual input, communication throttle | Central social pacing/relevance gate |
 | Send gossip/public message | Existing conversation parser and queue command syntax | Message, channel | `conversation-gossip` block or refusal | Same as local plus social rate limits | Server command aliases must be verified; do not infer `gos` universally |
 | Tell/telepath/private message | Existing directed/telepath parser and queue | Target, message | Directed/telepath receipt or incoming reply | Unknown target, refusal, throttle, disconnect | Private retention/redaction policy |
-| Execute general command | `CommandQueue`, command definitions, classifier, echoed command handling | Raw command plus session state | Echo/typed block, prompt, parsed result, refusal | Queue unavailable, unknown command, fumble, manual override | New centralized risk/evidence gateway; this is the primary genuine gap |
+| Execute general command | `CommandQueue`, command definitions, classifier, echoed command handling | Raw command plus session state | Echo/typed block, prompt, parsed result, refusal | Queue unavailable, unknown command, fumble, manual override | Server-specific evidence learning and live behavior verification remain; the centralized validation gateway is implemented |
 | Wait/listen | Existing event stream and timers | Wake conditions/deadline | Meaningful event, timeout, or user resume | Stop/emergency stop | Agent scheduler; no polling |
 
 ## First vertical slice
