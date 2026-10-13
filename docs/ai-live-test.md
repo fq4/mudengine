@@ -209,3 +209,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - Production build and both typechecks passed. Repository lint remains the
   existing Prettier baseline issue, now reporting 616 files including the new
   helper; no broad formatting rewrite was applied.
+
+### 2026-10-13 — event relevance predicate coverage
+
+- Extracted the provider-wakeup event classifier from `SessionManager` into a
+  pure, tested helper. Strategic movement/failure/conversation events remain
+  eligible; routine parser churn remains suppressed.
+- Targeted tests passed, including the existing session approval path, and a
+  fresh bounded `kefka` run passed all eight scenarios with zero violations.

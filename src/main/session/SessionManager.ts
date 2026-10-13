@@ -94,6 +94,7 @@ import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
 import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../ai/navigation';
 import { compactCharacterObservation } from '../ai/observation';
+import { isMeaningfulAiEvent } from '../ai/events';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import type { AiAction, AiObservation, AiPolicyRule, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
@@ -6382,27 +6383,7 @@ export class SessionManager {
 
   /** Only events that can change strategy wake the provider; routine parser churn does not. */
   private isAiMeaningfulEvent(event: string): boolean {
-    return (
-      event.startsWith('conversation-gossip') ||
-      event.startsWith('conversation-broadcast') ||
-      event.startsWith('conversation-directed') ||
-      event.startsWith('conversation-local') ||
-      event.startsWith('conversation-telepath') ||
-      event.startsWith('conversation-gangpath') ||
-      event.startsWith('conversation-auction') ||
-      event === 'mob-dies' ||
-      event === 'user-dies' ||
-      event === 'user-gain-experience' ||
-      event === 'room-exits' ||
-      event === 'direction-failed' ||
-      event === 'peek-failed' ||
-      event === 'command-not-understood' ||
-      event === 'command-refused' ||
-      event === 'user-search-failed' ||
-      event === 'spell-refused' ||
-      event === 'status-line' ||
-      event === 'player-status'
-    );
+    return isMeaningfulAiEvent(event);
   }
 
   /** Conversation headers and the character's own echoed speech are not inbound prompts. */
