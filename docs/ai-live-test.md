@@ -79,3 +79,20 @@ Capture the following from the AI panel and diagnostic log, with credentials and
 - any command refusal, route failure, reconnect, or unexpected provider response.
 
 Do not enable autonomous combat, social messaging, equipment changes, spending, or broad command execution until the corresponding capability has been tested against the real server's command vocabulary and consequences.
+
+## Verification log
+
+### 2026-10-13 — development / commit c9f8c9b
+
+- Provider diagnostic: OpenRouter accepted the configured credential using
+  `openai/gpt-4o-mini`; the key and TLS connection were not logged.
+- Real-server `kefka` harness: inspection, one-room navigation, invalid
+  destination refusal, manual interruption, budget enforcement, and emergency
+  stop all passed. Unsafe-command violations: none.
+- Agent regression suite: 24 tests passed. Node typecheck and production build
+  passed.
+- Fix verified: delegated completion is now honored even when the compact
+  observation is unchanged, which covers no-op equipment management and
+  recovery completion without causing another provider request.
+- Repository lint remains a baseline failure because Prettier reports existing
+  formatting drift across unrelated files; no broad reformat was applied.

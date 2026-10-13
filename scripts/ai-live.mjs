@@ -23,7 +23,11 @@ const valueOf = (flag) => {
   const i = args.indexOf(flag);
   return i < 0 ? undefined : args[i + 1];
 };
-if (!has('--live')) skip('live mode is opt-in; rerun with --live');
+if (!has('--live')) {
+  console.error('AI live test is opt-in; rerun with --live');
+  process.exitCode = 2;
+  process.exit();
+}
 
 const profileId = valueOf('--profile') ?? 'kefka';
 if (profileId !== 'kefka')
