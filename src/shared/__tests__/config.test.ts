@@ -19,6 +19,18 @@ import {
 } from '../config';
 import { DENOMINATIONS } from '../character';
 
+describe('AI policy configuration', () => {
+  it('normalizes exact command overrides and ignores malformed entries', () => {
+    const config = normalizeConfig({ aiPolicy: { commands: { '  Look  ': 'autonomous', buy: 'ask-first', quit: 'invalid' } } });
+    expect(config.aiPolicy).toEqual({ commands: { look: 'autonomous', buy: 'ask-first' } });
+  });
+
+  it('normalizes a server policy independently of global policy', () => {
+    const config = normalizeConfig({ servers: [{ name: 'Realm', host: 'localhost', port: 23, aiPolicy: { commands: { rest: 'ask-first' } } }] });
+    expect(config.servers[0]?.aiPolicy).toEqual({ commands: { rest: 'ask-first' } });
+  });
+});
+
 describe('normalizeRewrites', () => {
   it('keeps every design naming an entity, drops the rest, and reads the bands', () => {
     const ui = normalizeConfig({

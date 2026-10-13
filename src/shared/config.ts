@@ -128,6 +128,12 @@ export interface LoginStep {
  */
 export type LocateMethod = 'rm' | 'sys-status' | 'none';
 
+/** Explicit AI command overrides; omitted commands use the safety classifier. */
+export type AiCommandAuthorization = 'autonomous' | 'ask-first' | 'rejected';
+export interface AiPolicyConfig {
+  commands: Record<string, AiCommandAuthorization>;
+}
+
 /**
  * Answers to the login sequence.
  *
@@ -260,6 +266,8 @@ export interface Server {
    * the same pack and the same floor, so the name is a fact about the place.
    */
   coins: CoinNames;
+  /** Server-scoped AI overrides; prohibited defaults remain non-overridable. */
+  aiPolicy?: AiPolicyConfig;
 }
 
 export interface FontConfig {
@@ -2598,6 +2606,8 @@ export interface AppConfig {
   ui: UiConfig;
   logging: LoggingConfig;
   automation: AutomationConfig;
+  /** Global AI policy overrides, inherited by profiles unless replaced. */
+  aiPolicy?: AiPolicyConfig;
 }
 
 /**
@@ -3314,7 +3324,8 @@ export function normalizeConfig(input: unknown): AppConfig {
       rewrites: normalizeRewrites(ui['rewrites'])
     },
     logging: normalizeLogging(raw['logging']),
-    automation: normalizeAutomation(raw['automation'])
+    automation: normalizeAutomation(raw['automation']),
+    aiPolicy: normalizeAiPolicy(raw['aiPolicy'])
   };
 }
 
@@ -3588,8 +3599,20 @@ function normalizeServer(value: unknown): Server | null {
      */
     database: str(value['database'], ''),
     hangPenalties: typeof value['hangPenalties'] === 'boolean' ? value['hangPenalties'] : null,
-    coins: asCoinNames(value['coins'])
+    coins: asCoinNames(value['coins']),
+    aiPolicy: normalizeAiPolicy(value['aiPolicy'])
   };
+}
+
+function normalizeAiPolicy(value: unknown): AiPolicyConfig | undefined {
+  if (!isRecord(value) || !isRecord(value['commands'])) return undefined;
+  const commands: Record<string, AiCommandAuthorization> = {};
+  for (const [command, authorization] of Object.entries(value['commands'])) {
+    const key = command.trim().toLowerCase();
+    if (!key || (authorization !== 'autonomous' && authorization !== 'ask-first' && authorization !== 'rejected')) continue;
+    commands[key] = authorization;
+  }
+  return Object.keys(commands).length > 0 ? { commands } : undefined;
 }
 
 /**
