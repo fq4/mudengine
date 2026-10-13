@@ -7,6 +7,15 @@ describe('OpenRouterProvider', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'look', action: { name: 'inspect_room', reason: 'safe' } }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }), { status: 200 }));
     const p = new OpenRouterProvider({ apiKey: 'test', model: 'test/model' }); expect(p.modelName()).toBe('test/model'); expect((await p.decide({ character: {}, room: {}, availableActions: ['inspect_room'] }, 'x')).action.name).toBe('inspect_room'); expect(p.usage().requests).toBe(1);
   });
+  it('sends structured memory trust signals with the decision context', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'look', action: { name: 'inspect_room', reason: 'safe' } }) } }] }), { status: 200 }));
+    const memories = [{ category: 'fact' as const, text: 'The north exit is blocked', provenance: 'Observed direction refusal', confidence: 0.9, verified: true }];
+    await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['inspect_room'], memories }, 'x');
+    const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
+    expect(request.messages[0]?.content).toContain('verified records');
+    expect(request.messages[1]?.content).toContain('Observed direction refusal');
+    expect(request.messages[1]?.content).toContain('"confidence":0.9');
+  });
   it('reports provider connectivity without exposing credentials', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const result = await new OpenRouterProvider({ apiKey: 'secret', model: 'test/model' }).testConnection();

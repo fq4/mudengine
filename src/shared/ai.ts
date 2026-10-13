@@ -9,6 +9,7 @@ export interface AiObservation {
   character: unknown;
   room: unknown;
   inventory?: unknown;
+  memories?: Array<Pick<AiMemoryRecord, 'category' | 'text' | 'provenance' | 'confidence' | 'verified'>>;
   map?: unknown;
   availableActions: readonly AiActionName[];
   event?: string;

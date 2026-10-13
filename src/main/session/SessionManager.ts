@@ -3263,7 +3263,8 @@ export class SessionManager {
 
   private aiObservation(event?: string): AiObservation {
     const state = this.tracker.current;
-    return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event ? { event } : {}) };
+    const memories = (this.aiMemory?.list() ?? []).slice(-12).map(({ category, text, provenance, confidence, verified }) => ({ category, text: text.slice(0, 400), provenance: provenance.slice(0, 160), confidence, verified }));
+    return { character: state, room: state.room, inventory: state.inventory, ...(memories.length ? { memories } : {}), availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event ? { event } : {}) };
   }
 
   get aiSnapshot(): AiSnapshot { const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation() }; }
