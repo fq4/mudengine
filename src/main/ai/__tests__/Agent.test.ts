@@ -286,7 +286,32 @@ describe('AutonomousAgent', () => {
     expect(decide).toHaveBeenCalledTimes(1);
     active = 'completed';
     await agent.tick({ ...observation, character: { hp: 41 } });
-    expect(decide).toHaveBeenCalledTimes(2);
+    expect(decide).toHaveBeenCalledTimes(1);
+    expect(agent.state.objectiveComplete).toBe(true);
+    expect(agent.state.enabled).toBe(false);
+  });
+  it('records equipment completion when inventory is unchanged', async () => {
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'manage equipment',
+      explanation: 'Delegate equipment review',
+      done: true,
+      action: { name: 'manage_equipment', reason: 'review gear' }
+    });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({ requests: 1, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
+    };
+    const agent = new AutonomousAgent(provider, {
+      execute: vi.fn().mockResolvedValue({ ok: true, message: 'Equipment delegated' })
+    });
+    agent.setDelegatedOperationStatus(() => 'completed');
+    agent.enable('Review my equipment, then stop');
+    await agent.tick(observation);
+    await agent.tick(observation);
+    expect(agent.state.objectiveComplete).toBe(true);
+    expect(agent.state.enabled).toBe(false);
+    expect(agent.state.currentAction?.phase).toBe('completed');
+    expect(decide).toHaveBeenCalledTimes(1);
   });
   it('treats a meaningful failure event as delegated-action failure', async () => {
     const decide = vi

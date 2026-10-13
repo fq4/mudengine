@@ -113,7 +113,6 @@ export class AutonomousAgent {
         (delegatedStatus === null && this.delegatedOperationActive?.(this.state.currentAction.name))
       )
         return null;
-      if (hash === this.state.lastObservationHash) return null;
       if (delegatedStatus === 'failed' || this.isFailureEvent(observation.event)) {
         this.state.currentAction = {
           ...this.state.currentAction,
@@ -131,7 +130,10 @@ export class AutonomousAgent {
         };
         this.state.consecutiveFailures = 0;
         this.lastFailedAction = '';
-        if (this.shouldStopAfterDelegatedAction(this.state.currentAction.name)) {
+        if (
+          this.actionSatisfiesObjective(this.state.currentAction.name) &&
+          this.isBoundedStopObjective()
+        ) {
           this.state.objectiveComplete = true;
           this.state.enabled = false;
           this.state.activity = 'objective_complete';
@@ -140,6 +142,12 @@ export class AutonomousAgent {
           return null;
         }
       }
+      // A delegated subsystem may complete without changing the compact
+      // observation (for example, equipment automation can determine that no
+      // gear change is needed).  Its explicit lifecycle result must still be
+      // recorded, but an unchanged observation must not trigger another
+      // provider request.
+      if (hash === this.state.lastObservationHash) return null;
     }
     if (hash === this.state.lastObservationHash) return null;
     if (this.state.consecutiveFailures >= 2 && this.lastFailedAction) {
@@ -291,12 +299,6 @@ export class AutonomousAgent {
       event === 'user-search-failed' ||
       event === 'spell-refused' ||
       event === 'user-dies'
-    );
-  }
-  private shouldStopAfterDelegatedAction(action: AiActionName): boolean {
-    if (action !== 'navigate_to') return false;
-    return /\b(stop|then stop|one adjacent|one room|single room|once)\b/i.test(
-      this.state.objective
     );
   }
   private isBoundedStopObjective(): boolean {
