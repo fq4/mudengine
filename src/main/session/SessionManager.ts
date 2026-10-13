@@ -3288,6 +3288,7 @@ export class SessionManager {
     this.aiAgent.state.lastActionResult = `Temporary authorization active for ${approval.command} until ${new Date(grant.expiresAt).toLocaleTimeString()}`;
     return this.aiSnapshot;
   }
+  aiRevokeGrant(id: string): AiSnapshot { this.aiApprovals.revokeGrant(id); this.aiAgent.state.lastActionResult = 'Temporary authorization revoked'; return this.aiSnapshot; }
   aiReject(id: string): AiSnapshot { this.aiApprovals.reject(id); return this.aiSnapshot; }
   aiMemories(): import('../../shared/ai').AiMemoryRecord[] { return this.aiMemory?.list() ?? []; }
   aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }

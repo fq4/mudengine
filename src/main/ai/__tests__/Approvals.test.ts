@@ -20,4 +20,10 @@ describe('ApprovalStore', () => {
     expect(store.allows('open vault', now + 101)).toBe(false);
     expect(store.snapshot().grants).toHaveLength(0);
   });
+  it('revokes a temporary authorization immediately', () => {
+    const store = new ApprovalStore(); const grant = store.grant('open vault', 60_000, null);
+    expect(store.revokeGrant(grant.id)).toBe(true);
+    expect(store.allows('open vault')).toBe(false);
+    expect(store.snapshot().grants).toHaveLength(0);
+  });
 });
