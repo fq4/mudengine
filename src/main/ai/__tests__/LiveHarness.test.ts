@@ -38,6 +38,18 @@ describe('LiveHarnessMonitor', () => {
     expect(monitor.moveCount).toBe(1);
   });
 
+  it('rejects channel prefixes and emote aliases', () => {
+    const monitor = new LiveHarnessMonitor(limits);
+    monitor.command('.hello');
+    monitor.command('broadcast hello');
+    monitor.command('emote waves');
+    expect(monitor.violations.map(({ code }) => code)).toEqual([
+      'unsafe-command',
+      'unsafe-command',
+      'unsafe-command'
+    ]);
+  });
+
   it('enforces provider usage limits', () => {
     const monitor = new LiveHarnessMonitor(limits);
     monitor.usage(3, 10, 0.01);

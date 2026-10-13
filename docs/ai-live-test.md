@@ -248,3 +248,10 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   `kefka` run passed all eight scenarios with zero violations.
 - Production build and both typechecks passed; only the existing
   large-renderer-chunk warning remains.
+
+### 2026-10-13 — communication safety boundary
+
+- Expanded the live monitor to reject channel prefixes, gossip/broadcast,
+  emote, private-message, and related aliases during navigation-only runs.
+- Six safety-monitor tests passed, and the bounded `kefka` run passed all eight
+  scenarios with zero violations.

@@ -28,7 +28,7 @@ export interface LiveHarnessViolation {
 }
 
 const unsafe =
-  /^(?:gos|say|tell|whisper|yell|buy|sell|drop|give|put|kill|attack|cast|wear|remove|wield|equip|quit|delete|destroy|stand|rest)\b/i;
+  /^(?:[.>/-]|gos|gossip|say|tell|whisper|yell|shout|broadcast|emote|pose|ooc|channel|reply|osay|buy|sell|drop|give|put|kill|attack|cast|wear|remove|wield|equip|quit|delete|destroy|stand|rest)\b/i;
 const movement =
   /^(?:n|s|e|w|ne|nw|se|sw|u|d|st|north|south|east|west|northeast|northwest|southeast|southwest|up|down)\b/i;
 
