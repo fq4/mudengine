@@ -67,7 +67,7 @@ const home = configuredHome;
 const realms = new RealmLibrary({
   shippedDir: path.join(process.cwd(), 'resources', 'world'),
   resourcesDir: path.join(process.cwd(), 'resources'),
-  cacheDir: home.state('realms'),
+  cacheDir: path.join(home.root, 'state', 'realms'),
   notify: () => {}
 });
 const world = realms.load(profile.database ?? '').graph;
@@ -100,6 +100,10 @@ const waitFor = async (predicate, timeout = 45_000) => {
   const end = Date.now() + timeout;
   while (Date.now() < end && !monitor.failed) {
     monitor.check();
+    // Polling is observation only. Reuse the production tick without adding a
+    // changing synthetic event, so unchanged state remains deduplicated while
+    // a Walker room transition can settle the delegated action.
+    await session.aiTick();
     const state = snapshot().state;
     monitor.usage(
       state.usage.requests,
@@ -170,6 +174,16 @@ async function main() {
     passed: !invalid.ok,
     result: invalid.message
   });
+  session.aiBudget({ sessionTokens: 100 });
+  session.aiGoal('Observe the current room, then stop.');
+  const budgetPaused = await waitFor((state) => state.status === 'budget-paused', 5_000);
+  const budgetState = snapshot().state;
+  report.scenarios.push({
+    name: 'budget-enforcement',
+    passed: budgetPaused && budgetState.status === 'budget-paused',
+    result: budgetState.lastActionResult
+  });
+  session.aiBudget({ sessionTokens: 25_000 });
   const emergency = session.aiEmergencyStop();
   report.scenarios.push({
     name: 'emergency-stop',
