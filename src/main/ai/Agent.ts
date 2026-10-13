@@ -1,4 +1,4 @@
-import { observationHash, type AiAction, type AiActionName, type AiDecision, type AiObservation, type AiProvider, type AiState } from '../../shared/ai';
+import { observationHash, type AiAction, type AiActionName, type AiBudgetLimits, type AiDecision, type AiObservation, type AiProvider, type AiState } from '../../shared/ai';
 import { AiBudget } from './Budget';
 
 export interface AiExecutor { execute(action: AiAction): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }>; }
@@ -9,8 +9,9 @@ export class AutonomousAgent {
   private delegatedOperationActive: ((action: AiActionName) => boolean) | null = null;
   private lastFailedAction = '';
   constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
-    this.state = { enabled: false, status: 'disabled', objective: '', objectiveComplete: false, activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], ...initial };
+    this.state = { enabled: false, status: 'disabled', objective: '', objectiveComplete: false, activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], budgetLimits: budget.getLimits(), ...initial };
   }
+  configureBudget(limits: Partial<AiBudgetLimits>): AiBudgetLimits { const next = this.budget.configure(limits); this.state.budgetLimits = next; return next; }
   enable(objective = this.state.objective): void { this.aborter?.abort(); this.state.lastObservationHash = undefined; this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; this.state.objectiveComplete = false; this.state.consecutiveFailures = 0; this.lastFailedAction = ''; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; if (this.state.currentAction && ['requested', 'accepted', 'executing'].includes(this.state.currentAction.phase)) this.state.currentAction = { ...this.state.currentAction, phase: 'interrupted', message: 'AI action interrupted' }; }

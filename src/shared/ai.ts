@@ -34,12 +34,13 @@ export interface AiMemoryRecord { id: string; server: string; character: string;
 export interface AiApproval { id: string; command: string; reason: string; risk: 'high' | 'unknown'; contextHash: string; createdAt: number; expiresAt: number; status: 'pending' | 'approved' | 'executed' | 'rejected' | 'expired'; }
 export interface AiTemporaryGrant { id: string; command: string; contextHash: string; createdAt: number; expiresAt: number; remainingUses: number | null; status: 'active' | 'expired' | 'exhausted' | 'revoked'; }
 export interface AiUsage { requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number; }
+export interface AiBudgetLimits { requestsPerMinute: number; requestsPerHour: number; sessionCostUsd: number; sessionTokens?: number; }
 export interface AiProvider { decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision>; usage(): AiUsage; }
 export interface AiProviderDiagnostic { ok: boolean; provider: string; model?: string; message: string; at: number; }
 export interface AiState {
   enabled: boolean; status: AiStatus; objective: string; objectiveComplete?: boolean; activity: string;
   explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
-  model: string; lastObservationHash?: string; consecutiveFailures: number; budgetResetAt?: number;
+  model: string; lastObservationHash?: string; consecutiveFailures: number; budgetResetAt?: number; budgetLimits?: AiBudgetLimits;
   currentAction?: { name: AiActionName; phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed' | 'interrupted'; message: string } | null;
   pendingApprovals: AiApproval[]; approvalHistory: AiApproval[]; temporaryGrants?: AiTemporaryGrant[];
 }

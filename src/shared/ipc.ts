@@ -624,6 +624,7 @@ export const Invoke = {
   aiForgetMemory: 'ai:forget-memory',
   aiUpdateMemory: 'ai:update-memory',
   aiSetMemoryMetadata: 'ai:set-memory-metadata',
+  aiBudget: 'ai:budget',
   // -- per session
   connect: 'session:connect',
   disconnect: 'session:disconnect',
@@ -1256,6 +1257,7 @@ export interface IpcApi {
   aiForgetMemory(session: SessionId, id: string): Promise<AiMemoryRecord[]>;
   aiUpdateMemory(session: SessionId, id: string, text: string): Promise<AiMemoryRecord[]>;
   aiSetMemoryMetadata(session: SessionId, id: string, verified: boolean, pinned: boolean): Promise<AiMemoryRecord[]>;
+  aiBudget(session: SessionId, limits: Partial<import('./ai').AiBudgetLimits>): Promise<AiSnapshot>;
 
   listSessions(): Promise<SessionSummary[]>;
   listProfiles(): Promise<ProfileSummary[]>;
