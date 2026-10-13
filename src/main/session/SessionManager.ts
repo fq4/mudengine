@@ -5887,8 +5887,8 @@ export class SessionManager {
 
   /** Only events that can change strategy wake the provider; routine parser churn does not. */
   private isAiMeaningfulEvent(event: string): boolean {
-    return event === 'conversation-gossip' || event === 'conversation-broadcast' || event === 'conversation-directed' || event === 'conversation-local' ||
-      event === 'conversation-telepath' || event === 'conversation-yell' || event === 'conversation-gangpath' || event === 'conversation-auction' || event === 'mob-dies' ||
+    return event.startsWith('conversation-gossip') || event.startsWith('conversation-broadcast') || event.startsWith('conversation-directed') || event.startsWith('conversation-local') ||
+      event.startsWith('conversation-telepath') || event.startsWith('conversation-yell') || event.startsWith('conversation-gangpath') || event.startsWith('conversation-auction') || event === 'mob-dies' ||
       event === 'user-dies' || event === 'user-gain-experience' || event === 'room-exits' ||
       event === 'direction-failed' || event === 'peek-failed' || event === 'command-not-understood' || event === 'command-refused' || event === 'user-search-failed' ||
       event === 'spell-refused' || event === 'status-line' || event === 'player-status';
@@ -5901,7 +5901,9 @@ export class SessionManager {
     const speaker = block.groups['player'];
     if (typeof message !== 'string' || message.trim().length === 0) return null;
     if (speaker === undefined || speaker.trim().toLowerCase() === 'you' || speaker.trim() === (this.tracker.current.name ?? '').trim()) return null;
-    return block.type;
+    const boundedMessage = message.trim().slice(0, 240);
+    const boundedSpeaker = speaker.trim().slice(0, 80);
+    return `${block.type} from ${boundedSpeaker}: ${boundedMessage}`;
   }
 
   /**
