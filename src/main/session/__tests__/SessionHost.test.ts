@@ -252,6 +252,22 @@ describe('SessionHost', () => {
     expect(host!.ids).toEqual(['thorn']);
   });
 
+  it('refreshes policy changes for an existing session without reconnecting', () => {
+    host!.ensure('thorn');
+    expect(host!.get('thorn')!.manager.aiSnapshot.policy).toEqual([]);
+
+    config.aiPolicy = { commands: { look: 'autonomous' } };
+    expect(host!.get('thorn')!.manager.aiSnapshot.policy).toEqual([
+      { command: 'look', authorization: 'autonomous', source: 'profile' }
+    ]);
+
+    config.aiPolicy = { commands: { look: 'ask-first' } };
+    expect(host!.get('thorn')!.manager.aiSnapshot.policy).toEqual([
+      { command: 'look', authorization: 'ask-first', source: 'profile' }
+    ]);
+    config.aiPolicy = undefined;
+  });
+
   it('addresses every coalesced fact it publishes', async () => {
     await host!.connect('thorn', target());
     await until(() => accepted.length === 1);
