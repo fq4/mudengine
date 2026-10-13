@@ -88,6 +88,7 @@ import { RealmMenu } from './RealmMenu';
 import { Events } from '../automation/Events';
 import { AutonomousAgent } from '../ai/Agent';
 import { OpenRouterProvider } from '../ai/OpenRouter';
+import { classifyCommand } from '../ai/Permissions';
 import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
@@ -3289,7 +3290,9 @@ export class SessionManager {
     }
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
-      if (!command || /^(kill|attack|hit)\s+@/i.test(command)) return { ok: false, message: 'Refused unsupported or PvP command' };
+      const classification = classifyCommand(command);
+      if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
+      if (classification.authorization === 'ask-first') return { ok: false, message: `Approval required: ${classification.reason}` };
       return { ok: this.queue.enqueue({ command, priority: 'user', reason: action.reason }), message: 'Command delegated to CommandQueue' };
     }
     return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };
