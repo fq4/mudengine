@@ -150,3 +150,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - The safe `kefka` run passed inspection, one-room navigation, invalid
   destination refusal, unknown-command approval, manual interruption, budget
   enforcement, and emergency stop. Safety violations: none.
+
+### 2026-10-13 — simulated command approval execution
+
+- A simulated-server `SessionManager` regression test confirms that an unknown
+  `check status` command remains off the wire while approval is pending, then
+  reaches `CommandQueue` only after approval and records executed history.
+- No live general-command execution was used; live testing remains limited to
+  the approved safe scenarios.

@@ -191,6 +191,28 @@ describe('the raw byte record', () => {
 });
 
 describe('AI reconnect lifecycle', () => {
+  it('keeps an unknown command off the wire until approval, then queues it', async () => {
+    const { sink } = collect();
+    manager = new SessionManager(sink);
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const socket = await client();
+    let wire = '';
+    socket.on('data', (chunk) => { wire += chunk.toString('latin1'); });
+    const pending = await manager.aiAction({
+      name: 'execute_supported_command',
+      args: { command: 'check status' },
+      reason: 'inspect status'
+    });
+    expect(pending.ok).toBe(false);
+    const approval = manager.aiSnapshot.state.pendingApprovals[0];
+    expect(approval?.command).toBe('check status');
+    expect(wire).not.toContain('check status');
+    manager.aiApprove(approval!.id);
+    socket.write('[HP=30]:\r\n');
+    await until(() => wire.includes('check status\r\n'));
+    expect(manager.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
+  });
+
   it('does not resume AI while the session is outside the realm', () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
