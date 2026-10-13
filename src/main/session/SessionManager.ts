@@ -1001,7 +1001,7 @@ export class SessionManager {
   private readonly aiPermissionLayers: AiPermissionLayers;
   /** Persistent global/server/profile layers, kept separate from session rules. */
   private readonly aiBasePermissionLayers: AiPermissionLayers;
-  private readonly aiAggregateBudget?: AiAggregateBudget;
+  private readonly aggregateBudgetController?: AiAggregateBudget;
   private readonly aiSessionPolicyOverrides: Record<string, AiAuthorization> = {};
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
@@ -1451,7 +1451,7 @@ export class SessionManager {
     aiPermissionLayers: AiPermissionLayers = {},
     aiAggregateBudget?: AiAggregateBudget
   ) {
-    this.aiAggregateBudget = aiAggregateBudget;
+    this.aggregateBudgetController = aiAggregateBudget;
     this.aiPermissionLayers = aiPermissionLayers;
     this.aiBasePermissionLayers = {
       global: aiPermissionLayers.global,
@@ -1653,7 +1653,7 @@ export class SessionManager {
       connected: () => this.client.connected
     });
     this.aiProvider = new OpenRouterProvider();
-    this.aiAgent = new AutonomousAgent(this.aiProvider, { execute: async (action) => this.executeAiAction(action) }, undefined, aiAggregateBudget);
+    this.aiAgent = new AutonomousAgent(this.aiProvider, { execute: async (action) => this.executeAiAction(action) }, undefined, this.aggregateBudgetController);
     this.aiAgent.setDelegatedOperationActive((action) => {
       if (action === 'navigate_to') return this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running';
       if (action === 'engage_enemy') return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
@@ -3334,11 +3334,12 @@ export class SessionManager {
         policy.push({ command, authorization, source });
       }
     }
-    return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation(), policy, aggregateBudget: this.aiAggregateBudget?.snapshot() };
+    return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation(), policy, aggregateBudget: this.aggregateBudgetController?.snapshot() };
   }
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aiAgent.configureBudget(limits); return this.aiSnapshot; }
+  aiAggregateBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aggregateBudgetController?.configure(limits); return this.aiSnapshot; }
   aiPolicy(command: string, authorization: AiAuthorization | null): AiSnapshot {
     const value = command.trim().toLowerCase();
     if (!value) return this.aiSnapshot;
