@@ -998,6 +998,7 @@ export class SessionManager {
   private readonly aiAgent: AutonomousAgent;
   private readonly aiProvider: OpenRouterProvider;
   private readonly aiPermissionLayers: AiPermissionLayers;
+  private readonly aiSessionPolicyOverrides: Record<string, AiAuthorization> = {};
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
   private aiNavigationDestination: string | null = null;
@@ -3261,6 +3262,12 @@ export class SessionManager {
     });
   }
 
+  setAiPermissionLayers(layers: AiPermissionLayers): void {
+    this.aiPermissionLayers.global = layers.global;
+    this.aiPermissionLayers.server = layers.server;
+    this.aiPermissionLayers.profile = { commands: { ...(layers.profile?.commands ?? {}), ...this.aiSessionPolicyOverrides } };
+  }
+
   get state(): ConnectionState {
     return this.current;
   }
@@ -3311,9 +3318,8 @@ export class SessionManager {
       this.aiAgent.state.lastActionResult = `Policy unchanged: ${baseline.reason}`;
       return this.aiSnapshot;
     }
-    const commands = this.aiPermissionLayers.profile?.commands ?? {};
-    if (authorization === null) delete commands[value]; else commands[value] = authorization;
-    this.aiPermissionLayers.profile = { commands };
+    if (authorization === null) delete this.aiSessionPolicyOverrides[value]; else this.aiSessionPolicyOverrides[value] = authorization;
+    this.setAiPermissionLayers(this.aiPermissionLayers);
     return this.aiSnapshot;
   }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }

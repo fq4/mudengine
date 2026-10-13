@@ -309,7 +309,15 @@ export class SessionHost {
   }
 
   get(id: SessionId): SessionSlot | undefined {
-    return this.slots.get(id);
+    const slot = this.slots.get(id);
+    if (slot) {
+      const config = this.options.configFor(id);
+      slot.manager.setAiPermissionLayers({
+        server: config.servers.find((server) => server.host === config.connection.host && server.port === config.connection.port)?.aiPolicy,
+        profile: config.aiPolicy
+      });
+    }
+    return slot;
   }
 
   /** What a window needs to draw its tab rail. */
