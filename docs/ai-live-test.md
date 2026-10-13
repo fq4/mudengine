@@ -333,3 +333,13 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - Direct IPC/UI AI actions now require a non-empty reason, matching provider
   decision validation and keeping execution history explainable.
 - SessionManager regression suite passed 247/247 and both typechecks passed.
+
+### 2026-10-13 - objective-scoped capability advertisement
+
+- Provider observations now advertise only capability families relevant to the
+  current objective, reducing accidental social/combat/raw-command choices for
+  informational goals. The execution layer remains the authoritative safety
+  boundary and validates every action independently.
+- AI suite passed 83/83. The bounded `kefka` harness passed all eight scenarios
+  with zero violations; exact navigation, approvals, budgets, interruption,
+  and emergency stop remained green.

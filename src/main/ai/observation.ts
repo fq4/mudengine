@@ -5,3 +5,25 @@ export function compactCharacterObservation<
   const { room: _room, inventory: _inventory, ...character } = state;
   return character;
 }
+
+import type { AiActionName } from '../../shared/ai';
+
+/**
+ * Advertise only capabilities relevant to the current objective. This is a
+ * prompt/context optimization, not a permission boundary; executeAiAction
+ * still validates every action independently.
+ */
+export function objectiveAvailableActions(objective: string): AiActionName[] {
+  const value = objective.toLowerCase();
+  const actions: AiActionName[] = ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'wait'];
+  if (/\b(navigate|travel|go to|walk to|explore)\b/.test(value)) actions.push('navigate_to');
+  if (/\b(recover|health|heal|rest)\b/.test(value)) actions.push('recover_health');
+  if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(value)) actions.push('manage_equipment');
+  if (/\b(fight|combat|attack|engage|enemy|npc)\b/.test(value)) {
+    actions.push('engage_enemy', 'inspect_combat_result');
+  }
+  if (/\b(communicat\w*|conversation\w*|chat|message\w*|talk|tell|gossip|say|speak|social)\b/.test(value))
+    actions.push('send_message');
+  if (/\b(command|use|execute|run|unknown)\b/.test(value)) actions.push('execute_supported_command');
+  return actions;
+}

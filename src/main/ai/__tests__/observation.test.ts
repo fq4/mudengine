@@ -1,4 +1,4 @@
-import { compactCharacterObservation } from '../observation';
+import { compactCharacterObservation, objectiveAvailableActions } from '../observation';
 import { describe, expect, it } from 'vitest';
 
 describe('AI character observation projection', () => {
@@ -14,5 +14,21 @@ describe('AI character observation projection', () => {
     expect(character).toEqual({ name: 'hero', vitals: { health: [10, 10] } });
     expect(character).not.toHaveProperty('room');
     expect(character).not.toHaveProperty('inventory');
+  });
+});
+
+describe('objective capability advertisement', () => {
+  it('keeps unrelated risky capabilities out of informational objectives', () => {
+    const actions = objectiveAvailableActions('Inspect my current character and room, then stop.');
+    expect(actions).toContain('inspect_character');
+    expect(actions).not.toContain('send_message');
+    expect(actions).not.toContain('engage_enemy');
+    expect(actions).not.toContain('execute_supported_command');
+  });
+
+  it('advertises only the named capability families requested by the objective', () => {
+    const actions = objectiveAvailableActions('Explore safely, then communicate with the group.');
+    expect(actions).toEqual(expect.arrayContaining(['navigate_to', 'send_message']));
+    expect(actions).not.toContain('manage_equipment');
   });
 });

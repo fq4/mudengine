@@ -93,7 +93,7 @@ import { classifyCommand, type AiPermissionLayers, type AiAuthorization } from '
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
 import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../ai/navigation';
-import { compactCharacterObservation } from '../ai/observation';
+import { compactCharacterObservation, objectiveAvailableActions } from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import { AI_ACTIONS, type AiAction, type AiObservation, type AiPolicyRule, type AiSnapshot } from '../../shared/ai';
@@ -3396,20 +3396,7 @@ export class SessionManager {
         worldAvailable: this.world !== undefined
       },
       ...(memories.length ? { memories } : {}),
-      availableActions: [
-        'inspect_character',
-        'inspect_room',
-        'inspect_inventory',
-        'inspect_map',
-        'navigate_to',
-        'engage_enemy',
-        'recover_health',
-        'inspect_combat_result',
-        'manage_equipment',
-        'send_message',
-        'execute_supported_command',
-        'wait'
-      ],
+      availableActions: objectiveAvailableActions(this.aiAgent.state.objective),
       ...(event ? { event } : {})
     };
   }
