@@ -824,6 +824,7 @@ export const Invoke = {
   saveServer: 'settings:save-server',
   /** Write the options file everything is inherited from. */
   saveGlobal: 'settings:save-global',
+  saveAiPolicy: 'settings:save-ai-policy',
   /**
    * Allow or block one player's `@` commands on one character.
    *
@@ -1308,6 +1309,7 @@ export interface IpcApi {
    * with it.
    */
   saveGlobal(draft: GlobalDraft): Promise<string | null>;
+  saveAiPolicy(scope: 'global' | 'profile' | 'server', owner: string | null, command: string, authorization: import('./config').AiCommandAuthorization | null): Promise<string | null>;
   /**
    * Writes one player's whole grant — what they may ask for and what they may
    * never — or removes them when it is empty.

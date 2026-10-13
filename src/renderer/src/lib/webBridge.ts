@@ -204,6 +204,7 @@ export function createWebBridge(): IpcApi {
     aiGoal: (session, goal) => invoke(Invoke.aiGoal, session, goal),
     aiClearGoal: (session) => invoke(Invoke.aiClearGoal, session),
     aiAction: (session, action) => invoke(Invoke.aiAction, session, action),
+    saveAiPolicy: (scope, owner, command, authorization) => invoke(Invoke.saveAiPolicy, scope, owner, command, authorization),
     aiApprove: (session, id) => invoke(Invoke.aiApprove, session, id),
     aiGrant: (session, id, durationMs, maxUses) => invoke(Invoke.aiGrant, session, id, durationMs, maxUses),
     aiRevokeGrant: (session, id) => invoke(Invoke.aiRevokeGrant, session, id),

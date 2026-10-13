@@ -116,6 +116,7 @@ const api: IpcApi = {
   aiGoal: (session, goal) => ipcRenderer.invoke(Invoke.aiGoal, session, goal),
   aiClearGoal: (session) => ipcRenderer.invoke(Invoke.aiClearGoal, session),
   aiAction: (session, action) => ipcRenderer.invoke(Invoke.aiAction, session, action),
+  saveAiPolicy: (scope, owner, command, authorization) => ipcRenderer.invoke(Invoke.saveAiPolicy, scope, owner, command, authorization),
 
   listSessions: () => ipcRenderer.invoke(Invoke.listSessions),
   listProfiles: () => ipcRenderer.invoke(Invoke.listProfiles),

@@ -2935,6 +2935,15 @@ function registerIpc(): void {
     return result.ok ? null : result.error;
   });
 
+  handle(Invoke.saveAiPolicy, (_caller, scope: unknown, owner: unknown, command: unknown, authorization: unknown) => {
+    if (scope !== 'global' && scope !== 'profile' && scope !== 'server') return 'Invalid AI policy scope';
+    if (owner !== null && typeof owner !== 'string') return 'Invalid AI policy owner';
+    if (typeof command !== 'string') return 'Invalid AI policy command';
+    if (authorization !== null && authorization !== 'autonomous' && authorization !== 'ask-first' && authorization !== 'rejected') return 'Invalid AI policy authorization';
+    const result = editor().saveAiPolicy(scope, owner, command, authorization);
+    return result.ok ? null : result.error;
+  });
+
   /*
    * One player's whole grant, from the Player flyout. Validated here rather
    * than trusted: a renderer payload is a value from outside like any other,
