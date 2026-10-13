@@ -9,6 +9,7 @@ Use this procedure for the first live test. Keep the AI attached to a disposable
 3. Start MudEngine with `npm run dev` and use **Test provider** in the AI panel. Confirm the diagnostic reports success and the selected model is the intended configured model.
 4. Confirm the panel shows the correct server and character. Enable the AI only after verifying the identity.
 5. Leave the default session budget in place for the first run.
+6. Confirm the panel also shows the shared AI budget. If more than one session is connected, leave the shared defaults unchanged and verify that usage is reflected consistently in each panel.
 
 ## Safe first objective
 
@@ -35,6 +36,16 @@ Reject one request and confirm the agent receives rejection feedback. Approve on
 While a safe delegated operation is active, issue a manual informational command and then a conflicting movement command. Manual input must execute immediately; conflicting AI work must pause or cancel without the AI immediately undoing the manual choice.
 
 Use **Emergency stop** and verify that pending AI requests and delegated AI navigation stop while manual gameplay remains available. Resume only after inspecting the current room and objective.
+
+## Optional supervised capability checks
+
+Only after the informational navigation test succeeds, use a disposable character in a safe area:
+
+- **NPC combat:** choose one ordinary NPC, confirm the target is not a player, and verify that AutoCombat owns the fight lifecycle. Stop the AI after the fight settles and confirm no second engagement is issued.
+- **Recovery:** lower health through ordinary safe gameplay, start a recovery objective, and verify that the existing recovery/queue subsystem reports active and then completed. Do not test healing purchases or irreversible consumable use.
+- **Equipment:** use a configured equipment situation with no purchase or spending requirement. Verify that EquipmentManager reports dressing as active and that completion follows the inventory/equipment state.
+
+Stop immediately if the server's responses, command aliases, target identity, or consequences differ from the inventory assumptions. Record the refusal or unexpected result for command-evidence updates rather than retrying blindly.
 
 ## What to record
 
