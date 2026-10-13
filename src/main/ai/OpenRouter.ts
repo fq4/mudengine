@@ -30,11 +30,16 @@ export class OpenRouterProvider implements AiProvider {
     const timer = setTimeout(() => controller.abort(), 30_000); timer.unref?.();
     if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', signal: controller.signal,
-        headers: { Authorization: `Bearer ${this.key}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com/rayzorben/mudengine' },
-        body: JSON.stringify({ model: this.model, temperature: 0.1, max_tokens: 350, response_format: { type: 'json_object' },
-          messages: [{ role: 'system', content: 'You control a MUD character at a high level. Return only JSON: {objective, explanation, action:{name,args?,reason}, done?}. Never PvP, irreversible actions, or unsupported commands. Delegate combat and movement. For communication use send_message with args {channel:"local|gossip|tell|telepath|broadcast", target?, message}; gossip is public realm communication, local is room-only speech. Do not invent rumors or repeat messages.', }, { role: 'user', content: JSON.stringify({ objective, observation }) }] }) });
-      if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}`);
+      const request = { model: this.model, temperature: 0.1, max_tokens: 350, response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: 'You control a MUD character at a high level. Return only JSON: {objective, explanation, action:{name,args?,reason}, done?}. Never PvP, irreversible actions, or unsupported commands. Delegate combat and movement. For communication use send_message with args {channel:"local|gossip|tell|telepath|broadcast", target?, message}; gossip is public realm communication, local is room-only speech. Do not invent rumors or repeat messages.', }, { role: 'user', content: JSON.stringify({ objective, observation }) }] };
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        response = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', signal: controller.signal,
+          headers: { Authorization: `Bearer ${this.key}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com/rayzorben/mudengine' }, body: JSON.stringify(request) });
+        if (response.ok || ![408, 429, 500, 502, 503, 504].includes(response.status) || attempt === 1) break;
+        await new Promise<void>((resolve, reject) => { const timer = setTimeout(resolve, 250); const abort = () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }; controller.signal.addEventListener('abort', abort, { once: true }); });
+      }
+      if (!response?.ok) throw new Error(`OpenRouter HTTP ${response?.status ?? 'unknown'}`);
       const body = await response.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } };
       const content = body.choices?.[0]?.message?.content; if (!content) throw new Error('OpenRouter returned no decision');
       const parsed = JSON.parse(content) as unknown; const decision = validateDecision(parsed);

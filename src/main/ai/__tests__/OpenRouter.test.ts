@@ -19,4 +19,9 @@ describe('OpenRouterProvider', () => {
     const result = await new OpenRouterProvider({ apiKey: '' }).testConnection();
     expect(result.ok).toBe(false); expect(fetch).not.toHaveBeenCalled();
   });
+  it('retries one transient provider response but not a permanent failure', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('', { status: 503 })).mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'look', action: { name: 'inspect_room', reason: 'safe' } }) } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }), { status: 200 }));
+    await expect(new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: [] }, 'x')).resolves.toBeTruthy();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });
