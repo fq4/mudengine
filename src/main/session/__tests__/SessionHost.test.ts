@@ -268,6 +268,19 @@ describe('SessionHost', () => {
     config.aiPolicy = undefined;
   });
 
+  it('shares aggregate budget configuration across independent session agents', () => {
+    const thorn = host!.ensure('thorn').manager;
+    const mara = host!.ensure('mara').manager;
+    thorn.aiAggregateBudget({ requestsPerMinute: 2, requestsPerHour: 20, sessionCostUsd: 0.5, sessionTokens: 5_000 });
+    expect(mara.aiSnapshot.aggregateBudget?.limits).toEqual({
+      requestsPerMinute: 2,
+      requestsPerHour: 20,
+      sessionCostUsd: 0.5,
+      sessionTokens: 5_000
+    });
+    expect(thorn.aiSnapshot.state.budgetLimits).not.toEqual(mara.aiSnapshot.aggregateBudget?.limits);
+  });
+
   it('addresses every coalesced fact it publishes', async () => {
     await host!.connect('thorn', target());
     await until(() => accepted.length === 1);
