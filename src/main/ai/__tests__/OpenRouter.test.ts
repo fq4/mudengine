@@ -37,6 +37,11 @@ describe('OpenRouterProvider', () => {
     fetch.mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'x', action: { name: 'dance', reason: 'x' } }) } }] }), { status: 200 }));
     await expect(new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: [] }, 'x')).rejects.toThrow('dance');
   });
+  it('does not turn an unknown status command into a named inspection', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'check status', explanation: 'check status', action: { name: 'check_status', reason: 'requested status' } }) } }] }), { status: 200 }));
+    await expect(new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['execute_supported_command'] }, 'Check my current status using an unknown informational command')).rejects.toThrow('check_status');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it('keeps safe inspection decisions auditable when the model omits reason', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'inspect', explanation: 'look', action: { name: 'inspect_character' }, done: true }) } }] }), { status: 200 }));
     const decision = await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['inspect_character'] }, 'inspect the character');

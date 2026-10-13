@@ -63,11 +63,7 @@ export function validateDecision(value: unknown): AiDecision {
   const a = action as Record<string, unknown>;
   const aliases: Record<string, AiActionName> = {
     look: 'inspect_room',
-    inspect: 'inspect_room',
-    room_info: 'inspect_room',
-    status: 'inspect_character',
-    check_status: 'inspect_character',
-    score: 'inspect_character'
+    inspect: 'inspect_room'
   };
   const normalizedName = typeof a.name === 'string' ? a.name.trim().toLowerCase() : a.name;
   const actionName = typeof normalizedName === 'string' ? (aliases[normalizedName] ?? normalizedName) : normalizedName;

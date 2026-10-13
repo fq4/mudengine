@@ -96,3 +96,13 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   recovery completion without causing another provider request.
 - Repository lint remains a baseline failure because Prettier reports existing
   formatting drift across unrelated files; no broad reformat was applied.
+
+### 2026-10-13 — unknown-command safety / live regression
+
+- Decision parsing no longer aliases `check_status`, `status`, or `score` into
+  named inspection capabilities. Only `look` and `inspect` remain safe room
+  inspection synonyms; other names remain unsupported or go through the
+  explicit general-command approval path.
+- Provider/schema regression tests: 13 passed. Node and web typechecks passed.
+- Real-server `kefka` harness: all six bounded scenarios passed again with no
+  safety violations; inspection used one request and navigation used two.
