@@ -124,3 +124,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   gateway and verifies that it becomes an approval request without sending the
   command to the server. The scenario remains observation-only and is followed
   by an emergency stop before navigation scenarios continue.
+
+### 2026-10-13 — reconnect suspension clarity
+
+- Reconnect and realm-leave teardown now publish an explicit AI suspension
+  result, so stale success/failure text cannot imply that the old action is
+  still valid. The objective remains preserved, but resume still requires a
+  fresh authoritative-state assessment.
+- Focused reconnect regression and Node typecheck passed.

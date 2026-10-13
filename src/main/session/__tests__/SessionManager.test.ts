@@ -215,6 +215,7 @@ describe('AI reconnect lifecycle', () => {
     expect(after.status).toBe('disabled');
     expect(after.currentAction).toBeNull();
     expect(after.pendingApprovals).toEqual([]);
+    expect(after.lastActionResult).toContain('suspended for reconnect');
   });
 });
 

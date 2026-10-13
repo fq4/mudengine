@@ -4105,6 +4105,7 @@ export class SessionManager {
 
   async connect(target: ConnectionTarget): Promise<ConnectionState> {
     this.aiAgent.stop();
+    this.aiAgent.state.lastActionResult = 'AI suspended for reconnect; reassess current state before resuming';
     this.aiApprovals.resetTransient();
     for (const command of Object.keys(this.aiSessionPolicyOverrides))
       delete this.aiSessionPolicyOverrides[command];
@@ -4716,6 +4717,7 @@ export class SessionManager {
    */
   private leftTheRealm(): void {
     this.aiAgent.stop();
+    this.aiAgent.state.lastActionResult = 'AI suspended after leaving the realm; reassess current state before resuming';
     this.aiApprovals.resetTransient();
     for (const command of Object.keys(this.aiSessionPolicyOverrides))
       delete this.aiSessionPolicyOverrides[command];
