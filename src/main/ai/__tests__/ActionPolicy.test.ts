@@ -33,7 +33,17 @@ describe('canonical AI action policy', () => {
   });
 
   it('allows safe NPC inspection but rejects player targets', () => {
-    expect(validateActionPolicy({ name: 'inspect_npc', reason: 'learn facts', args: { name: 'guard' } }, context)).toBeNull();
-    expect(validateActionPolicy({ name: 'inspect_npc', reason: 'learn facts', args: { name: '@player' } }, context)).toMatch(/Player inspection/);
+    expect(
+      validateActionPolicy(
+        { name: 'inspect_npc', reason: 'learn facts', args: { name: 'guard' } },
+        context
+      )
+    ).toBeNull();
+    expect(
+      validateActionPolicy(
+        { name: 'inspect_npc', reason: 'learn facts', args: { name: '@player' } },
+        context
+      )
+    ).toMatch(/Player inspection/);
   });
 });
