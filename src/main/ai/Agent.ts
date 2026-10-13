@@ -81,7 +81,7 @@ export class AutonomousAgent {
       }
       this.remember(result.ok ? 'success' : 'failure', result.message);
       const delegated = new Set(['navigate_to', 'engage_enemy', 'recover_health', 'manage_equipment']); const phase = result.ok ? (delegated.has(decision.action.name) ? 'accepted' : 'completed') : 'failed'; this.state.currentAction = { name: decision.action.name, phase, message: result.message }; this.state.lastActionResult = result.message; if (!result.ok) { this.state.consecutiveFailures += 1; this.lastFailedAction = JSON.stringify(decision.action); } else if (phase === 'completed') { this.state.consecutiveFailures = 0; this.lastFailedAction = ''; } if (!result.ok && /^Refused: navigation/i.test(result.message)) this.state.consecutiveFailures = 2; this.state.status = result.ok ? 'idle' : 'error'; this.state.usage = this.provider.usage();
-      if (result.ok && decision.done === true && phase === 'completed') { this.state.objectiveComplete = true; this.state.activity = 'objective_complete'; this.state.explanation = 'Objective completed; waiting for a new objective.'; this.state.enabled = false; }
+      if (result.ok && decision.done === true && phase === 'completed' && this.actionSatisfiesObjective(decision.action.name)) { this.state.objectiveComplete = true; this.state.activity = 'objective_complete'; this.state.explanation = 'Objective completed; waiting for a new objective.'; this.state.enabled = false; }
       return decision;
     } catch (error) {
       if (controller.signal.aborted) { this.state.usage = this.provider.usage(); return null; }
@@ -100,5 +100,11 @@ export class AutonomousAgent {
   private shouldStopAfterDelegatedAction(action: AiActionName): boolean {
     if (action !== 'navigate_to') return false;
     return /\b(stop|then stop|one adjacent|one room|single room|once)\b/i.test(this.state.objective);
+  }
+  private actionSatisfiesObjective(action: AiActionName): boolean {
+    const objective = this.state.objective.toLowerCase();
+    if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(objective)) return action === 'manage_equipment';
+    if (/\b(recover|health|heal|rest)\b/.test(objective)) return action === 'recover_health';
+    return true;
   }
 }

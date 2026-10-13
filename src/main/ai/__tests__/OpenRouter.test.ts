@@ -42,6 +42,11 @@ describe('OpenRouterProvider', () => {
     const decision = await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['inspect_character'] }, 'inspect the character');
     expect(decision.action.reason).toBe('Model requested inspect_character');
   });
+  it('keeps equipment delegation auditable when the model omits reason', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'equipment', explanation: 'manage', action: { name: 'manage_equipment' }, done: true }) } }] }), { status: 200 }));
+    const decision = await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['manage_equipment'] }, 'manage my equipment');
+    expect(decision.action.reason).toBe('Model requested manage_equipment');
+  });
   it('reports provider connectivity without exposing credentials', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const result = await new OpenRouterProvider({ apiKey: 'secret', model: 'test/model' }).testConnection();

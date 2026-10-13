@@ -73,7 +73,7 @@ export function validateDecision(value: unknown): AiDecision {
   const actionName = typeof normalizedName === 'string' ? (aliases[normalizedName] ?? normalizedName) : normalizedName;
   if (!AI_ACTIONS.includes(actionName as AiActionName))
     throw new Error(`AI response contains an unsupported action: ${String(a.name)}`);
-  const safeInspection = ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'wait'].includes(actionName as string);
+  const safeInspection = ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'manage_equipment', 'wait'].includes(actionName as string);
   const reason = typeof a.reason === 'string' && a.reason.trim()
     ? a.reason.trim()
     : safeInspection

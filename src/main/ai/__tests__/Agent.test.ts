@@ -100,6 +100,15 @@ describe('AutonomousAgent', () => {
     expect(agent.state.explanation).toContain('Bounded objective completed');
     expect(decide).toHaveBeenCalledTimes(1);
   });
+  it('does not complete an equipment objective from inventory inspection alone', async () => {
+    const decide = vi.fn().mockResolvedValue({ objective: 'manage equipment', explanation: 'Inspect first', done: true, action: { name: 'inspect_inventory', reason: 'inspect' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 1, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'Observed inventory' }) });
+    agent.enable('Review equipment and manage it, then stop');
+    await agent.tick(observation);
+    expect(agent.state.objectiveComplete).toBe(false);
+    expect(agent.state.enabled).toBe(true);
+  });
   it('uses the delegated combat lifecycle after an NPC engagement settles', async () => {
     const decide = vi.fn()
       .mockResolvedValueOnce({ objective: 'fight', explanation: 'Engage the NPC', action: { name: 'engage_enemy', reason: 'fight' } })
