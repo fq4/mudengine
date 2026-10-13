@@ -4478,6 +4478,7 @@ describe('leaving the realm for the menu', () => {
 
   it('forgets the character and asks again on the way back in', async () => {
     const { socket, wire } = await inAndOut();
+    manager!.aiGoal('Continue observing after reconnect.');
     const before = wire().split('st\r\n').length - 1;
 
     // Out to the menu, the way the server actually reports it.
@@ -4485,6 +4486,7 @@ describe('leaving the realm for the menu', () => {
     socket.write('[PARADIGM]:');
     await until(() => manager!.character.phase !== 'in-game');
     expect(manager!.character.name).toBeNull();
+    expect(manager!.aiSnapshot.state.lastActionResult).toContain('suspended after leaving the realm');
 
     // And back in as somebody else. The entry probe fires a second time,
     // which is what puts the new name on the card.

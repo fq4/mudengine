@@ -135,3 +135,5 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - SessionManager integration coverage now confirms recovery reaches
   `CommandQueue` and equipment reaches `EquipmentManager` on a connected test
   session; both adapters retain their accepted-versus-completed lifecycle.
+- Realm-leave coverage now confirms the same explicit suspension result as
+  socket reconnect, with no automatic resume of stale actions.
