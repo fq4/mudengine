@@ -29,6 +29,7 @@ export class ApprovalStore {
     return true;
   }
   revokeGrant(id: string): boolean { const grant = this.grants.find((item) => item.id === id && item.status === 'active'); if (!grant) return false; grant.status = 'revoked'; return true; }
+  resetTransient(): void { const now = Date.now(); for (const item of [...this.pending]) this.finish(item, 'expired'); for (const grant of this.grants) if (grant.status === 'active') grant.status = grant.expiresAt <= now ? 'expired' : 'revoked'; }
   snapshot(): { pending: AiApproval[]; history: AiApproval[]; grants: AiTemporaryGrant[] } { this.expireAll(Date.now()); return { pending: [...this.pending], history: this.history.slice(-100), grants: this.grants.filter((item) => item.status === 'active') }; }
   private expireAll(now: number): void { for (const grant of this.grants) if (grant.status === 'active' && grant.expiresAt <= now) grant.status = 'expired'; for (const item of this.pending) if (item.expiresAt <= now) this.finish(item, 'expired'); }
   private finish(item: AiApproval, status: AiApproval['status']): void { item.status = status; this.pending = this.pending.filter((candidate) => candidate.id !== item.id); this.history.push({ ...item }); }

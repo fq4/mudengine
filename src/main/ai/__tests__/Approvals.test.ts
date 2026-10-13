@@ -26,4 +26,14 @@ describe('ApprovalStore', () => {
     expect(store.allows('open vault')).toBe(false);
     expect(store.snapshot().grants).toHaveLength(0);
   });
+  it('invalidates pending approvals and grants when a session resets', () => {
+    const store = new ApprovalStore();
+    const approval = store.request('unknown action', 'test', 'unknown', 'state');
+    const grant = store.grant('open vault', 60_000, null);
+    store.resetTransient();
+    expect(store.snapshot().pending).toHaveLength(0);
+    expect(store.snapshot().grants).toHaveLength(0);
+    expect(store.snapshot().history.find((item) => item.id === approval.id)?.status).toBe('expired');
+    expect(grant.status).toBe('revoked');
+  });
 });

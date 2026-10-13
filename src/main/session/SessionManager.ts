@@ -3642,6 +3642,8 @@ export class SessionManager {
   }
 
   async connect(target: ConnectionTarget): Promise<ConnectionState> {
+    this.aiAgent.stop();
+    this.aiApprovals.resetTransient();
     this.telnetLog.length = 0;
     this.lineLog.length = 0;
     this.lineSeq = 0;
@@ -4241,6 +4243,8 @@ export class SessionManager {
    * character-selection menu with the credentials of a login already made.
    */
   private leftTheRealm(): void {
+    this.aiAgent.stop();
+    this.aiApprovals.resetTransient();
     this.sink.notice(t('session.realm.left'));
     this.combatLease.end('left');
     this.dropTyped();
