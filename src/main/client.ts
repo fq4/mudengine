@@ -13,7 +13,7 @@
  * window that will show it.
  */
 import fs from 'node:fs/promises';
-import { cpSync, existsSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { ConfigStore } from './config/ConfigStore';
@@ -278,6 +278,7 @@ let workspace: Workspace | null = null;
  */
 const windows = new WindowRegistry();
 let host: SessionHost | null = null;
+let flushAiBudget: () => void = () => {};
 
 /**
  * The realm knowledge base, loaded once.
@@ -1348,6 +1349,12 @@ function createInternal(): InternalStore {
 function createHost(): SessionHost {
   const aiBudgetFile = home.state('ai-budget.json');
   let aiBudgetSave = Promise.resolve();
+  let latestAiBudgetState: unknown;
+  flushAiBudget = () => {
+    if (latestAiBudgetState === undefined) return;
+    mkdirSync(path.dirname(aiBudgetFile), { recursive: true });
+    writeFileSync(aiBudgetFile, JSON.stringify(latestAiBudgetState), 'utf8');
+  };
   const aiBudgetState = {
     load: (): unknown => {
       try {
@@ -1357,6 +1364,7 @@ function createHost(): SessionHost {
       }
     },
     save: (state: unknown): void => {
+      latestAiBudgetState = state;
       const serialized = JSON.stringify(state);
       aiBudgetSave = aiBudgetSave
         .then(async () => {
@@ -3412,6 +3420,7 @@ function teardown(): void {
     host?.disposeAll();
     host = null;
   });
+  settle('ai budget', () => flushAiBudget());
   settle('profiles', () => {
     profiles?.dispose();
     profiles = null;
