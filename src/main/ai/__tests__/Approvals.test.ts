@@ -8,28 +8,29 @@ describe('ApprovalStore', () => {
   it('approves one exact pending action only for the same state', () => { const store = new ApprovalStore(); const item = store.request('open vault', 'inspect', 'high', 'state'); expect(store.approve(item.id, 'changed')).toBeNull(); const next = store.request('open vault', 'inspect', 'high', 'state'); expect(store.approve(next.id, 'state')?.status).toBe('approved'); expect(store.snapshot().pending).toHaveLength(0); });
   it('limits a temporary authorization to the exact command and use count', () => {
     const store = new ApprovalStore(); const now = Date.now();
-    store.grant('buy potion', 60_000, 2, now);
-    expect(store.allows('buy potion', now + 1)).toBe(true);
-    expect(store.allows('buy potion', now + 2)).toBe(true);
-    expect(store.allows('buy potion', now + 3)).toBe(false);
-    expect(store.allows('buy potion extra', now + 4)).toBe(false);
+    store.grant('buy potion', 'state-a', 60_000, 2, now);
+    expect(store.allows('buy potion', 'state-a', now + 1)).toBe(true);
+    expect(store.allows('buy potion', 'state-a', now + 2)).toBe(true);
+    expect(store.allows('buy potion', 'state-a', now + 3)).toBe(false);
+    expect(store.allows('buy potion extra', 'state-a', now + 4)).toBe(false);
+    expect(store.allows('buy potion', 'state-b', now + 4)).toBe(false);
   });
   it('expires temporary authorizations without renewing them', () => {
     const store = new ApprovalStore(); const now = Date.now();
-    store.grant('open vault', 100, 1, now);
-    expect(store.allows('open vault', now + 101)).toBe(false);
+    store.grant('open vault', 'state', 100, 1, now);
+    expect(store.allows('open vault', 'state', now + 101)).toBe(false);
     expect(store.snapshot().grants).toHaveLength(0);
   });
   it('revokes a temporary authorization immediately', () => {
-    const store = new ApprovalStore(); const grant = store.grant('open vault', 60_000, null);
+    const store = new ApprovalStore(); const grant = store.grant('open vault', 'state', 60_000, null);
     expect(store.revokeGrant(grant.id)).toBe(true);
-    expect(store.allows('open vault')).toBe(false);
+    expect(store.allows('open vault', 'state')).toBe(false);
     expect(store.snapshot().grants).toHaveLength(0);
   });
   it('invalidates pending approvals and grants when a session resets', () => {
     const store = new ApprovalStore();
     const approval = store.request('unknown action', 'test', 'unknown', 'state');
-    const grant = store.grant('open vault', 60_000, null);
+    const grant = store.grant('open vault', 'state', 60_000, null);
     store.resetTransient();
     expect(store.snapshot().pending).toHaveLength(0);
     expect(store.snapshot().grants).toHaveLength(0);

@@ -13,17 +13,17 @@ export class ApprovalStore {
   expire(now = Date.now()): void { this.expireAll(now); }
   approve(id: string, contextHash: string): AiApproval | null { const item = this.pending.find((candidate) => candidate.id === id); if (!item || item.expiresAt <= Date.now()) { if (item) this.finish(item, 'expired'); return null; } if (item.contextHash !== contextHash) { this.finish(item, 'expired'); return null; } this.finish(item, 'approved'); return item; }
   reject(id: string): AiApproval | null { const item = this.pending.find((candidate) => candidate.id === id); if (!item) return null; this.finish(item, 'rejected'); return item; }
-  grant(command: string, durationMs: number, maxUses: number | null = 1, now = Date.now()): AiTemporaryGrant {
+  grant(command: string, contextHash: string, durationMs: number, maxUses: number | null = 1, now = Date.now()): AiTemporaryGrant {
     this.expireAll(now);
-    const existing = this.grants.find((item) => item.command === command && item.status === 'active' && item.expiresAt > now);
+    const existing = this.grants.find((item) => item.command === command && item.contextHash === contextHash && item.status === 'active' && item.expiresAt > now);
     if (existing) return existing;
-    const grant: AiTemporaryGrant = { id: `grant-${now}-${this.grants.length}`, command, createdAt: now, expiresAt: now + Math.max(1, durationMs), remainingUses: maxUses === null ? null : Math.max(1, maxUses), status: 'active' };
+    const grant: AiTemporaryGrant = { id: `grant-${now}-${this.grants.length}`, command, contextHash, createdAt: now, expiresAt: now + Math.max(1, durationMs), remainingUses: maxUses === null ? null : Math.max(1, maxUses), status: 'active' };
     this.grants.push(grant);
     return grant;
   }
-  allows(command: string, now = Date.now()): boolean {
+  allows(command: string, contextHash: string, now = Date.now()): boolean {
     this.expireAll(now);
-    const grant = this.grants.find((item) => item.command === command && item.status === 'active' && item.expiresAt > now && (item.remainingUses === null || item.remainingUses > 0));
+    const grant = this.grants.find((item) => item.command === command && item.contextHash === contextHash && item.status === 'active' && item.expiresAt > now && (item.remainingUses === null || item.remainingUses > 0));
     if (!grant) return false;
     if (grant.remainingUses !== null) { grant.remainingUses -= 1; if (grant.remainingUses === 0) grant.status = 'exhausted'; }
     return true;
