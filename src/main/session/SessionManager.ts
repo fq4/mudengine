@@ -3368,6 +3368,14 @@ export class SessionManager {
       character: state,
       room: state.room,
       inventory: state.inventory,
+      map: {
+        current:
+          state.room.map !== null && state.room.number !== null
+            ? `${state.room.map}/${state.room.number}`
+            : null,
+        exits: state.room.exits,
+        worldAvailable: this.world !== undefined
+      },
       ...(memories.length ? { memories } : {}),
       availableActions: [
         'inspect_character',
