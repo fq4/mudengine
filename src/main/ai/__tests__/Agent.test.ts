@@ -44,13 +44,11 @@ describe('AutonomousAgent', () => {
     }
   );
   it('suppresses unchanged observations and executes validated decisions', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'survive',
-        explanation: 'Inspect first',
-        action: { name: 'inspect_character', reason: 'safety' }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'survive',
+      explanation: 'Inspect first',
+      action: { name: 'inspect_character', reason: 'safety' }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
@@ -95,13 +93,11 @@ describe('AutonomousAgent', () => {
     expect(agent.state.status).toBe('error');
   });
   it('waits for navigation state to change before requesting another decision', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'travel',
-        explanation: 'Route to the destination',
-        action: { name: 'navigate_to', reason: 'travel', args: { destination: '1/2' } }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'travel',
+      explanation: 'Route to the destination',
+      action: { name: 'navigate_to', reason: 'travel', args: { destination: '1/2' } }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
@@ -116,13 +112,11 @@ describe('AutonomousAgent', () => {
     expect(decide).toHaveBeenCalledTimes(2);
   });
   it('does not re-plan while a delegated operation is still active', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'travel',
-        explanation: 'Route',
-        action: { name: 'navigate_to', reason: 'travel' }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'travel',
+      explanation: 'Route',
+      action: { name: 'navigate_to', reason: 'travel' }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
@@ -190,14 +184,12 @@ describe('AutonomousAgent', () => {
     expect(decide).toHaveBeenCalledTimes(1);
   });
   it('does not complete an equipment objective from inventory inspection alone', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'manage equipment',
-        explanation: 'Inspect first',
-        done: true,
-        action: { name: 'inspect_inventory', reason: 'inspect' }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'manage equipment',
+      explanation: 'Inspect first',
+      done: true,
+      action: { name: 'inspect_inventory', reason: 'inspect' }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 1, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
@@ -211,14 +203,12 @@ describe('AutonomousAgent', () => {
     expect(agent.state.enabled).toBe(true);
   });
   it('completes a bounded inspection objective when the model omits done', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'inspect',
-        explanation: 'Read status',
-        done: false,
-        action: { name: 'inspect_character', reason: 'inspect' }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'inspect',
+      explanation: 'Read status',
+      done: false,
+      action: { name: 'inspect_character', reason: 'inspect' }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 1, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
@@ -262,6 +252,42 @@ describe('AutonomousAgent', () => {
     expect(decide).toHaveBeenCalledTimes(2);
     expect(agent.state.currentAction?.name).toBe('inspect_combat_result');
   });
+  it('does not re-plan while a delegated recovery operation remains active', async () => {
+    const decide = vi
+      .fn()
+      .mockResolvedValueOnce({
+        objective: 'recover health, then stop',
+        explanation: 'Rest',
+        action: { name: 'recover_health', reason: 'recover' }
+      })
+      .mockResolvedValueOnce({
+        objective: 'recover health, then stop',
+        explanation: 'Confirm recovery',
+        done: true,
+        action: { name: 'inspect_character', reason: 'confirm' }
+      });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({
+        requests: decide.mock.calls.length,
+        inputTokens: 1,
+        outputTokens: 1,
+        estimatedCostUsd: 0
+      })
+    };
+    const agent = new AutonomousAgent(provider, {
+      execute: vi.fn().mockResolvedValue({ ok: true, message: 'Recovery delegated' })
+    });
+    let active: 'active' | 'completed' = 'active';
+    agent.setDelegatedOperationStatus(() => active);
+    agent.enable('Recover health, then stop.');
+    await agent.tick({ ...observation, character: { hp: 10 } });
+    await agent.tick({ ...observation, character: { hp: 10 } });
+    expect(decide).toHaveBeenCalledTimes(1);
+    active = 'completed';
+    await agent.tick({ ...observation, character: { hp: 41 } });
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
   it('treats a meaningful failure event as delegated-action failure', async () => {
     const decide = vi
       .fn()
@@ -294,13 +320,11 @@ describe('AutonomousAgent', () => {
     });
   });
   it('suppresses provider calls after repeated delegated failures', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'travel',
-        explanation: 'Route',
-        action: { name: 'navigate_to', reason: 'travel' }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'travel',
+      explanation: 'Route',
+      action: { name: 'navigate_to', reason: 'travel' }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
@@ -343,14 +367,12 @@ describe('AutonomousAgent', () => {
     await Promise.all([first, second]);
   });
   it('stops requesting decisions after a provider marks the objective complete', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'observe',
-        explanation: 'done',
-        done: true,
-        action: { name: 'inspect_room', reason: 'complete' }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'observe',
+      explanation: 'done',
+      done: true,
+      action: { name: 'inspect_room', reason: 'complete' }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
@@ -367,13 +389,11 @@ describe('AutonomousAgent', () => {
   });
   it('marks an accepted delegated action interrupted when stopped', async () => {
     const provider: AiProvider = {
-      decide: vi
-        .fn()
-        .mockResolvedValue({
-          objective: 'travel',
-          explanation: 'go',
-          action: { name: 'navigate_to', reason: 'travel' }
-        }),
+      decide: vi.fn().mockResolvedValue({
+        objective: 'travel',
+        explanation: 'go',
+        action: { name: 'navigate_to', reason: 'travel' }
+      }),
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
     };
     const agent = new AutonomousAgent(provider, {
@@ -387,13 +407,11 @@ describe('AutonomousAgent', () => {
   it('reports executing while the capability delegate is in flight', async () => {
     let release!: (result: { ok: boolean; message: string }) => void;
     const provider: AiProvider = {
-      decide: vi
-        .fn()
-        .mockResolvedValue({
-          objective: 'observe',
-          explanation: 'observe',
-          action: { name: 'inspect_room', reason: 'observe' }
-        }),
+      decide: vi.fn().mockResolvedValue({
+        objective: 'observe',
+        explanation: 'observe',
+        action: { name: 'inspect_room', reason: 'observe' }
+      }),
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
     };
     const agent = new AutonomousAgent(provider, {
@@ -412,14 +430,12 @@ describe('AutonomousAgent', () => {
     await pending;
   });
   it('does not mark a delegated objective complete on queue acceptance', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'travel',
-        explanation: 'arrive',
-        done: true,
-        action: { name: 'navigate_to', reason: 'travel' }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'travel',
+      explanation: 'arrive',
+      done: true,
+      action: { name: 'navigate_to', reason: 'travel' }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
@@ -434,28 +450,24 @@ describe('AutonomousAgent', () => {
   });
 
   it('pauses only the pending action instead of treating Ask First as a failure', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'recover supplies',
-        explanation: 'Buy supplies',
-        action: {
-          name: 'execute_supported_command',
-          args: { command: 'buy potion' },
-          reason: 'recover supplies'
-        }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'recover supplies',
+      explanation: 'Buy supplies',
+      action: {
+        name: 'execute_supported_command',
+        args: { command: 'buy potion' },
+        reason: 'recover supplies'
+      }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
     };
-    const execute = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        pendingApproval: true,
-        message: 'Approval required (a): spending requires approval'
-      });
+    const execute = vi.fn().mockResolvedValue({
+      ok: false,
+      pendingApproval: true,
+      message: 'Approval required (a): spending requires approval'
+    });
     const agent = new AutonomousAgent(provider, { execute });
     agent.enable('recover supplies');
     await agent.tick(observation);
@@ -467,17 +479,15 @@ describe('AutonomousAgent', () => {
   });
 
   it('resumes an objective after approval resolution without forcing a new request', async () => {
-    const decide = vi
-      .fn()
-      .mockResolvedValue({
-        objective: 'supplies',
-        explanation: 'Buy',
-        action: {
-          name: 'execute_supported_command',
-          args: { command: 'buy potion' },
-          reason: 'supplies'
-        }
-      });
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'supplies',
+      explanation: 'Buy',
+      action: {
+        name: 'execute_supported_command',
+        args: { command: 'buy potion' },
+        reason: 'supplies'
+      }
+    });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })

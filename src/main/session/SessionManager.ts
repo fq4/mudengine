@@ -1654,36 +1654,70 @@ export class SessionManager {
       connected: () => this.client.connected
     });
     this.aiProvider = new OpenRouterProvider();
-    this.aiAgent = new AutonomousAgent(this.aiProvider, { execute: async (action) => this.executeAiAction(action) }, undefined, this.aggregateBudgetController);
+    this.aiAgent = new AutonomousAgent(
+      this.aiProvider,
+      { execute: async (action) => this.executeAiAction(action) },
+      undefined,
+      this.aggregateBudgetController
+    );
     this.aiAgent.setDelegatedOperationActive((action) => {
-      if (action === 'navigate_to') return this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running';
-      if (action === 'engage_enemy') return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
-      if (action === 'recover_health') return Boolean(this.recovery.recovering || this.queue.queued((intent) => intent.command === 'rest'));
+      if (action === 'navigate_to')
+        return (
+          this.walker.walking ||
+          this.tracker.pendingMoves > 0 ||
+          this.loops.progress.status === 'running'
+        );
+      if (action === 'engage_enemy')
+        return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
+      if (action === 'recover_health')
+        return Boolean(
+          this.recovery.recovering ||
+          this.recovery.restInFlight ||
+          this.queue.queued((intent) => intent.command === 'rest')
+        );
       if (action === 'manage_equipment') return this.gear.dressing;
       return false;
     });
     this.aiAgent.setDelegatedOperationStatus((action) => {
       if (action === 'engage_enemy') {
-        if (this.combat.willFight || this.tracker.current.combat.attackers.length > 0) return 'active';
+        if (this.combat.willFight || this.tracker.current.combat.attackers.length > 0)
+          return 'active';
         return 'completed';
       }
       if (action === 'recover_health') {
-        return this.recovery.recovering || this.queue.queued((intent) => intent.command === 'rest') ? 'active' : 'completed';
+        return this.recovery.recovering ||
+          this.recovery.restInFlight ||
+          this.queue.queued((intent) => intent.command === 'rest')
+          ? 'active'
+          : 'completed';
       }
       if (action === 'manage_equipment') {
-        if (this.walker.walking || this.loops.progress.status === 'running' || this.recovery.recovering || this.gear.dressing) return 'active';
+        if (
+          this.walker.walking ||
+          this.loops.progress.status === 'running' ||
+          this.recovery.recovering ||
+          this.gear.dressing
+        )
+          return 'active';
         const current = JSON.stringify(this.tracker.current.inventory);
-        if (this.aiEquipmentBaseline !== null && current !== this.aiEquipmentBaseline) this.aiEquipmentBaseline = null;
+        if (this.aiEquipmentBaseline !== null && current !== this.aiEquipmentBaseline)
+          this.aiEquipmentBaseline = null;
         return 'completed';
       }
       if (action !== 'navigate_to' || this.aiNavigationDestination === null) return null;
       const room = this.tracker.current.room;
-      const current = room.map !== null && room.number !== null ? `${room.map}/${room.number}` : null;
+      const current =
+        room.map !== null && room.number !== null ? `${room.map}/${room.number}` : null;
       if (current === this.aiNavigationDestination) {
         this.aiNavigationDestination = null;
         return 'completed';
       }
-      if (this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running') return 'active';
+      if (
+        this.walker.walking ||
+        this.tracker.pendingMoves > 0 ||
+        this.loops.progress.status === 'running'
+      )
+        return 'active';
       this.aiNavigationDestination = null;
       return 'failed';
     });
@@ -3295,7 +3329,12 @@ export class SessionManager {
     this.aiBasePermissionLayers.profile = layers.profile;
     this.aiPermissionLayers.global = this.aiBasePermissionLayers.global;
     this.aiPermissionLayers.server = this.aiBasePermissionLayers.server;
-    this.aiPermissionLayers.profile = { commands: { ...(this.aiBasePermissionLayers.profile?.commands ?? {}), ...this.aiSessionPolicyOverrides } };
+    this.aiPermissionLayers.profile = {
+      commands: {
+        ...(this.aiBasePermissionLayers.profile?.commands ?? {}),
+        ...this.aiSessionPolicyOverrides
+      }
+    };
   }
 
   get state(): ConnectionState {
@@ -3316,12 +3355,50 @@ export class SessionManager {
 
   private aiObservation(event?: string): AiObservation {
     const state = this.tracker.current;
-    const memories = (this.aiMemory?.relevant(this.aiAgent.state.objective || event || '') ?? []).map(({ category, text, provenance, confidence, verified }) => ({ category, text: text.slice(0, 400), provenance: provenance.slice(0, 160), confidence, verified }));
-    return { character: state, room: state.room, inventory: state.inventory, ...(memories.length ? { memories } : {}), availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event ? { event } : {}) };
+    const memories = (
+      this.aiMemory?.relevant(this.aiAgent.state.objective || event || '') ?? []
+    ).map(({ category, text, provenance, confidence, verified }) => ({
+      category,
+      text: text.slice(0, 400),
+      provenance: provenance.slice(0, 160),
+      confidence,
+      verified
+    }));
+    return {
+      character: state,
+      room: state.room,
+      inventory: state.inventory,
+      ...(memories.length ? { memories } : {}),
+      availableActions: [
+        'inspect_character',
+        'inspect_room',
+        'inspect_inventory',
+        'inspect_map',
+        'navigate_to',
+        'engage_enemy',
+        'recover_health',
+        'inspect_combat_result',
+        'manage_equipment',
+        'send_message',
+        'execute_supported_command',
+        'wait'
+      ],
+      ...(event ? { event } : {})
+    };
   }
 
   private revalidateAiApprovals(): void {
-    if (this.aiApprovals.revalidate(JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target }))) this.aiAgent.approvalResolved('Approval expired or game state changed; reassess before acting');
+    if (
+      this.aiApprovals.revalidate(
+        JSON.stringify({
+          room: this.tracker.current.room,
+          target: this.tracker.current.combat.target
+        })
+      )
+    )
+      this.aiAgent.approvalResolved(
+        'Approval expired or game state changed; reassess before acting'
+      );
   }
   get aiSnapshot(): AiSnapshot {
     this.revalidateAiApprovals();
@@ -3335,13 +3412,40 @@ export class SessionManager {
         policy.push({ command, authorization, source });
       }
     }
-    return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation(), policy, aggregateBudget: this.aggregateBudgetController?.snapshot() };
+    return {
+      state: {
+        ...this.aiAgent.state,
+        pendingApprovals: approvals.pending,
+        approvalHistory: approvals.history,
+        temporaryGrants: approvals.grants
+      },
+      observation: this.aiObservation(),
+      policy,
+      aggregateBudget: this.aggregateBudgetController?.snapshot()
+    };
   }
-  aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); return this.aiSnapshot; }
-  aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
-  aiBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aiAgent.configureBudget(limits); return this.aiSnapshot; }
-  aiAggregateBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aggregateBudgetController?.configure(limits); return this.aiSnapshot; }
-  aiAggregateBudgetReset(): AiSnapshot { this.aggregateBudgetController?.resetUsage(); return this.aiSnapshot; }
+  aiEnable(model?: string): AiSnapshot {
+    if (model) this.aiProvider.setModel(model);
+    this.aiAgent.state.model = this.aiProvider.modelName();
+    this.aiAgent.enable();
+    return this.aiSnapshot;
+  }
+  aiPause(): AiSnapshot {
+    this.aiAgent.pause();
+    return this.aiSnapshot;
+  }
+  aiBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot {
+    this.aiAgent.configureBudget(limits);
+    return this.aiSnapshot;
+  }
+  aiAggregateBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot {
+    this.aggregateBudgetController?.configure(limits);
+    return this.aiSnapshot;
+  }
+  aiAggregateBudgetReset(): AiSnapshot {
+    this.aggregateBudgetController?.resetUsage();
+    return this.aiSnapshot;
+  }
   aiPolicy(command: string, authorization: AiAuthorization | null): AiSnapshot {
     const value = command.trim().toLowerCase();
     if (!value) return this.aiSnapshot;
@@ -3350,130 +3454,350 @@ export class SessionManager {
       this.aiAgent.state.lastActionResult = `Policy unchanged: ${baseline.reason}`;
       return this.aiSnapshot;
     }
-    if (authorization === null) delete this.aiSessionPolicyOverrides[value]; else this.aiSessionPolicyOverrides[value] = authorization;
+    if (authorization === null) delete this.aiSessionPolicyOverrides[value];
+    else this.aiSessionPolicyOverrides[value] = authorization;
     this.setAiPermissionLayers(this.aiPermissionLayers);
     return this.aiSnapshot;
   }
-  aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
-  aiEmergencyStop(): AiSnapshot {
+  aiStop(): AiSnapshot {
     this.aiAgent.stop();
-    this.queue.cancel((intent) => intent.reason?.startsWith('AI:') === true || intent.reason?.startsWith('Approved AI action:') === true);
-    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) this.walker.stop('AI emergency stop');
-    this.aiAgent.state.lastActionResult = 'Emergency stop active; AI commands canceled. Manual gameplay remains available.';
     return this.aiSnapshot;
   }
-  async aiProviderTest(): Promise<import('../../shared/ai').AiProviderDiagnostic> { return this.aiProvider.testConnection(); }
+  aiEmergencyStop(): AiSnapshot {
+    this.aiAgent.stop();
+    this.queue.cancel(
+      (intent) =>
+        intent.reason?.startsWith('AI:') === true ||
+        intent.reason?.startsWith('Approved AI action:') === true
+    );
+    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking)
+      this.walker.stop('AI emergency stop');
+    this.aiAgent.state.lastActionResult =
+      'Emergency stop active; AI commands canceled. Manual gameplay remains available.';
+    return this.aiSnapshot;
+  }
+  async aiProviderTest(): Promise<import('../../shared/ai').AiProviderDiagnostic> {
+    return this.aiProvider.testConnection();
+  }
   aiApprove(id: string): AiSnapshot {
-    const context = () => JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
+    const context = () =>
+      JSON.stringify({
+        room: this.tracker.current.room,
+        target: this.tracker.current.combat.target
+      });
     const approval = this.aiApprovals.approve(id, context());
-    if (!approval) { this.aiAgent.approvalResolved('Approval expired or game state changed'); return this.aiSnapshot; }
+    if (!approval) {
+      this.aiAgent.approvalResolved('Approval expired or game state changed');
+      return this.aiSnapshot;
+    }
     const classification = classifyCommand(approval.command, this.aiPermissionLayers);
-    if (classification.authorization === 'rejected') { this.aiAgent.approvalResolved(`Approval invalidated: ${classification.reason}`); return this.aiSnapshot; }
+    if (classification.authorization === 'rejected') {
+      this.aiAgent.approvalResolved(`Approval invalidated: ${classification.reason}`);
+      return this.aiSnapshot;
+    }
     const queued = this.queue.enqueue({
-      command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}`,
+      command: approval.command,
+      priority: 'user',
+      reason: `Approved AI action: ${approval.reason}`,
       expiresAt: approval.expiresAt,
       stillWanted: () => approval.contextHash === context() && Date.now() < approval.expiresAt,
-      onSent: () => { this.aiApprovals.markExecuted(approval.id); }
+      onSent: () => {
+        this.aiApprovals.markExecuted(approval.id);
+      }
     });
-    this.aiAgent.approvalResolved(queued ? `Approved command queued: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`);
+    this.aiAgent.approvalResolved(
+      queued
+        ? `Approved command queued: ${approval.command}`
+        : `Approved command was refused by CommandQueue: ${approval.command}`
+    );
     return this.aiSnapshot;
   }
   aiGrant(id: string, durationMs = 30 * 60_000, maxUses = 1): AiSnapshot {
-    const context = () => JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
+    const context = () =>
+      JSON.stringify({
+        room: this.tracker.current.room,
+        target: this.tracker.current.combat.target
+      });
     const approval = this.aiApprovals.approve(id, context());
-    if (!approval) { this.aiAgent.approvalResolved('Temporary authorization expired or game state changed'); return this.aiSnapshot; }
+    if (!approval) {
+      this.aiAgent.approvalResolved('Temporary authorization expired or game state changed');
+      return this.aiSnapshot;
+    }
     const classification = classifyCommand(approval.command, this.aiPermissionLayers);
-    if (classification.authorization !== 'ask-first') { this.aiAgent.approvalResolved(`Temporary authorization refused: ${classification.reason}`); return this.aiSnapshot; }
-    const grant = this.aiApprovals.grant(approval.command, approval.contextHash, Math.min(Math.max(durationMs, 1_000), 60 * 60_000), Math.min(Math.max(maxUses, 1), 20));
+    if (classification.authorization !== 'ask-first') {
+      this.aiAgent.approvalResolved(`Temporary authorization refused: ${classification.reason}`);
+      return this.aiSnapshot;
+    }
+    const grant = this.aiApprovals.grant(
+      approval.command,
+      approval.contextHash,
+      Math.min(Math.max(durationMs, 1_000), 60 * 60_000),
+      Math.min(Math.max(maxUses, 1), 20)
+    );
     const queued = this.queue.enqueue({
-      command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}`,
+      command: approval.command,
+      priority: 'user',
+      reason: `Approved AI action: ${approval.reason}`,
       expiresAt: Math.min(approval.expiresAt, grant.expiresAt),
-      stillWanted: () => approval.contextHash === context() && Date.now() < approval.expiresAt && this.aiApprovals.snapshot().grants.some((item) => item.id === grant.id),
-      onSent: () => { this.aiApprovals.allows(approval.command, approval.contextHash); this.aiApprovals.markExecuted(approval.id); }
+      stillWanted: () =>
+        approval.contextHash === context() &&
+        Date.now() < approval.expiresAt &&
+        this.aiApprovals.snapshot().grants.some((item) => item.id === grant.id),
+      onSent: () => {
+        this.aiApprovals.allows(approval.command, approval.contextHash);
+        this.aiApprovals.markExecuted(approval.id);
+      }
     });
-    this.aiAgent.approvalResolved(queued ? `Approved command queued with temporary authorization: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`);
+    this.aiAgent.approvalResolved(
+      queued
+        ? `Approved command queued with temporary authorization: ${approval.command}`
+        : `Approved command was refused by CommandQueue: ${approval.command}`
+    );
     return this.aiSnapshot;
   }
-  aiRevokeGrant(id: string): AiSnapshot { this.aiApprovals.revokeGrant(id); this.aiAgent.state.lastActionResult = 'Temporary authorization revoked'; return this.aiSnapshot; }
-  aiReject(id: string): AiSnapshot { const approval = this.aiApprovals.reject(id); this.aiAgent.approvalResolved(approval ? `Approval rejected: ${approval.command}` : 'Approval was already resolved or expired'); return this.aiSnapshot; }
-  aiMemories(): import('../../shared/ai').AiMemoryRecord[] { return this.aiMemory?.list() ?? []; }
-  aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }
-  aiUpdateMemory(id: string, text: string): import('../../shared/ai').AiMemoryRecord[] { const value = text.trim(); if (value.length > 0 && value.length <= 2_000) this.aiMemory?.update(id, { text: value }); return this.aiMemories(); }
-  aiSetMemoryMetadata(id: string, verified: boolean, pinned: boolean): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.update(id, { verified: verified === true, pinned: pinned === true }); return this.aiMemories(); }
-  aiGoal(goal: string): AiSnapshot { this.aiApprovals.resetTransient(); this.aiAgent.enable(goal.trim()); if (goal.trim()) void this.aiTick(); return this.aiSnapshot; }
-  aiClearGoal(): AiSnapshot { this.aiApprovals.resetTransient(); this.aiAgent.stop(); this.aiAgent.state.objective = ''; this.aiAgent.state.objectiveComplete = false; this.aiAgent.state.currentAction = null; this.aiAgent.state.lastActionResult = 'AI objective cleared'; return this.aiSnapshot; }
-  async aiTick(event?: string): Promise<void> { this.revalidateAiApprovals(); await this.aiAgent.tick(this.aiObservation(event)); }
+  aiRevokeGrant(id: string): AiSnapshot {
+    this.aiApprovals.revokeGrant(id);
+    this.aiAgent.state.lastActionResult = 'Temporary authorization revoked';
+    return this.aiSnapshot;
+  }
+  aiReject(id: string): AiSnapshot {
+    const approval = this.aiApprovals.reject(id);
+    this.aiAgent.approvalResolved(
+      approval
+        ? `Approval rejected: ${approval.command}`
+        : 'Approval was already resolved or expired'
+    );
+    return this.aiSnapshot;
+  }
+  aiMemories(): import('../../shared/ai').AiMemoryRecord[] {
+    return this.aiMemory?.list() ?? [];
+  }
+  aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] {
+    this.aiMemory?.remove(id);
+    return this.aiMemories();
+  }
+  aiUpdateMemory(id: string, text: string): import('../../shared/ai').AiMemoryRecord[] {
+    const value = text.trim();
+    if (value.length > 0 && value.length <= 2_000) this.aiMemory?.update(id, { text: value });
+    return this.aiMemories();
+  }
+  aiSetMemoryMetadata(
+    id: string,
+    verified: boolean,
+    pinned: boolean
+  ): import('../../shared/ai').AiMemoryRecord[] {
+    this.aiMemory?.update(id, { verified: verified === true, pinned: pinned === true });
+    return this.aiMemories();
+  }
+  aiGoal(goal: string): AiSnapshot {
+    this.aiApprovals.resetTransient();
+    this.aiAgent.enable(goal.trim());
+    if (goal.trim()) void this.aiTick();
+    return this.aiSnapshot;
+  }
+  aiClearGoal(): AiSnapshot {
+    this.aiApprovals.resetTransient();
+    this.aiAgent.stop();
+    this.aiAgent.state.objective = '';
+    this.aiAgent.state.objectiveComplete = false;
+    this.aiAgent.state.currentAction = null;
+    this.aiAgent.state.lastActionResult = 'AI objective cleared';
+    return this.aiSnapshot;
+  }
+  async aiTick(event?: string): Promise<void> {
+    this.revalidateAiApprovals();
+    await this.aiAgent.tick(this.aiObservation(event));
+  }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
     if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };
     const candidate = action as Partial<AiAction>;
-    if (typeof candidate.name !== 'string' || typeof candidate.reason !== 'string') return { ok: false, message: 'Invalid AI action' };
+    if (typeof candidate.name !== 'string' || typeof candidate.reason !== 'string')
+      return { ok: false, message: 'Invalid AI action' };
     return this.executeAiAction(candidate as AiAction);
   }
-  private async executeAiAction(action: AiAction): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }> {
-    if (action.name === 'inspect_character' || action.name === 'inspect_room' || action.name === 'inspect_inventory' || action.name === 'inspect_map' || action.name === 'inspect_combat_result') return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
-    if (action.name === 'recover_health') return { ok: this.queue.enqueue({ command: 'rest', priority: 'emergency', reason: `AI: ${action.reason}` }), message: 'Recovery delegated to CommandQueue' };
+  private async executeAiAction(
+    action: AiAction
+  ): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }> {
+    if (
+      action.name === 'inspect_character' ||
+      action.name === 'inspect_room' ||
+      action.name === 'inspect_inventory' ||
+      action.name === 'inspect_map' ||
+      action.name === 'inspect_combat_result'
+    )
+      return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
+    if (action.name === 'recover_health')
+      return {
+        ok: this.queue.enqueue({
+          command: 'rest',
+          priority: 'emergency',
+          reason: `AI: ${action.reason}`
+        }),
+        message: 'Recovery delegated to CommandQueue'
+      };
     if (action.name === 'manage_equipment') {
       this.aiEquipmentBaseline = JSON.stringify(this.tracker.current.inventory);
-      this.gear.onCharacter(this.tracker.current, this.walker.walking || this.loops.progress.status === 'running', this.recovery.recovering);
+      this.gear.onCharacter(
+        this.tracker.current,
+        this.walker.walking || this.loops.progress.status === 'running',
+        this.recovery.recovering
+      );
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
     if (action.name === 'send_message') {
       const objective = this.aiAgent.state.objective.toLowerCase();
-      const communicationRequested = /\b(communicat|conversation|convers|chat|message|messag|talk|tell|gossip|say|speak|social|contact|ask)\w*\b/.test(objective);
-      if (!communicationRequested) return { ok: false, message: 'AI social action refused: the current objective does not request communication' };
+      const communicationRequested =
+        /\b(communicat|conversation|convers|chat|message|messag|talk|tell|gossip|say|speak|social|contact|ask)\w*\b/.test(
+          objective
+        );
+      if (!communicationRequested)
+        return {
+          ok: false,
+          message: 'AI social action refused: the current objective does not request communication'
+        };
       const channel = action.args?.channel;
       const message = typeof action.args?.message === 'string' ? action.args.message.trim() : '';
-      const target = typeof action.args?.target === 'string' ? action.args.target.trim() : undefined;
-      if (/[\r\n\x00]/.test(message) || (target !== undefined && !/^[\p{L}\p{N}_'-]+$/u.test(target))) return { ok: false, message: 'Refused: message or target contains invalid command syntax' };
-      if (!['local', 'gossip', 'tell', 'telepath', 'broadcast'].includes(String(channel)) || message.length === 0 || message.length > 240) return { ok: false, message: 'Refused: invalid social channel or message length' };
-      if ((channel === 'tell' || channel === 'telepath') && !target) return { ok: false, message: 'Refused: private communication requires a target' };
+      const target =
+        typeof action.args?.target === 'string' ? action.args.target.trim() : undefined;
+      if (
+        /[\r\n\x00]/.test(message) ||
+        (target !== undefined && !/^[\p{L}\p{N}_'-]+$/u.test(target))
+      )
+        return { ok: false, message: 'Refused: message or target contains invalid command syntax' };
+      if (
+        !['local', 'gossip', 'tell', 'telepath', 'broadcast'].includes(String(channel)) ||
+        message.length === 0 ||
+        message.length > 240
+      )
+        return { ok: false, message: 'Refused: invalid social channel or message length' };
+      if ((channel === 'tell' || channel === 'telepath') && !target)
+        return { ok: false, message: 'Refused: private communication requires a target' };
       const allowed = this.aiSocial.allow({ channel: channel as AiSocialChannel, target, message });
       if (!allowed.ok) return { ok: false, message: allowed.reason };
-      const command = channel === 'local' ? `.${message}` : channel === 'gossip' ? `gos ${message}` : channel === 'broadcast' ? `-${message}` : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
-      const queued = this.queue.enqueue({ command, priority: 'user', reason: `AI: ${action.reason}` });
-      return { ok: queued, message: queued ? `${channel} message accepted by CommandQueue` : 'Message was refused by CommandQueue' };
+      const command =
+        channel === 'local'
+          ? `.${message}`
+          : channel === 'gossip'
+            ? `gos ${message}`
+            : channel === 'broadcast'
+              ? `-${message}`
+              : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
+      const queued = this.queue.enqueue({
+        command,
+        priority: 'user',
+        reason: `AI: ${action.reason}`
+      });
+      return {
+        ok: queued,
+        message: queued
+          ? `${channel} message accepted by CommandQueue`
+          : 'Message was refused by CommandQueue'
+      };
     }
     if (action.name === 'engage_enemy') {
       const name = typeof action.args?.name === 'string' ? action.args.name : '';
-      if (!name || name.startsWith('@')) return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
-      this.combat.alsoFight(name); this.aiMemory?.upsert({ category: 'strategy', text: `Engage ordinary NPC ${name} through AutoCombat`, provenance: 'AI capability delegation', confidence: 0.6, verified: false, expiresAt: Date.now() + 86_400_000, pinned: false }); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
+      if (!name || name.startsWith('@'))
+        return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
+      this.combat.alsoFight(name);
+      this.aiMemory?.upsert({
+        category: 'strategy',
+        text: `Engage ordinary NPC ${name} through AutoCombat`,
+        provenance: 'AI capability delegation',
+        confidence: 0.6,
+        verified: false,
+        expiresAt: Date.now() + 86_400_000,
+        pinned: false
+      });
+      return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
     }
     if (action.name === 'navigate_to') {
       const raw = action.args?.destination;
       const destination = typeof raw === 'string' ? raw.trim() : '';
       const current = this.tracker.current.room;
       const target = resolveAiNavigationTarget(destination, current.exits);
-      if (!target) return { ok: false, message: `Refused: navigation destination "${destination || '—'}" is not an authoritative room address or available exit` };
+      if (!target)
+        return {
+          ok: false,
+          message: `Refused: navigation destination "${destination || '—'}" is not an authoritative room address or available exit`
+        };
       const route = this.planFromHere(target);
-      if (typeof route === 'string') return { ok: false, message: `Refused: navigation to ${target} is unavailable: ${route}` };
+      if (typeof route === 'string')
+        return { ok: false, message: `Refused: navigation to ${target} is unavailable: ${route}` };
       this.aiNavigationDestination = target;
       const refused = this.walkRoute(route, true);
       if (refused !== null) this.aiNavigationDestination = null;
-      if (refused === null) this.aiMemory?.upsert({ category: 'strategy', text: `Navigation route accepted to ${target}`, provenance: 'Walker accepted validated route', confidence: 0.8, verified: false, expiresAt: null, pinned: false });
+      if (refused === null)
+        this.aiMemory?.upsert({
+          category: 'strategy',
+          text: `Navigation route accepted to ${target}`,
+          provenance: 'Walker accepted validated route',
+          confidence: 0.8,
+          verified: false,
+          expiresAt: null,
+          pinned: false
+        });
       return { ok: refused === null, message: refused ?? 'Navigation delegated to Walker' };
     }
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
       const objective = this.aiAgent.state.objective.toLowerCase();
-      if (/\b(inspect|check|observe)\b/.test(objective) && /\b(character|room|status)\b/.test(objective) && !/\b(command|use|execute|run)\b/.test(objective)) {
-        return { ok: false, message: 'Refused: this objective requests named character/room inspection, not a general command' };
+      if (
+        /\b(inspect|check|observe)\b/.test(objective) &&
+        /\b(character|room|status)\b/.test(objective) &&
+        !/\b(command|use|execute|run)\b/.test(objective)
+      ) {
+        return {
+          ok: false,
+          message:
+            'Refused: this objective requests named character/room inspection, not a general command'
+        };
       }
       const classification = classifyCommand(command, this.aiPermissionLayers);
-      if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
-      const contextHash = JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
-      if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command, contextHash)) {
+      if (classification.authorization === 'rejected')
+        return { ok: false, message: `Refused: ${classification.reason}` };
+      const contextHash = JSON.stringify({
+        room: this.tracker.current.room,
+        target: this.tracker.current.combat.target
+      });
+      if (
+        classification.authorization === 'ask-first' &&
+        !this.aiApprovals.allows(command, contextHash)
+      ) {
         const room = this.tracker.current.room;
         const target = this.tracker.current.combat.target;
-        const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', contextHash, Date.now(), {
-          target: target ?? undefined,
-          knownFacts: [`Current room: ${room.map ?? '?'}/${room.number ?? '?'}`, target ? `Current combat target: ${target}` : 'No active combat target'],
-          prediction: classification.risk === 'high' ? 'The command may spend, transfer, or permanently alter game resources.' : 'The command may have an unverified side effect on this MUD.'
-        });
-        return { ok: false, pendingApproval: true, message: `Approval required (${approval.id}): ${classification.reason}` };
+        const approval = this.aiApprovals.request(
+          command,
+          action.reason,
+          classification.risk === 'high' ? 'high' : 'unknown',
+          contextHash,
+          Date.now(),
+          {
+            target: target ?? undefined,
+            knownFacts: [
+              `Current room: ${room.map ?? '?'}/${room.number ?? '?'}`,
+              target ? `Current combat target: ${target}` : 'No active combat target'
+            ],
+            prediction:
+              classification.risk === 'high'
+                ? 'The command may spend, transfer, or permanently alter game resources.'
+                : 'The command may have an unverified side effect on this MUD.'
+          }
+        );
+        return {
+          ok: false,
+          pendingApproval: true,
+          message: `Approval required (${approval.id}): ${classification.reason}`
+        };
       }
-      return { ok: this.queue.enqueue({ command, priority: 'user', reason: `AI: ${action.reason}` }), message: 'Command delegated to CommandQueue' };
+      return {
+        ok: this.queue.enqueue({ command, priority: 'user', reason: `AI: ${action.reason}` }),
+        message: 'Command delegated to CommandQueue'
+      };
     }
-    return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };
+    return {
+      ok: false,
+      message: `Action ${action.name} requires a route or deterministic adapter`
+    };
   }
 
   /**
@@ -3774,7 +4098,8 @@ export class SessionManager {
   async connect(target: ConnectionTarget): Promise<ConnectionState> {
     this.aiAgent.stop();
     this.aiApprovals.resetTransient();
-    for (const command of Object.keys(this.aiSessionPolicyOverrides)) delete this.aiSessionPolicyOverrides[command];
+    for (const command of Object.keys(this.aiSessionPolicyOverrides))
+      delete this.aiSessionPolicyOverrides[command];
     this.setAiPermissionLayers(this.aiBasePermissionLayers);
     this.aiNavigationDestination = null;
     this.aiEquipmentBaseline = null;
@@ -4103,8 +4428,13 @@ export class SessionManager {
     if (!this.aiAgent.state.enabled) return;
     const classification = classifyCommand(command);
     if (classification.risk === 'safe') return;
-    this.queue.cancel((intent) => intent.reason?.startsWith('AI:') === true || intent.reason?.startsWith('Approved AI action:') === true);
-    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) this.walker.stop('Manual command interrupted AI navigation');
+    this.queue.cancel(
+      (intent) =>
+        intent.reason?.startsWith('AI:') === true ||
+        intent.reason?.startsWith('Approved AI action:') === true
+    );
+    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking)
+      this.walker.stop('Manual command interrupted AI navigation');
     this.aiAgent.pause();
     this.aiAgent.state.lastActionResult = `AI yielded to manual command: ${command}`;
   }
@@ -4379,7 +4709,8 @@ export class SessionManager {
   private leftTheRealm(): void {
     this.aiAgent.stop();
     this.aiApprovals.resetTransient();
-    for (const command of Object.keys(this.aiSessionPolicyOverrides)) delete this.aiSessionPolicyOverrides[command];
+    for (const command of Object.keys(this.aiSessionPolicyOverrides))
+      delete this.aiSessionPolicyOverrides[command];
     this.setAiPermissionLayers(this.aiBasePermissionLayers);
     this.aiNavigationDestination = null;
     this.aiEquipmentBaseline = null;
@@ -6025,11 +6356,27 @@ export class SessionManager {
 
   /** Only events that can change strategy wake the provider; routine parser churn does not. */
   private isAiMeaningfulEvent(event: string): boolean {
-    return event.startsWith('conversation-gossip') || event.startsWith('conversation-broadcast') || event.startsWith('conversation-directed') || event.startsWith('conversation-local') ||
-      event.startsWith('conversation-telepath') || event.startsWith('conversation-gangpath') || event.startsWith('conversation-auction') || event === 'mob-dies' ||
-      event === 'user-dies' || event === 'user-gain-experience' || event === 'room-exits' ||
-      event === 'direction-failed' || event === 'peek-failed' || event === 'command-not-understood' || event === 'command-refused' || event === 'user-search-failed' ||
-      event === 'spell-refused' || event === 'status-line' || event === 'player-status';
+    return (
+      event.startsWith('conversation-gossip') ||
+      event.startsWith('conversation-broadcast') ||
+      event.startsWith('conversation-directed') ||
+      event.startsWith('conversation-local') ||
+      event.startsWith('conversation-telepath') ||
+      event.startsWith('conversation-gangpath') ||
+      event.startsWith('conversation-auction') ||
+      event === 'mob-dies' ||
+      event === 'user-dies' ||
+      event === 'user-gain-experience' ||
+      event === 'room-exits' ||
+      event === 'direction-failed' ||
+      event === 'peek-failed' ||
+      event === 'command-not-understood' ||
+      event === 'command-refused' ||
+      event === 'user-search-failed' ||
+      event === 'spell-refused' ||
+      event === 'status-line' ||
+      event === 'player-status'
+    );
   }
 
   /** Conversation headers and the character's own echoed speech are not inbound prompts. */
@@ -6038,7 +6385,12 @@ export class SessionManager {
     const message = block.groups['message'];
     const speaker = block.groups['player'];
     if (typeof message !== 'string' || message.trim().length === 0) return null;
-    if (speaker === undefined || speaker.trim().toLowerCase() === 'you' || speaker.trim() === (this.tracker.current.name ?? '').trim()) return null;
+    if (
+      speaker === undefined ||
+      speaker.trim().toLowerCase() === 'you' ||
+      speaker.trim() === (this.tracker.current.name ?? '').trim()
+    )
+      return null;
     const boundedMessage = message.trim().slice(0, 240);
     const boundedSpeaker = speaker.trim().slice(0, 80);
     return `${block.type} from ${boundedSpeaker}: ${boundedMessage}`;
