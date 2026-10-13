@@ -88,7 +88,7 @@ import { RealmMenu } from './RealmMenu';
 import { Events } from '../automation/Events';
 import { AutonomousAgent } from '../ai/Agent';
 import { OpenRouterProvider } from '../ai/OpenRouter';
-import { classifyCommand } from '../ai/Permissions';
+import { classifyCommand, type AiPermissionLayers } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
 import type { AiMemoryStore } from '../ai/MemoryStore';
@@ -997,6 +997,7 @@ export class SessionManager {
   readonly queue: CommandQueue;
   private readonly aiAgent: AutonomousAgent;
   private readonly aiProvider: OpenRouterProvider;
+  private readonly aiPermissionLayers: AiPermissionLayers;
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
   private aiNavigationDestination: string | null = null;
@@ -1440,8 +1441,10 @@ export class SessionManager {
      * before this was a setting rather than a guess.
      */
     locate: LocateMethod = DEFAULT_CONFIG.connection.locate,
-    private readonly aiMemory?: AiMemoryStore
+    private readonly aiMemory?: AiMemoryStore,
+    aiPermissionLayers: AiPermissionLayers = {}
   ) {
+    this.aiPermissionLayers = aiPermissionLayers;
     this.locateMethod = locate;
     this.fightRecord = fights;
     this.tracker = new CharacterTracker(
@@ -3300,7 +3303,7 @@ export class SessionManager {
     const context = () => JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
     const approval = this.aiApprovals.approve(id, context());
     if (!approval) { this.aiAgent.approvalResolved('Approval expired or game state changed'); return this.aiSnapshot; }
-    const classification = classifyCommand(approval.command);
+    const classification = classifyCommand(approval.command, this.aiPermissionLayers);
     if (classification.authorization === 'rejected') { this.aiAgent.approvalResolved(`Approval invalidated: ${classification.reason}`); return this.aiSnapshot; }
     const queued = this.queue.enqueue({
       command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}`,
@@ -3315,7 +3318,7 @@ export class SessionManager {
     const context = () => JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
     const approval = this.aiApprovals.approve(id, context());
     if (!approval) { this.aiAgent.approvalResolved('Temporary authorization expired or game state changed'); return this.aiSnapshot; }
-    const classification = classifyCommand(approval.command);
+    const classification = classifyCommand(approval.command, this.aiPermissionLayers);
     if (classification.authorization !== 'ask-first') { this.aiAgent.approvalResolved(`Temporary authorization refused: ${classification.reason}`); return this.aiSnapshot; }
     const grant = this.aiApprovals.grant(approval.command, approval.contextHash, Math.min(Math.max(durationMs, 1_000), 60 * 60_000), Math.min(Math.max(maxUses, 1), 20));
     const queued = this.queue.enqueue({
@@ -3382,7 +3385,7 @@ export class SessionManager {
     }
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
-      const classification = classifyCommand(command);
+      const classification = classifyCommand(command, this.aiPermissionLayers);
       if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
       const contextHash = JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
       if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command, contextHash)) { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', contextHash); return { ok: false, pendingApproval: true, message: `Approval required (${approval.id}): ${classification.reason}` }; }

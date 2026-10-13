@@ -500,7 +500,8 @@ export class SessionHost {
       this.options.findsFor?.(id),
       this.options.sentences?.() ?? NO_SHIPPED_SENTENCES,
       config.connection.locate,
-      this.options.aiMemoryFor?.(id)
+      this.options.aiMemoryFor?.(id),
+      { profile: config.aiPolicy }
     );
 
     manager.configureInternal(this.options.internal());
