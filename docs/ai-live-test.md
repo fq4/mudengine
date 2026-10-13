@@ -203,3 +203,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - The compact-character projection is now isolated and unit-tested. A fresh
   bounded `kefka` run passed all eight scenarios with zero violations; the
   inspection request used 1,694 input tokens.
+- The extracted projection helper was revalidated against the live server;
+  all eight scenarios passed with zero violations and inspection used 1,694
+  input tokens.
