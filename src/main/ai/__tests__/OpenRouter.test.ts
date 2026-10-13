@@ -23,6 +23,13 @@ describe('OpenRouterProvider', () => {
     expect(request.messages[0]?.content).toContain('For an informational objective, inspect or observe first');
     expect(request.messages[0]?.content).toContain('Use send_message only when the objective explicitly requests communication');
   });
+  it('directs unknown informational commands through the supported-command action', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'status', explanation: 'check', action: { name: 'execute_supported_command', args: { command: 'status' }, reason: 'requested status' } }) } }] }), { status: 200 }));
+    await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['execute_supported_command'] }, 'Check my current status using an unknown informational command');
+    const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
+    expect(request.messages[0]?.content).toContain('For an unknown informational command, use execute_supported_command');
+    expect(request.messages[0]?.content).toContain('Never invent an action name');
+  });
   it('reports provider connectivity without exposing credentials', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const result = await new OpenRouterProvider({ apiKey: 'secret', model: 'test/model' }).testConnection();
