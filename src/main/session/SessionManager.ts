@@ -3454,6 +3454,10 @@ export class SessionManager {
     }
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
+      const objective = this.aiAgent.state.objective.toLowerCase();
+      if (/\b(inspect|check|observe)\b/.test(objective) && /\b(character|room|status)\b/.test(objective) && !/\b(command|use|execute|run)\b/.test(objective)) {
+        return { ok: false, message: 'Refused: this objective requests named character/room inspection, not a general command' };
+      }
       const classification = classifyCommand(command, this.aiPermissionLayers);
       if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
       const contextHash = JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
