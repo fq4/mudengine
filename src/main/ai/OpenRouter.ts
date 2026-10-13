@@ -10,6 +10,7 @@ export class OpenRouterProvider implements AiProvider {
     this.model = options.model ?? process.env.MUDENGINE_AI_MODEL ?? 'openai/gpt-4o-mini';
   }
   usage(): AiUsage { return { ...this.stats }; }
+  modelName(): string { return this.model; }
   setModel(model: string): void { if (model.trim()) this.model = model.trim(); }
   async testConnection(signal?: AbortSignal): Promise<AiProviderDiagnostic> {
     const at = Date.now();

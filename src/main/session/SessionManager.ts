@@ -3267,7 +3267,7 @@ export class SessionManager {
   }
 
   get aiSnapshot(): AiSnapshot { const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation() }; }
-  aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; }
+  aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
   aiEmergencyStop(): AiSnapshot {
