@@ -34,6 +34,7 @@ export interface AiState {
   enabled: boolean; status: AiStatus; objective: string; activity: string;
   explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
   model: string; lastObservationHash?: string; consecutiveFailures: number;
+  currentAction?: { name: AiActionName; phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed'; message: string } | null;
 }
 export interface AiSnapshot { state: AiState; observation: AiObservation; }
 

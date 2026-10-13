@@ -18,4 +18,15 @@ describe('AutonomousAgent', () => {
     const agent = new AutonomousAgent(provider, { execute: vi.fn() }); agent.enable('x'); const pending = agent.tick(observation); agent.pause(); reject(new Error('aborted')); await pending;
     expect(agent.state.status).toBe('paused');
   });
+  it('waits for navigation state to change before requesting another decision', async () => {
+    const decide = vi.fn().mockResolvedValue({ objective: 'travel', explanation: 'Route to the destination', action: { name: 'navigate_to', reason: 'travel', args: { destination: '1/2' } } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const execute = vi.fn().mockResolvedValue({ ok: true, message: 'Walker accepted route' });
+    const agent = new AutonomousAgent(provider, { execute }); agent.enable('travel');
+    await agent.tick({ ...observation, availableActions: ['navigate_to'] });
+    await agent.tick({ ...observation, availableActions: ['navigate_to'] });
+    expect(decide).toHaveBeenCalledTimes(1);
+    await agent.tick({ ...observation, room: { id: 2 }, availableActions: ['navigate_to'] });
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
 });

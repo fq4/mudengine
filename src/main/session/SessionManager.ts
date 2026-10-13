@@ -89,7 +89,6 @@ import { Events } from '../automation/Events';
 import { AutonomousAgent } from '../ai/Agent';
 import { OpenRouterProvider } from '../ai/OpenRouter';
 import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
-import type { SessionModule } from '../automation/Module';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
 import {
@@ -3275,17 +3274,14 @@ export class SessionManager {
       this.combat.alsoFight(name); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
     }
     if (action.name === 'navigate_to') {
-      let route = action.args?.route as Route | undefined;
-      if (!route && typeof action.args?.destination === 'string' && this.world) {
-        const match = action.args.destination.match(/^(\d+)\/(\d+)$/);
-        const here = this.tracker.current.room;
-        if (match && here?.map !== null && here?.number !== null) {
-          route = this.world.route(roomId(here.map, here.number), roomId(Number(match[1]), Number(match[2])), this.travellerNow(this.tracker.current), { alternatives: false });
-        }
-      }
-      if (!route || !Array.isArray(route.steps)) return { ok: false, message: 'Refused: navigation requires a validated route' };
-      const refusal = this.walkRoute(route, true);
-      return { ok: refusal === null, message: refusal ?? 'Navigation delegated to Walker' };
+      const destination = typeof action.args?.destination === 'string' ? action.args.destination.trim() : '';
+      const match = destination.match(/^(\d+)\/(\d+)$/);
+      const route = match
+        ? this.planFromHere(roomId(Number(match[1]), Number(match[2])))
+        : null;
+      if (!route || typeof route === 'string') return { ok: false, message: typeof route === 'string' ? route : 'Refused: navigation requires a map/room destination' };
+      const refused = this.walkRoute(route, true);
+      return { ok: refused === null, message: refused ?? 'Navigation delegated to Walker' };
     }
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
@@ -3293,10 +3289,6 @@ export class SessionManager {
       return { ok: this.queue.enqueue({ command, priority: 'user', reason: action.reason }), message: 'Command delegated to CommandQueue' };
     }
     return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };
-  }
-
-  get players(): PlayerRegistry {
-    return this.tracker.players;
   }
 
   /**
