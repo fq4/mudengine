@@ -1,10 +1,11 @@
 import { observationHash, type AiAction, type AiDecision, type AiObservation, type AiProvider, type AiState } from '../../shared/ai';
+import { AiBudget } from './Budget';
 
 export interface AiExecutor { execute(action: AiAction): Promise<{ ok: boolean; message: string }>; }
 export class AutonomousAgent {
   readonly state: AiState;
   private aborter: AbortController | null = null;
-  constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, initial?: Partial<AiState>) {
+  constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
     this.state = { enabled: false, status: 'disabled', objective: '', activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, ...initial };
   }
   enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; }
@@ -18,7 +19,10 @@ export class AutonomousAgent {
       this.state.currentAction = { ...this.state.currentAction, phase: 'completed', message: 'Observed a state change after the delegated action' };
     }
     if (hash === this.state.lastObservationHash) return null;
+    const budget = this.budget.check(this.provider.usage());
+    if (!budget.ok) { this.state.status = 'error'; this.state.lastActionResult = `Budget Paused: ${budget.reason}`; return null; }
     this.state.lastObservationHash = hash; this.state.status = 'thinking'; this.aborter = new AbortController();
+    this.budget.noteRequest();
     try {
       const decision = await this.provider.decide(observation, this.state.objective, this.aborter.signal);
       this.state.activity = decision.action.name; this.state.explanation = decision.explanation; this.state.status = 'executing'; this.state.currentAction = { name: decision.action.name, phase: 'requested', message: 'Action requested' }; this.remember('note', decision.explanation);
