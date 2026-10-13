@@ -3268,6 +3268,10 @@ export class SessionManager {
   private async executeAiAction(action: AiAction): Promise<{ ok: boolean; message: string }> {
     if (action.name === 'inspect_character' || action.name === 'inspect_room' || action.name === 'inspect_inventory' || action.name === 'inspect_map' || action.name === 'inspect_combat_result') return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
     if (action.name === 'recover_health') return { ok: this.queue.enqueue({ command: 'rest', priority: 'emergency', reason: action.reason }), message: 'Recovery delegated to CommandQueue' };
+    if (action.name === 'manage_equipment') {
+      this.gear.onCharacter(this.tracker.current, this.walker.walking || this.loops.progress.status === 'running', this.recovery.recovering);
+      return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
+    }
     if (action.name === 'engage_enemy') {
       const name = typeof action.args?.name === 'string' ? action.args.name : '';
       if (!name || name.startsWith('@')) return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
