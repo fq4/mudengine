@@ -174,6 +174,21 @@ async function main() {
     passed: !invalid.ok,
     result: invalid.message
   });
+  session.aiGoal('Explore one adjacent room using an available exit, then stop.');
+  await wait(500);
+  session.send('look\r');
+  await wait(500);
+  const manualLook = monitor.events.some(
+    (event) => event.kind === 'command' && event.value.toLowerCase() === 'look'
+  );
+  session.aiEmergencyStop();
+  report.scenarios.push({
+    name: 'manual-interruption',
+    passed: manualLook,
+    result: manualLook
+      ? 'Manual look executed while AI objective was active'
+      : 'Manual look was not observed'
+  });
   session.aiBudget({ sessionTokens: 100 });
   session.aiGoal('Observe the current room, then stop.');
   const budgetPaused = await waitFor((state) => state.status === 'budget-paused', 5_000);
