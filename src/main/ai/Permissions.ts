@@ -4,6 +4,7 @@ export interface CommandClassification { risk: AiRisk; authorization: AiAuthoriz
 
 const SAFE = /^(look|l|score|sc|inventory|i|who|status|health|pro|exits|x)$/i;
 const PROHIBITED = /^(kill|attack|hit|pk|pvp|suicide|delete|drop\s+all|quit|logout|password|passwd)\b/i;
+const HIGH_RISK = /^(buy|purchase|withdraw|transfer|give|sell|sacrifice)\b/i;
 const ROUTINE = /^(go|north|south|east|west|up|down|n|s|e|w|u|d|rest|med|wear|remove|get|take|open|close|search|examine|exa)\b/i;
 
 export function classifyCommand(command: string): CommandClassification {
@@ -12,6 +13,7 @@ export function classifyCommand(command: string): CommandClassification {
   if (/[;&|`\r\n]/.test(value)) return { risk: 'unknown', authorization: 'ask-first', reason: 'Command chaining or macro syntax is not verified and requires approval' };
   if (PROHIBITED.test(value)) return { risk: 'prohibited', authorization: 'rejected', reason: 'Command is prohibited by the default safety policy' };
   if (SAFE.test(value)) return { risk: 'safe', authorization: 'autonomous', reason: 'Known informational command' };
+  if (HIGH_RISK.test(value)) return { risk: 'high', authorization: 'ask-first', reason: 'Command can spend, transfer, or permanently alter game resources' };
   if (ROUTINE.test(value)) return { risk: 'routine', authorization: 'autonomous', reason: 'Known routine gameplay command' };
   return { risk: 'unknown', authorization: 'ask-first', reason: 'Command is not verified by the current command evidence' };
 }

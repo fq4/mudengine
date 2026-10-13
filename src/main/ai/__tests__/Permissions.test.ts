@@ -7,4 +7,5 @@ describe('AI command permissions', () => {
   it('requires approval for unknown commands', () => expect(classifyCommand('mysterious verb')).toMatchObject({ risk: 'unknown', authorization: 'ask-first' }));
   it('rejects prohibited commands', () => expect(classifyCommand('kill @Player')).toMatchObject({ risk: 'prohibited', authorization: 'rejected' }));
   it('does not let command chaining inherit a routine prefix', () => expect(classifyCommand('go north; kill target')).toMatchObject({ risk: 'unknown', authorization: 'ask-first' }));
+  it('requires short-lived approval for resource-changing commands', () => expect(classifyCommand('buy potion')).toMatchObject({ risk: 'high', authorization: 'ask-first' }));
 });
