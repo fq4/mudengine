@@ -202,6 +202,15 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('rejects direct AI actions without a meaningful reason', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    await expect(
+      isolated.aiAction({ name: 'inspect_character', reason: '   ' })
+    ).resolves.toEqual({ ok: false, message: 'Invalid AI action' });
+    isolated.dispose();
+  });
+
   it('rejects an empty general command before classification or approval', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);

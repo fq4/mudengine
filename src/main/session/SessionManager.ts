@@ -3643,7 +3643,11 @@ export class SessionManager {
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
     if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };
     const candidate = action as Partial<AiAction>;
-    if (typeof candidate.name !== 'string' || typeof candidate.reason !== 'string')
+    if (
+      typeof candidate.name !== 'string' ||
+      typeof candidate.reason !== 'string' ||
+      candidate.reason.trim().length === 0
+    )
       return { ok: false, message: 'Invalid AI action' };
     if (!AI_ACTIONS.includes(candidate.name as (typeof AI_ACTIONS)[number]))
       return { ok: false, message: `AI response contains an unsupported action: ${candidate.name}` };
