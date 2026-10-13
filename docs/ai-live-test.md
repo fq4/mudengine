@@ -246,3 +246,5 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   or failure knowledge is not hidden by a standing objective.
 - Targeted memory/session tests and node typecheck passed. The bounded
   `kefka` run passed all eight scenarios with zero violations.
+- Production build and both typechecks passed; only the existing
+  large-renderer-chunk warning remains.
