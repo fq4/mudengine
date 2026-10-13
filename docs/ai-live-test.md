@@ -132,3 +132,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   still valid. The objective remains preserved, but resume still requires a
   fresh authoritative-state assessment.
 - Focused reconnect regression and Node typecheck passed.
+- SessionManager integration coverage now confirms recovery reaches
+  `CommandQueue` and equipment reaches `EquipmentManager` on a connected test
+  session; both adapters retain their accepted-versus-completed lifecycle.

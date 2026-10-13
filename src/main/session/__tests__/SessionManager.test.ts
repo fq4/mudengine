@@ -191,6 +191,18 @@ describe('the raw byte record', () => {
 });
 
 describe('AI reconnect lifecycle', () => {
+  it('delegates recovery and equipment actions to existing automation adapters', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    await isolated.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    await client();
+    const recovery = await isolated.aiAction({ name: 'recover_health', reason: 'restore health' });
+    const equipment = await isolated.aiAction({ name: 'manage_equipment', reason: 'review gear' });
+    expect(recovery).toEqual({ ok: true, message: 'Recovery delegated to CommandQueue' });
+    expect(equipment).toEqual({ ok: true, message: 'Equipment management delegated to EquipmentManager' });
+    isolated.dispose();
+  });
+
   it('suspends stale AI execution while preserving the objective for reassessment', async () => {
     const { sink } = collect();
     manager = new SessionManager(sink);
