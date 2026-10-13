@@ -198,3 +198,5 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - The bounded `kefka` run passed all eight scenarios with zero violations.
   Input usage for the inspection scenario fell from roughly 2.3k tokens to
   1.8k while inspection and two-room navigation remained correct.
+- Renderer and Node typechecks plus the production Electron build passed after
+  the observation change; the existing large-renderer-chunk warning remains.
