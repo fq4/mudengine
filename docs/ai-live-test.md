@@ -158,3 +158,12 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   reaches `CommandQueue` only after approval and records executed history.
 - No live general-command execution was used; live testing remains limited to
   the approved safe scenarios.
+
+### 2026-10-13 — bounded real-server verification
+
+- The `kefka` live harness passed all seven approved scenarios: inspection,
+  one-room navigation, invalid-destination refusal, unknown-command approval,
+  manual interruption, budget enforcement, and emergency stop.
+- The run recorded zero safety violations. Navigation moved from `1/2141` to
+  `1/2140`; the unknown command remained approval-gated, and the only live
+  gameplay commands were the authorized observation/navigation probes.
