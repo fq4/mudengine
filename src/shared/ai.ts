@@ -28,6 +28,7 @@ export interface AiDecision {
 }
 
 export interface AiMemory { at: number; kind: 'success' | 'failure' | 'note'; text: string; }
+export interface AiMemoryRecord { id: string; server: string; character: string; category: 'fact' | 'hypothesis' | 'strategy' | 'social' | 'preference' | 'objective'; text: string; provenance: string; confidence: number; verified: boolean; createdAt: number; updatedAt: number; expiresAt: number | null; pinned: boolean; }
 export interface AiApproval { id: string; command: string; reason: string; risk: 'high' | 'unknown'; contextHash: string; createdAt: number; expiresAt: number; status: 'pending' | 'approved' | 'rejected' | 'expired'; }
 export interface AiUsage { requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number; }
 export interface AiProvider { decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision>; usage(): AiUsage; }

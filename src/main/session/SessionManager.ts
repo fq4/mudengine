@@ -3266,6 +3266,8 @@ export class SessionManager {
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
   aiApprove(id: string): AiSnapshot { const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); if (!approval) { this.aiAgent.state.lastActionResult = 'Approval expired or game state changed'; return this.aiSnapshot; } const classification = classifyCommand(approval.command); if (classification.authorization === 'rejected') { this.aiAgent.state.lastActionResult = `Approval invalidated: ${classification.reason}`; return this.aiSnapshot; } const queued = this.queue.enqueue({ command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}` }); this.aiAgent.state.lastActionResult = queued ? `Approved command queued: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`; return this.aiSnapshot; }
   aiReject(id: string): AiSnapshot { this.aiApprovals.reject(id); return this.aiSnapshot; }
+  aiMemories(): import('../../shared/ai').AiMemoryRecord[] { return this.aiMemory?.list() ?? []; }
+  aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }
   aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); void this.aiTick(); return this.aiSnapshot; }
   async aiTick(): Promise<void> { await this.aiAgent.tick(this.aiObservation()); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {

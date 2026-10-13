@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-
-export interface AiMemoryRecord { id: string; server: string; character: string; category: 'fact' | 'hypothesis' | 'strategy' | 'social' | 'preference' | 'objective'; text: string; provenance: string; confidence: number; verified: boolean; createdAt: number; updatedAt: number; expiresAt: number | null; pinned: boolean; }
+import type { AiMemoryRecord } from '../../shared/ai';
+export type { AiMemoryRecord } from '../../shared/ai';
 export class AiMemoryStore {
   private records: AiMemoryRecord[];
   constructor(private readonly file: string, private readonly scope: { server: string; character: string }) { this.records = this.read().filter((item) => item.server === scope.server && item.character === scope.character); }

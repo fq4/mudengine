@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { AiAction, AiSnapshot } from '@shared/ai';
+import type { AiAction, AiSnapshot, AiMemoryRecord } from '@shared/ai';
 import type { SessionId } from '@shared/ipc';
 
 export default function AiPanel({ session }: { session: SessionId }) {
   const [snapshot, setSnapshot] = useState<AiSnapshot | null>(null);
   const [goal, setGoal] = useState('');
+  const [memories, setMemories] = useState<AiMemoryRecord[]>([]);
   const api = window.mudengine;
   const refresh = () => api.aiSnapshot(session).then(setSnapshot);
-  useEffect(() => { void refresh(); }, [session]);
+  useEffect(() => { void refresh(); void api.aiMemories(session).then(setMemories); }, [session]);
   if (!snapshot) return null;
   const run = (promise: Promise<AiSnapshot>) => promise.then(setSnapshot);
   const action: AiAction = { name: 'inspect_character', reason: 'Player requested an observation' };
@@ -20,6 +21,7 @@ export default function AiPanel({ session }: { session: SessionId }) {
     <div className="ai-panel-copy">Last result: {snapshot.state.lastActionResult || '—'}</div>
     <div className="ai-panel-copy">Requests: {snapshot.state.usage.requests} · Tokens: {snapshot.state.usage.inputTokens + snapshot.state.usage.outputTokens} · Est. ${snapshot.state.usage.estimatedCostUsd.toFixed(4)}</div>
     {snapshot.state.pendingApprovals.length > 0 && <div className="ai-panel-copy"><strong>Pending approvals</strong>{snapshot.state.pendingApprovals.map((approval) => <div key={approval.id}><div>{approval.command}</div><small>{approval.reason} · {approval.risk} · expires {new Date(approval.expiresAt).toLocaleTimeString()}</small><div className="ai-panel-actions"><button onClick={() => run(api.aiApprove(session, approval.id))}>Approve</button><button onClick={() => run(api.aiReject(session, approval.id))}>Reject</button></div></div>)}</div>}
+    {memories.length > 0 && <div className="ai-panel-copy"><strong>Memory</strong>{memories.slice(-8).map((memory) => <div key={memory.id}><small>{memory.category} · {memory.verified ? 'verified' : 'inferred'} · {Math.round(memory.confidence * 100)}%</small><div>{memory.text}</div><button onClick={() => api.aiForgetMemory(session, memory.id).then(setMemories)}>Forget</button></div>)}</div>}
     <ul>{snapshot.state.recent.map((item, i) => <li key={`${i}-${item}`}>{item}</li>)}</ul>
   </aside>;
 }

@@ -18,7 +18,7 @@ import type { MessageImport, MessageTable, MessageTrigger } from './messageTrigg
 import type { MonsterImport, MonsterRule, MonsterTable } from './monsterRules';
 import type { LoopImport, MegaMudPath } from './megamudPaths';
 import type { AutomationSnapshot } from './automation';
-import type { AiAction, AiSnapshot } from './ai';
+import type { AiAction, AiSnapshot, AiMemoryRecord } from './ai';
 import type { Block } from './blocks';
 import type { LocalMap } from './map';
 import type { Discovery } from './memory';
@@ -615,6 +615,8 @@ export const Invoke = {
   aiAction: 'ai:action',
   aiApprove: 'ai:approve',
   aiReject: 'ai:reject',
+  aiMemories: 'ai:memories',
+  aiForgetMemory: 'ai:forget-memory',
   // -- per session
   connect: 'session:connect',
   disconnect: 'session:disconnect',
@@ -1238,6 +1240,8 @@ export interface IpcApi {
   aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
   aiApprove(session: SessionId, id: string): Promise<AiSnapshot>;
   aiReject(session: SessionId, id: string): Promise<AiSnapshot>;
+  aiMemories(session: SessionId): Promise<AiMemoryRecord[]>;
+  aiForgetMemory(session: SessionId, id: string): Promise<AiMemoryRecord[]>;
 
   listSessions(): Promise<SessionSummary[]>;
   listProfiles(): Promise<ProfileSummary[]>;
