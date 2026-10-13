@@ -117,6 +117,8 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - Budget/host persistence tests: 30 passed. Node typecheck passed.
 - Real-server `kefka` harness: all six bounded scenarios passed with no safety
   violations after persistence wiring.
+- Normal persistence writes are asynchronous and serialized; shutdown performs
+  a final synchronous flush so recent usage cannot be lost.
 
 ### 2026-10-13 — live unknown-command approval
 
@@ -142,3 +144,9 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - Explicit resume now clears the prior observation fingerprint and forces a
   fresh provider decision, even when the visible state is unchanged; this is
   covered by an agent regression test.
+
+### 2026-10-13 — final bounded live verification
+
+- The safe `kefka` run passed inspection, one-room navigation, invalid
+  destination refusal, unknown-command approval, manual interruption, budget
+  enforcement, and emergency stop. Safety violations: none.
