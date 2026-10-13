@@ -88,7 +88,7 @@ import { RealmMenu } from './RealmMenu';
 import { Events } from '../automation/Events';
 import { AutonomousAgent } from '../ai/Agent';
 import { OpenRouterProvider } from '../ai/OpenRouter';
-import { classifyCommand, type AiPermissionLayers } from '../ai/Permissions';
+import { classifyCommand, type AiPermissionLayers, type AiAuthorization } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
 import type { AiMemoryStore } from '../ai/MemoryStore';
@@ -3303,6 +3303,19 @@ export class SessionManager {
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aiAgent.configureBudget(limits); return this.aiSnapshot; }
+  aiPolicy(command: string, authorization: AiAuthorization | null): AiSnapshot {
+    const value = command.trim().toLowerCase();
+    if (!value) return this.aiSnapshot;
+    const baseline = classifyCommand(value);
+    if (baseline.authorization === 'rejected') {
+      this.aiAgent.state.lastActionResult = `Policy unchanged: ${baseline.reason}`;
+      return this.aiSnapshot;
+    }
+    const commands = this.aiPermissionLayers.profile?.commands ?? {};
+    if (authorization === null) delete commands[value]; else commands[value] = authorization;
+    this.aiPermissionLayers.profile = { commands };
+    return this.aiSnapshot;
+  }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
   aiEmergencyStop(): AiSnapshot {
     this.aiAgent.stop();
