@@ -20,13 +20,14 @@ import { fileURLToPath } from 'node:url';
 
 const RAW = '?raw';
 
-export function resolve(specifier, context, next) {
+export async function resolve(specifier, context, next) {
   if (!specifier.endsWith(RAW)) return next(specifier, context);
-  const resolved = next(specifier.slice(0, -RAW.length), context);
-  return { ...resolved, url: `${resolved.url}${RAW}`, shortCircuit: true };
+  const resolved = await next(specifier.slice(0, -RAW.length), context);
+  const url = typeof resolved === 'string' ? resolved : resolved.url;
+  return { ...(typeof resolved === 'string' ? {} : resolved), url: `${url}${RAW}`, shortCircuit: true };
 }
 
-export function load(url, context, next) {
+export async function load(url, context, next) {
   if (!url.endsWith(RAW)) return next(url, context);
   const text = readFileSync(fileURLToPath(url.slice(0, -RAW.length)), 'utf8');
   return {

@@ -1,5 +1,24 @@
 # Supervised AI gameplay test
 
+## Automated bounded runner
+
+The repository includes an explicitly opt-in live harness. It uses the
+configured `kefka` profile, the production `SessionManager` and AI execution
+path, and only inspection plus safe navigation:
+
+```powershell
+npm run test:ai-live -- --live --profile kefka
+```
+
+The runner enforces runtime, movement, request, token, cost, repetition, and
+unsafe-command limits. It reports structured, secret-safe traces and exits
+nonzero on a failed scenario. It never runs as part of `npm test`.
+
+If the profile is not available in the current MudEngine home, it exits with a
+clear `SKIPPED` result rather than guessing credentials. The source-based
+runner requires the Node version supported by the repository loader (Node 22+
+with the current `tsx` dependency).
+
 Use this procedure for the first live test. Keep the AI attached to a disposable character or a low-consequence area, and do not test PvP, purchases, transfers, destructive commands, or private information.
 
 ## Before connecting
