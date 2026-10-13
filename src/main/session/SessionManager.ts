@@ -95,6 +95,7 @@ import { ApprovalStore } from '../ai/Approvals';
 import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../ai/navigation';
 import { compactCharacterObservation, objectiveAvailableActions } from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
+import { validateActionPolicy } from '../ai/ActionPolicy';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import { AI_ACTIONS, type AiAction, type AiObservation, type AiPolicyRule, type AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
@@ -3638,7 +3639,14 @@ export class SessionManager {
       return { ok: false, message: 'Invalid AI action' };
     if (!AI_ACTIONS.includes(candidate.name as (typeof AI_ACTIONS)[number]))
       return { ok: false, message: `AI response contains an unsupported action: ${candidate.name}` };
-    return this.executeAiAction(candidate as AiAction);
+    const typed = candidate as AiAction;
+    const policyError = validateActionPolicy(typed, {
+      objective: this.aiAgent.state.objective,
+      connected: this.client.connected,
+      inRealm: this.tracker.current.phase === 'in-game'
+    });
+    if (policyError !== null) return { ok: false, message: `Refused: ${policyError}` };
+    return this.executeAiAction(typed);
   }
   private async executeAiAction(
     action: AiAction
