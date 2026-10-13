@@ -137,3 +137,5 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   session; both adapters retain their accepted-versus-completed lifecycle.
 - Realm-leave coverage now confirms the same explicit suspension result as
   socket reconnect, with no automatic resume of stale actions.
+- Resume is now refused while the session is outside the realm; the user must
+  reconnect and obtain an authoritative in-game state before enabling AI.

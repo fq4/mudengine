@@ -3433,6 +3433,11 @@ export class SessionManager {
     };
   }
   aiEnable(model?: string): AiSnapshot {
+    if (this.current.phase !== 'in-game') {
+      this.aiAgent.stop();
+      this.aiAgent.state.lastActionResult = 'AI cannot resume until the active character is in-game';
+      return this.aiSnapshot;
+    }
     if (model) this.aiProvider.setModel(model);
     this.aiAgent.state.model = this.aiProvider.modelName();
     this.aiAgent.enable();

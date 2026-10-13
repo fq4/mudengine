@@ -191,6 +191,16 @@ describe('the raw byte record', () => {
 });
 
 describe('AI reconnect lifecycle', () => {
+  it('does not resume AI while the session is outside the realm', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const snapshot = isolated.aiEnable();
+    expect(snapshot.state.enabled).toBe(false);
+    expect(snapshot.state.status).toBe('disabled');
+    expect(snapshot.state.lastActionResult).toContain('cannot resume');
+    isolated.dispose();
+  });
+
   it('delegates recovery and equipment actions to existing automation adapters', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
