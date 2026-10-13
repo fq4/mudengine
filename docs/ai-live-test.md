@@ -266,3 +266,13 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   the production build passed with only the existing large-renderer-chunk
   warning. The focused test initially hit Windows sandbox `spawn EPERM`; the
   permitted rerun passed.
+
+### 2026-10-13 - repeated bounded live verification
+
+- The authorized `kefka` harness passed all eight scenarios with zero
+  violations: inspection, one-room navigation, exact two-room navigation,
+  invalid destination refusal, unknown-command approval, manual interruption,
+  budget enforcement, and emergency stop.
+- The run used four provider requests for the navigation scenarios and stayed
+  within the harness limits. No combat, social, equipment, item, or spending
+  commands were issued.
