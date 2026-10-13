@@ -141,6 +141,13 @@ export interface AiState {
     phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed' | 'interrupted';
     message: string;
   } | null;
+  plan?: Array<{
+    id: string;
+    action: AiActionName;
+    label: string;
+    status: 'pending' | 'active' | 'completed' | 'blocked';
+    destination?: string;
+  }>;
   pendingApprovals: AiApproval[];
   approvalHistory: AiApproval[];
   temporaryGrants?: AiTemporaryGrant[];

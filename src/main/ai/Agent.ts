@@ -9,6 +9,7 @@ import {
   type AiState
 } from '../../shared/ai';
 import { AiAggregateBudget, AiBudget } from './Budget';
+import { advanceObjectivePlan, buildObjectivePlan, objectivePlanComplete } from './ObjectivePlan';
 
 export interface AiExecutor {
   execute(
@@ -45,6 +46,7 @@ export class AutonomousAgent {
       model: 'openrouter',
       consecutiveFailures: 0,
       currentAction: null,
+      plan: [],
       pendingApprovals: [],
       approvalHistory: [],
       budgetLimits: budget.getLimits(),
@@ -62,6 +64,8 @@ export class AutonomousAgent {
     this.state.enabled = true;
     this.state.status = 'idle';
     this.state.objective = objective;
+    this.state.plan = buildObjectivePlan(objective);
+    if (this.state.plan[0]) this.state.plan[0].status = 'active';
     this.state.objectiveComplete = false;
     this.state.consecutiveFailures = 0;
     this.lastFailedAction = '';
@@ -135,6 +139,7 @@ export class AutonomousAgent {
         this.lastFailedAction = '';
         if (
           this.actionSatisfiesObjective(this.state.currentAction.name) &&
+          this.planSatisfied() &&
           this.isBoundedStopObjective()
         ) {
           this.state.objectiveComplete = true;
@@ -227,6 +232,11 @@ export class AutonomousAgent {
         return decision;
       }
       this.remember(result.ok ? 'success' : 'failure', result.message);
+      this.state.plan = advanceObjectivePlan(
+        this.state.plan ?? [],
+        decision.action.name,
+        result.ok
+      );
       const delegated = new Set([
         'navigate_to',
         'engage_enemy',
@@ -255,11 +265,18 @@ export class AutonomousAgent {
         result.ok &&
         phase === 'completed' &&
         this.actionSatisfiesObjective(decision.action.name) &&
+        this.planSatisfied() &&
         (decision.done === true || this.isBoundedStopObjective())
       ) {
         this.state.objectiveComplete = true;
         this.state.activity = 'objective_complete';
         this.state.explanation = 'Objective completed; waiting for a new objective.';
+        this.state.enabled = false;
+      }
+      if (result.ok && phase === 'completed' && objectivePlanComplete(this.state.plan ?? [])) {
+        this.state.objectiveComplete = true;
+        this.state.activity = 'objective_complete';
+        this.state.explanation = 'All bounded objective steps completed.';
         this.state.enabled = false;
       }
       return decision;
@@ -303,6 +320,10 @@ export class AutonomousAgent {
       event === 'spell-refused' ||
       event === 'user-dies'
     );
+  }
+  private planSatisfied(): boolean {
+    const plan = this.state.plan ?? [];
+    return plan.length === 0 || objectivePlanComplete(plan);
   }
   private isBoundedStopObjective(): boolean {
     return /\b(stop|then stop|one adjacent|one room|single room|once)\b/i.test(

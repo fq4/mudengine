@@ -70,9 +70,16 @@ describe('AutonomousAgent', () => {
     });
     const provider: AiProvider = {
       decide,
-      usage: () => ({ requests: decide.mock.calls.length, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
+      usage: () => ({
+        requests: decide.mock.calls.length,
+        inputTokens: 1,
+        outputTokens: 1,
+        estimatedCostUsd: 0
+      })
     };
-    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'observed' }) });
+    const agent = new AutonomousAgent(provider, {
+      execute: vi.fn().mockResolvedValue({ ok: true, message: 'observed' })
+    });
     agent.enable('observe');
     await agent.tick(observation);
     agent.pause();
@@ -264,12 +271,20 @@ describe('AutonomousAgent', () => {
     expect(agent.state.status).toBe('idle');
   });
   it('completes a bounded inspection objective when the model omits done', async () => {
-    const decide = vi.fn().mockResolvedValue({
-      objective: 'inspect',
-      explanation: 'Read status',
-      done: false,
-      action: { name: 'inspect_character', reason: 'inspect' }
-    });
+    const decide = vi
+      .fn()
+      .mockResolvedValueOnce({
+        objective: 'inspect',
+        explanation: 'Read status',
+        done: false,
+        action: { name: 'inspect_character', reason: 'inspect' }
+      })
+      .mockResolvedValueOnce({
+        objective: 'inspect',
+        explanation: 'Read room',
+        done: false,
+        action: { name: 'inspect_room', reason: 'inspect' }
+      });
     const provider: AiProvider = {
       decide,
       usage: () => ({ requests: 1, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
@@ -279,6 +294,8 @@ describe('AutonomousAgent', () => {
     });
     agent.enable('Inspect my current character and room, then stop.');
     await agent.tick(observation);
+    expect(agent.state.objectiveComplete).toBe(false);
+    await agent.tick({ ...observation, room: { id: 2 } });
     expect(agent.state.objectiveComplete).toBe(true);
     expect(agent.state.enabled).toBe(false);
   });

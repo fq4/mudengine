@@ -100,6 +100,8 @@ import {
 } from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
 import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
+import { findSafeNpc } from '../ai/NpcDiscovery';
+import { isPassiveRecovery } from '../ai/RecoverySafety';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
   AI_ACTIONS,
@@ -3705,16 +3707,25 @@ export class SessionManager {
       action.name === 'inspect_npc' ||
       action.name === 'inspect_combat_result'
     )
-      return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
+      if (action.name === 'inspect_npc') {
+        const name = typeof action.args?.name === 'string' ? action.args.name : undefined;
+        const npc = findSafeNpc(this.tracker.current.room.occupants, name);
+        return npc
+          ? { ok: true, message: `Observed NPC ${npc.name}` }
+          : { ok: false, message: 'Refused: no authoritative non-player NPC is visible' };
+      } else return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
     if (action.name === 'recover_health')
-      return {
-        ok: this.queue.enqueue({
-          command: 'rest',
-          priority: 'emergency',
-          reason: `AI: ${action.reason}`
-        }),
-        message: 'Recovery delegated to CommandQueue'
-      };
+      if (!isPassiveRecovery('rest'))
+        return { ok: false, message: 'Refused: recovery command is not passive' };
+      else
+        return {
+          ok: this.queue.enqueue({
+            command: 'rest',
+            priority: 'emergency',
+            reason: `AI: ${action.reason}`
+          }),
+          message: 'Recovery delegated to CommandQueue'
+        };
     if (action.name === 'manage_equipment') {
       this.aiEquipmentBaseline = JSON.stringify(this.tracker.current.inventory);
       this.gear.onCharacter(
