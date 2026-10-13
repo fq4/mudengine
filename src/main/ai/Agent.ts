@@ -1,4 +1,4 @@
-import { observationHash, type AiAction, type AiDecision, type AiObservation, type AiProvider, type AiState } from '../../shared/ai';
+import { observationHash, type AiAction, type AiActionName, type AiDecision, type AiObservation, type AiProvider, type AiState } from '../../shared/ai';
 import { AiBudget } from './Budget';
 
 export interface AiExecutor { execute(action: AiAction): Promise<{ ok: boolean; message: string }>; }
@@ -6,6 +6,7 @@ export class AutonomousAgent {
   readonly state: AiState;
   private aborter: AbortController | null = null;
   private ticking = false;
+  private delegatedOperationActive: ((action: AiActionName) => boolean) | null = null;
   private lastFailedAction = '';
   constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
     this.state = { enabled: false, status: 'disabled', objective: '', activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], ...initial };
@@ -13,11 +14,13 @@ export class AutonomousAgent {
   enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; this.state.consecutiveFailures = 0; this.lastFailedAction = ''; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; }
+  setDelegatedOperationActive(check: (action: AiActionName) => boolean): void { this.delegatedOperationActive = check; }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
     if (!this.state.enabled || this.state.status === 'paused' || !this.state.objective) return null;
     if (this.ticking) return null;
     const hash = observationHash(observation);
     if (this.state.currentAction?.phase === 'accepted') {
+      if (this.delegatedOperationActive?.(this.state.currentAction.name)) return null;
       if (hash === this.state.lastObservationHash) return null;
       this.state.currentAction = { ...this.state.currentAction, phase: 'completed', message: 'Observed a state change after the delegated action' };
     }

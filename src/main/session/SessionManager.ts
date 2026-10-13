@@ -1637,6 +1637,12 @@ export class SessionManager {
     });
     this.aiProvider = new OpenRouterProvider();
     this.aiAgent = new AutonomousAgent(this.aiProvider, { execute: async (action) => this.executeAiAction(action) });
+    this.aiAgent.setDelegatedOperationActive((action) => {
+      if (action === 'navigate_to') return this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running';
+      if (action === 'engage_enemy') return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
+      if (action === 'recover_health') return Boolean(this.recovery.recovering);
+      return false;
+    });
 
     this.routines = new Routines(this.entryProbes(automation), this.queue, {
       notice: (message) => this.sink.notice(message)

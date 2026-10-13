@@ -29,6 +29,15 @@ describe('AutonomousAgent', () => {
     await agent.tick({ ...observation, room: { id: 2 }, availableActions: ['navigate_to'] });
     expect(decide).toHaveBeenCalledTimes(2);
   });
+  it('does not re-plan while a delegated operation is still active', async () => {
+    const decide = vi.fn().mockResolvedValue({ objective: 'travel', explanation: 'Route', action: { name: 'navigate_to', reason: 'travel' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'accepted' }) });
+    agent.setDelegatedOperationActive(() => true); agent.enable('travel');
+    await agent.tick(observation);
+    await agent.tick({ ...observation, room: { id: 2 } });
+    expect(decide).toHaveBeenCalledTimes(1);
+  });
   it('coalesces provider calls while a decision is in flight', async () => {
     let release!: (decision: unknown) => void;
     const decide = vi.fn().mockImplementation(() => new Promise((resolve) => { release = resolve; }));
