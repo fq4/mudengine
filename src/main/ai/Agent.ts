@@ -1,5 +1,5 @@
 import { observationHash, type AiAction, type AiActionName, type AiBudgetLimits, type AiDecision, type AiObservation, type AiProvider, type AiState } from '../../shared/ai';
-import { AiBudget } from './Budget';
+import { AiAggregateBudget, AiBudget } from './Budget';
 
 export interface AiExecutor { execute(action: AiAction): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }>; }
 export class AutonomousAgent {
@@ -9,7 +9,7 @@ export class AutonomousAgent {
   private delegatedOperationActive: ((action: AiActionName) => boolean) | null = null;
   private delegatedOperationStatus: ((action: AiActionName) => 'active' | 'completed' | 'failed' | null) | null = null;
   private lastFailedAction = '';
-  constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
+  constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), private readonly aggregateBudget?: AiAggregateBudget, initial?: Partial<AiState>) {
     this.state = { enabled: false, status: 'disabled', objective: '', objectiveComplete: false, activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], budgetLimits: budget.getLimits(), ...initial };
   }
   configureBudget(limits: Partial<AiBudgetLimits>): AiBudgetLimits { const next = this.budget.configure(limits); this.state.budgetLimits = next; return next; }
@@ -47,10 +47,14 @@ export class AutonomousAgent {
     if (this.state.consecutiveFailures >= 2 && this.lastFailedAction) { this.state.status = 'error'; this.state.lastActionResult = 'Repeated action suppressed; change the objective or strategy'; return null; }
     const budget = this.budget.check(this.provider.usage());
     if (!budget.ok) { this.state.status = 'budget-paused'; this.state.budgetResetAt = budget.resetAt; this.state.lastActionResult = `Budget Paused: ${budget.reason}`; return null; }
+    const aggregate = this.aggregateBudget?.check();
+    if (aggregate && !aggregate.ok) { this.state.status = 'budget-paused'; this.state.budgetResetAt = aggregate.resetAt; this.state.lastActionResult = `Budget Paused: ${aggregate.reason}`; return null; }
     this.state.budgetResetAt = undefined;
     this.state.lastObservationHash = hash; this.state.status = 'thinking'; this.aborter = new AbortController(); this.ticking = true;
     const controller = this.aborter;
     this.budget.noteRequest();
+    this.aggregateBudget?.reserve();
+    const usageBefore = this.provider.usage();
     try {
       const context: AiObservation = { ...observation, execution: { action: this.state.currentAction ? { ...this.state.currentAction } : null, lastResult: this.state.lastActionResult, recent: this.state.recent.map((text) => text.slice(0, 400)) } };
       const decision = await this.provider.decide(context, this.state.objective, controller.signal);
@@ -75,7 +79,7 @@ export class AutonomousAgent {
       if (controller.signal.aborted) { this.state.usage = this.provider.usage(); return null; }
       this.state.status = 'error'; this.state.consecutiveFailures++; this.remember('failure', error instanceof Error ? error.message : String(error)); this.state.usage = this.provider.usage(); return null;
     }
-    finally { this.aborter = null; this.ticking = false; }
+    finally { const usageAfter = this.provider.usage(); this.aggregateBudget?.settle({ inputTokens: Math.max(0, usageAfter.inputTokens - usageBefore.inputTokens), outputTokens: Math.max(0, usageAfter.outputTokens - usageBefore.outputTokens), estimatedCostUsd: Math.max(0, usageAfter.estimatedCostUsd - usageBefore.estimatedCostUsd) }); this.aborter = null; this.ticking = false; }
   }
   private remember(kind: 'success' | 'failure' | 'note', text: string): void { this.state.memories.push({ at: Date.now(), kind, text }); this.state.memories = this.state.memories.slice(-50); this.state.recent = this.state.memories.slice(-8).map((m) => m.text); }
   private isFailureEvent(event: string | undefined): boolean {

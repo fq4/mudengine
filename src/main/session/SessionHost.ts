@@ -56,6 +56,7 @@ import type { BelongingsSink } from '../../shared/belongings';
 import type { TalkSink } from './TalkLog';
 import { isTalkBlock } from '../../shared/talk';
 import { SessionDebug } from './SessionDebug';
+import { AiAggregateBudget } from '../ai/Budget';
 
 export interface SessionSlot {
   readonly id: SessionId;
@@ -297,6 +298,7 @@ export interface SessionHostOptions {
 
 export class SessionHost {
   private readonly slots = new Map<SessionId, SessionSlot>();
+  private readonly aggregateAiBudget = new AiAggregateBudget();
 
   constructor(private readonly options: SessionHostOptions) {}
 
@@ -512,7 +514,8 @@ export class SessionHost {
       {
         server: config.servers.find((server) => server.host === config.connection.host && server.port === config.connection.port)?.aiPolicy,
         profile: config.aiPolicy
-      }
+      },
+      this.aggregateAiBudget
     );
 
     manager.configureInternal(this.options.internal());

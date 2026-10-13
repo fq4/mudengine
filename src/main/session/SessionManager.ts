@@ -87,6 +87,7 @@ import { Wards } from '../automation/Wards';
 import { RealmMenu } from './RealmMenu';
 import { Events } from '../automation/Events';
 import { AutonomousAgent } from '../ai/Agent';
+import type { AiAggregateBudget } from '../ai/Budget';
 import { OpenRouterProvider } from '../ai/OpenRouter';
 import { classifyCommand, type AiPermissionLayers, type AiAuthorization } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
@@ -1446,7 +1447,8 @@ export class SessionManager {
      */
     locate: LocateMethod = DEFAULT_CONFIG.connection.locate,
     private readonly aiMemory?: AiMemoryStore,
-    aiPermissionLayers: AiPermissionLayers = {}
+    aiPermissionLayers: AiPermissionLayers = {},
+    aiAggregateBudget?: AiAggregateBudget
   ) {
     this.aiPermissionLayers = aiPermissionLayers;
     this.aiBasePermissionLayers = {
@@ -1649,7 +1651,7 @@ export class SessionManager {
       connected: () => this.client.connected
     });
     this.aiProvider = new OpenRouterProvider();
-    this.aiAgent = new AutonomousAgent(this.aiProvider, { execute: async (action) => this.executeAiAction(action) });
+    this.aiAgent = new AutonomousAgent(this.aiProvider, { execute: async (action) => this.executeAiAction(action) }, undefined, aiAggregateBudget);
     this.aiAgent.setDelegatedOperationActive((action) => {
       if (action === 'navigate_to') return this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running';
       if (action === 'engage_enemy') return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
