@@ -998,6 +998,8 @@ export class SessionManager {
   private readonly aiAgent: AutonomousAgent;
   private readonly aiProvider: OpenRouterProvider;
   private readonly aiPermissionLayers: AiPermissionLayers;
+  /** Persistent global/server/profile layers, kept separate from session rules. */
+  private readonly aiBasePermissionLayers: AiPermissionLayers;
   private readonly aiSessionPolicyOverrides: Record<string, AiAuthorization> = {};
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
@@ -1447,6 +1449,11 @@ export class SessionManager {
     aiPermissionLayers: AiPermissionLayers = {}
   ) {
     this.aiPermissionLayers = aiPermissionLayers;
+    this.aiBasePermissionLayers = {
+      global: aiPermissionLayers.global,
+      server: aiPermissionLayers.server,
+      profile: aiPermissionLayers.profile
+    };
     this.locateMethod = locate;
     this.fightRecord = fights;
     this.tracker = new CharacterTracker(
@@ -3273,9 +3280,12 @@ export class SessionManager {
   }
 
   setAiPermissionLayers(layers: AiPermissionLayers): void {
-    this.aiPermissionLayers.global = layers.global;
-    this.aiPermissionLayers.server = layers.server;
-    this.aiPermissionLayers.profile = { commands: { ...(layers.profile?.commands ?? {}), ...this.aiSessionPolicyOverrides } };
+    this.aiBasePermissionLayers.global = layers.global;
+    this.aiBasePermissionLayers.server = layers.server;
+    this.aiBasePermissionLayers.profile = layers.profile;
+    this.aiPermissionLayers.global = this.aiBasePermissionLayers.global;
+    this.aiPermissionLayers.server = this.aiBasePermissionLayers.server;
+    this.aiPermissionLayers.profile = { commands: { ...(this.aiBasePermissionLayers.profile?.commands ?? {}), ...this.aiSessionPolicyOverrides } };
   }
 
   get state(): ConnectionState {
@@ -3744,6 +3754,8 @@ export class SessionManager {
   async connect(target: ConnectionTarget): Promise<ConnectionState> {
     this.aiAgent.stop();
     this.aiApprovals.resetTransient();
+    for (const command of Object.keys(this.aiSessionPolicyOverrides)) delete this.aiSessionPolicyOverrides[command];
+    this.setAiPermissionLayers(this.aiBasePermissionLayers);
     this.aiNavigationDestination = null;
     this.aiEquipmentBaseline = null;
     this.telnetLog.length = 0;
@@ -4347,6 +4359,8 @@ export class SessionManager {
   private leftTheRealm(): void {
     this.aiAgent.stop();
     this.aiApprovals.resetTransient();
+    for (const command of Object.keys(this.aiSessionPolicyOverrides)) delete this.aiSessionPolicyOverrides[command];
+    this.setAiPermissionLayers(this.aiBasePermissionLayers);
     this.aiNavigationDestination = null;
     this.aiEquipmentBaseline = null;
     this.sink.notice(t('session.realm.left'));
