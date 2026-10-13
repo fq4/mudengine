@@ -92,7 +92,7 @@ import { classifyCommand, type AiPermissionLayers } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
 import type { AiMemoryStore } from '../ai/MemoryStore';
-import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
+import type { AiAction, AiObservation, AiPolicyRule, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
 import {
@@ -3286,7 +3286,20 @@ export class SessionManager {
   private revalidateAiApprovals(): void {
     if (this.aiApprovals.revalidate(JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target }))) this.aiAgent.approvalResolved('Approval expired or game state changed; reassess before acting');
   }
-  get aiSnapshot(): AiSnapshot { this.revalidateAiApprovals(); const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation() }; }
+  get aiSnapshot(): AiSnapshot {
+    this.revalidateAiApprovals();
+    const approvals = this.aiApprovals.snapshot();
+    const policy: AiPolicyRule[] = [];
+    for (const source of ['global', 'server', 'profile'] as const) {
+      const rules = this.aiPermissionLayers[source]?.commands ?? {};
+      for (const [command, authorization] of Object.entries(rules)) {
+        const index = policy.findIndex((rule) => rule.command === command);
+        if (index >= 0) policy.splice(index, 1);
+        policy.push({ command, authorization, source });
+      }
+    }
+    return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation(), policy };
+  }
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aiAgent.configureBudget(limits); return this.aiSnapshot; }

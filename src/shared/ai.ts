@@ -44,7 +44,8 @@ export interface AiState {
   currentAction?: { name: AiActionName; phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed' | 'interrupted'; message: string } | null;
   pendingApprovals: AiApproval[]; approvalHistory: AiApproval[]; temporaryGrants?: AiTemporaryGrant[];
 }
-export interface AiSnapshot { state: AiState; observation: AiObservation; }
+export interface AiPolicyRule { command: string; authorization: 'autonomous' | 'ask-first' | 'rejected'; source: 'global' | 'server' | 'profile'; }
+export interface AiSnapshot { state: AiState; observation: AiObservation; policy?: AiPolicyRule[]; }
 
 export const AI_ACTIONS: readonly AiActionName[] = [
   'inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map',
