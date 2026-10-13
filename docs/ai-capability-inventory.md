@@ -52,6 +52,6 @@ The initial slice began with navigation, but the repository now also contains gu
 
 ## Current implementation boundary
 
-- Verified locally: one agent per session, OpenRouter decision flow, validated `navigate_to` delegation through `Walker`, room-confirmed completion, stale approval invalidation, budget pause behavior, scoped memory persistence/editing, manual interruption handling, social pacing, and session-addressed UI/IPC controls.
-- Requires additional integration coverage: combat target lifecycle, recovery/equipment completion observers, identity-change and reconnect restoration, aggregate budgets across simultaneous sessions, server/profile policy editing, and end-to-end live command evidence.
+- Verified locally: one agent per session, OpenRouter decision flow, validated `navigate_to` delegation through `Walker`, room-confirmed completion, stale approval invalidation, budget pause behavior, scoped memory persistence/editing and relevance ranking, manual interruption handling, social pacing, layered global/server/profile policy resolution, effective-policy provenance, and session-addressed UI/IPC controls.
+- Requires additional integration coverage: combat target lifecycle, recovery/equipment completion observers, identity-change and reconnect restoration, aggregate budgets across simultaneous sessions, persistent policy editing through profile/server YAML writers, and end-to-end live command evidence.
 - Not yet suitable for unattended live use: autonomous PvP, destructive/irreversible actions, real-money actions, private-data handling, or unclassified commands without an explicit approval.
