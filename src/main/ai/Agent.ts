@@ -33,6 +33,7 @@ export class AutonomousAgent {
     try {
       const decision = await this.provider.decide(observation, this.state.objective, this.aborter.signal);
       this.state.activity = decision.action.name; this.state.explanation = decision.explanation; this.state.status = 'executing'; this.state.currentAction = { name: decision.action.name, phase: 'requested', message: 'Action requested' }; this.remember('note', decision.explanation);
+      this.state.currentAction = { ...this.state.currentAction!, phase: 'executing', message: 'Executing through MudEngine capability' };
       const result = await this.executor.execute(decision.action); this.remember(result.ok ? 'success' : 'failure', result.message);
       const delegated = new Set(['navigate_to', 'engage_enemy', 'recover_health', 'manage_equipment']); const phase = result.ok ? (delegated.has(decision.action.name) ? 'accepted' : 'completed') : 'failed'; this.state.currentAction = { name: decision.action.name, phase, message: result.message }; this.state.lastActionResult = result.message; this.state.consecutiveFailures = result.ok ? 0 : this.state.consecutiveFailures + 1; this.state.status = result.ok ? 'idle' : 'error'; this.state.usage = this.provider.usage(); this.lastFailedAction = result.ok ? '' : JSON.stringify(decision.action);
       if (result.ok && decision.done === true && phase === 'completed') { this.state.objectiveComplete = true; this.state.activity = 'objective_complete'; this.state.explanation = 'Objective completed; waiting for a new objective.'; this.state.enabled = false; }
