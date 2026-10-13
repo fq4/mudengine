@@ -9,6 +9,7 @@ const ROUTINE = /^(go|north|south|east|west|up|down|n|s|e|w|u|d|rest|med|wear|re
 export function classifyCommand(command: string): CommandClassification {
   const value = command.trim();
   if (!value) return { risk: 'unknown', authorization: 'rejected', reason: 'Empty command' };
+  if (/[;&|`\r\n]/.test(value)) return { risk: 'unknown', authorization: 'ask-first', reason: 'Command chaining or macro syntax is not verified and requires approval' };
   if (PROHIBITED.test(value)) return { risk: 'prohibited', authorization: 'rejected', reason: 'Command is prohibited by the default safety policy' };
   if (SAFE.test(value)) return { risk: 'safe', authorization: 'autonomous', reason: 'Known informational command' };
   if (ROUTINE.test(value)) return { risk: 'routine', authorization: 'autonomous', reason: 'Known routine gameplay command' };
