@@ -1662,6 +1662,10 @@ export class SessionManager {
       return false;
     });
     this.aiAgent.setDelegatedOperationStatus((action) => {
+      if (action === 'engage_enemy') {
+        if (this.combat.willFight || this.tracker.current.combat.attackers.length > 0) return 'active';
+        return 'completed';
+      }
       if (action === 'recover_health') {
         return this.recovery.recovering || this.queue.queued((intent) => intent.command === 'rest') ? 'active' : 'completed';
       }

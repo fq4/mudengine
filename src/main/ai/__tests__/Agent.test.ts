@@ -70,6 +70,23 @@ describe('AutonomousAgent', () => {
     expect(decide).toHaveBeenCalledTimes(2);
     expect(agent.state.currentAction?.name).toBe('inspect_room');
   });
+  it('uses the delegated combat lifecycle after an NPC engagement settles', async () => {
+    const decide = vi.fn()
+      .mockResolvedValueOnce({ objective: 'fight', explanation: 'Engage the NPC', action: { name: 'engage_enemy', reason: 'fight' } })
+      .mockResolvedValueOnce({ objective: 'fight', explanation: 'Confirm the result', action: { name: 'inspect_combat_result', reason: 'confirm' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'AutoCombat accepted' }) });
+    let lifecycle: 'active' | 'completed' = 'active';
+    agent.setDelegatedOperationStatus(() => lifecycle);
+    agent.enable('fight');
+    await agent.tick(observation);
+    await agent.tick({ ...observation, room: { id: 2 } });
+    expect(decide).toHaveBeenCalledTimes(1);
+    lifecycle = 'completed';
+    await agent.tick({ ...observation, room: { id: 3 } });
+    expect(decide).toHaveBeenCalledTimes(2);
+    expect(agent.state.currentAction?.name).toBe('inspect_combat_result');
+  });
   it('treats a meaningful failure event as delegated-action failure', async () => {
     const decide = vi.fn()
       .mockResolvedValueOnce({ objective: 'travel', explanation: 'Route', action: { name: 'navigate_to', reason: 'travel' } })
