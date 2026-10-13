@@ -34,6 +34,7 @@ import { SettingsEditor, type SettingsEditorOptions } from './config/SettingsEdi
 import { LoopCatalogue } from './config/LoopCatalogue';
 import { migrateHome } from './config/Migration';
 import { homeAt, homeRoot, type Home } from './app/home';
+import { AiMemoryStore } from './ai/MemoryStore';
 import { WorldGraph, type Traveller } from './world/WorldGraph';
 import { RealmLibrary } from './world/RealmLibrary';
 import { loopsFromMegaMud } from './world/megamudLoops';
@@ -1354,6 +1355,7 @@ function createHost(): SessionHost {
     spellLoreFor,
     sentences,
     memoryFor: splitMemoryFor,
+    aiMemoryFor: (id) => new AiMemoryStore(home.state('memory', `ai-${id}.json`), { server: `${configFor(id).connection.host}:${configFor(id).connection.port}`, character: id }),
     fightsFor,
     talkFor,
     // Beside the conversation and for the same reason: what the console

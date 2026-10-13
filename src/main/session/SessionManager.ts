@@ -91,6 +91,7 @@ import { OpenRouterProvider } from '../ai/OpenRouter';
 import { classifyCommand } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
+import type { AiMemoryStore } from '../ai/MemoryStore';
 import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
@@ -1437,7 +1438,8 @@ export class SessionManager {
      * `LocateMethod`. Defaulting to `'rm'`, which is what every realm answered
      * before this was a setting rather than a guess.
      */
-    locate: LocateMethod = DEFAULT_CONFIG.connection.locate
+    locate: LocateMethod = DEFAULT_CONFIG.connection.locate,
+    private readonly aiMemory?: AiMemoryStore
   ) {
     this.locateMethod = locate;
     this.fightRecord = fights;
@@ -3294,7 +3296,7 @@ export class SessionManager {
     if (action.name === 'engage_enemy') {
       const name = typeof action.args?.name === 'string' ? action.args.name : '';
       if (!name || name.startsWith('@')) return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
-      this.combat.alsoFight(name); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
+      this.combat.alsoFight(name); this.aiMemory?.upsert({ category: 'strategy', text: `Engage ordinary NPC ${name} through AutoCombat`, provenance: 'AI capability delegation', confidence: 0.6, verified: false, expiresAt: Date.now() + 86_400_000, pinned: false }); return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
     }
     if (action.name === 'navigate_to') {
       const destination = typeof action.args?.destination === 'string' ? action.args.destination.trim() : '';
@@ -3304,6 +3306,7 @@ export class SessionManager {
         : null;
       if (!route || typeof route === 'string') return { ok: false, message: typeof route === 'string' ? route : 'Refused: navigation requires a map/room destination' };
       const refused = this.walkRoute(route, true);
+      if (refused === null) this.aiMemory?.upsert({ category: 'strategy', text: `Navigation route accepted to ${destination}`, provenance: 'Walker accepted validated route', confidence: 0.8, verified: false, expiresAt: null, pinned: false });
       return { ok: refused === null, message: refused ?? 'Navigation delegated to Walker' };
     }
     if (action.name === 'execute_supported_command') {

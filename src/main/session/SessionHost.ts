@@ -147,6 +147,8 @@ export interface SessionHostOptions {
    * a way down a cliff is a fact about where that character has *been*.
    */
   memoryFor(id: SessionId): RealmMemory | undefined;
+  /** Structured AI memory, isolated by server and character. */
+  aiMemoryFor?(id: SessionId): import('../ai/MemoryStore').AiMemoryStore | undefined;
   /**
    * Where this character's fights are written down.
    *
@@ -497,7 +499,8 @@ export class SessionHost {
       this.options.spellLoreFor?.(id) ?? NO_SPELL_LORE,
       this.options.findsFor?.(id),
       this.options.sentences?.() ?? NO_SHIPPED_SENTENCES,
-      config.connection.locate
+      config.connection.locate,
+      this.options.aiMemoryFor?.(id)
     );
 
     manager.configureInternal(this.options.internal());
