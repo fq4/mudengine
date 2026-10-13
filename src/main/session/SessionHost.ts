@@ -501,7 +501,10 @@ export class SessionHost {
       this.options.sentences?.() ?? NO_SHIPPED_SENTENCES,
       config.connection.locate,
       this.options.aiMemoryFor?.(id),
-      { profile: config.aiPolicy }
+      {
+        server: config.servers.find((server) => server.host === config.connection.host && server.port === config.connection.port)?.aiPolicy,
+        profile: config.aiPolicy
+      }
     );
 
     manager.configureInternal(this.options.internal());
