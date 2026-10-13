@@ -1654,6 +1654,7 @@ export class SessionManager {
       if (action === 'navigate_to') return this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running';
       if (action === 'engage_enemy') return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
       if (action === 'recover_health') return Boolean(this.recovery.recovering || this.queue.queued((intent) => intent.command === 'rest'));
+      if (action === 'manage_equipment') return this.gear.dressing;
       return false;
     });
     this.aiAgent.setDelegatedOperationStatus((action) => {
@@ -1661,7 +1662,7 @@ export class SessionManager {
         return this.recovery.recovering || this.queue.queued((intent) => intent.command === 'rest') ? 'active' : 'completed';
       }
       if (action === 'manage_equipment') {
-        if (this.walker.walking || this.loops.progress.status === 'running' || this.recovery.recovering) return 'active';
+        if (this.walker.walking || this.loops.progress.status === 'running' || this.recovery.recovering || this.gear.dressing) return 'active';
         const current = JSON.stringify(this.tracker.current.inventory);
         if (this.aiEquipmentBaseline !== null && current !== this.aiEquipmentBaseline) this.aiEquipmentBaseline = null;
         return 'completed';
