@@ -126,19 +126,8 @@ export default function AiPanel({ session }: { session: SessionId }) {
             {snapshot.aggregateBudget.limits.sessionTokens?.toLocaleString() ?? 'unlimited'} tokens
           </small>
           <br />
-          <button
-            onClick={() =>
-              run(
-                api.aiAggregateBudget(session, {
-                  requestsPerMinute: 30,
-                  requestsPerHour: 300,
-                  sessionCostUsd: 1,
-                  sessionTokens: 100_000
-                })
-              )
-            }
-          >
-            Reset shared defaults
+          <button onClick={() => run(api.aiAggregateBudgetReset(session))}>
+            Reset shared usage
           </button>
         </div>
       )}

@@ -1660,6 +1660,7 @@ function registerIpc(): void {
   handle(Invoke.aiSetMemoryMetadata, (_caller, session: SessionId, id: string, verified: boolean, pinned: boolean) => host?.get(session)?.manager.aiSetMemoryMetadata(id, verified, pinned) ?? []);
   handle(Invoke.aiBudget, (_caller, session: SessionId, limits: Partial<import('../shared/ai').AiBudgetLimits>) => host?.get(session)?.manager.aiBudget(limits));
   handle(Invoke.aiAggregateBudget, (_caller, session: SessionId, limits: Partial<import('../shared/ai').AiBudgetLimits>) => host?.get(session)?.manager.aiAggregateBudget(limits));
+  handle(Invoke.aiAggregateBudgetReset, (_caller, session: SessionId) => host?.get(session)?.manager.aiAggregateBudgetReset());
   handle(Invoke.aiPolicy, (_caller, session: SessionId, command: string, authorization: import('../shared/config').AiCommandAuthorization | null) => host?.get(session)?.manager.aiPolicy(command, authorization));
 
   /**

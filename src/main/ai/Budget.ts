@@ -35,6 +35,7 @@ export class AiAggregateBudget {
   }
   reserve(at = Date.now()): void { this.requests.push(at); }
   settle(delta: { inputTokens: number; outputTokens: number; estimatedCostUsd: number }): void { this.inputTokens += delta.inputTokens; this.outputTokens += delta.outputTokens; this.cost += delta.estimatedCostUsd; }
+  resetUsage(): void { this.requests.length = 0; this.inputTokens = 0; this.outputTokens = 0; this.cost = 0; }
   snapshot(now = Date.now()): AiAggregateBudgetSnapshot { this.prune(now); return { limits: this.getLimits(), requests: this.requests.length, inputTokens: this.inputTokens, outputTokens: this.outputTokens, estimatedCostUsd: this.cost }; }
 }
 

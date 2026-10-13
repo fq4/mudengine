@@ -3340,6 +3340,7 @@ export class SessionManager {
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aiAgent.configureBudget(limits); return this.aiSnapshot; }
   aiAggregateBudget(limits: Partial<import('../../shared/ai').AiBudgetLimits>): AiSnapshot { this.aggregateBudgetController?.configure(limits); return this.aiSnapshot; }
+  aiAggregateBudgetReset(): AiSnapshot { this.aggregateBudgetController?.resetUsage(); return this.aiSnapshot; }
   aiPolicy(command: string, authorization: AiAuthorization | null): AiSnapshot {
     const value = command.trim().toLowerCase();
     if (!value) return this.aiSnapshot;

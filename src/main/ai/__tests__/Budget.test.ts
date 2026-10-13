@@ -51,4 +51,11 @@ describe('AiBudget', () => {
     budget.reserve(3_600_000);
     expect(budget.snapshot(3_660_001).requests).toBe(1);
   });
+  it('resets aggregate usage without changing configured limits', () => {
+    const budget = new AiAggregateBudget({ requestsPerMinute: 2, requestsPerHour: 20, sessionCostUsd: 0.5, sessionTokens: 5_000 });
+    budget.reserve(1_000);
+    budget.settle({ inputTokens: 10, outputTokens: 20, estimatedCostUsd: 0.01 });
+    budget.resetUsage();
+    expect(budget.snapshot(2_000)).toEqual({ limits: { requestsPerMinute: 2, requestsPerHour: 20, sessionCostUsd: 0.5, sessionTokens: 5_000 }, requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 });
+  });
 });

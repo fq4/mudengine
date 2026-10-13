@@ -216,6 +216,7 @@ export function createWebBridge(): IpcApi {
     aiSetMemoryMetadata: (session, id, verified, pinned) => invoke(Invoke.aiSetMemoryMetadata, session, id, verified, pinned),
     aiBudget: (session, limits) => invoke(Invoke.aiBudget, session, limits),
     aiAggregateBudget: (session, limits) => invoke(Invoke.aiAggregateBudget, session, limits),
+    aiAggregateBudgetReset: (session) => invoke(Invoke.aiAggregateBudgetReset, session),
     aiPolicy: (session, command, authorization) => invoke(Invoke.aiPolicy, session, command, authorization),
 
     listSessions: () => invoke(Invoke.listSessions),

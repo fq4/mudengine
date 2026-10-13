@@ -113,6 +113,7 @@ const api: IpcApi = {
   aiSetMemoryMetadata: (session, id, verified, pinned) => ipcRenderer.invoke(Invoke.aiSetMemoryMetadata, session, id, verified, pinned),
   aiBudget: (session, limits) => ipcRenderer.invoke(Invoke.aiBudget, session, limits),
   aiAggregateBudget: (session, limits) => ipcRenderer.invoke(Invoke.aiAggregateBudget, session, limits),
+  aiAggregateBudgetReset: (session) => ipcRenderer.invoke(Invoke.aiAggregateBudgetReset, session),
   aiPolicy: (session, command, authorization) => ipcRenderer.invoke(Invoke.aiPolicy, session, command, authorization),
   aiGoal: (session, goal) => ipcRenderer.invoke(Invoke.aiGoal, session, goal),
   aiClearGoal: (session) => ipcRenderer.invoke(Invoke.aiClearGoal, session),
