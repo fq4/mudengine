@@ -310,3 +310,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   The live trace still shows a bounded extra decision around the Kefka `st`
   alias transition, so no request reduction is claimed beyond the fixed
   false-failure window.
+
+### 2026-10-13 - empty general-command rejection
+
+- General-command execution now rejects missing or whitespace-only commands
+  before command classification, approval creation, or queue submission.
+- SessionManager regression suite passed 245/245 and both typechecks passed.
+  The bounded `kefka` harness again passed all eight scenarios with zero
+  violations; the unknown-command approval path remained intact.

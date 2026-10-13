@@ -202,6 +202,19 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('rejects an empty general command before classification or approval', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const result = await isolated.aiAction({
+      name: 'execute_supported_command',
+      args: { command: '   ' },
+      reason: 'inspect'
+    });
+    expect(result).toEqual({ ok: false, message: 'Refused: command cannot be empty' });
+    expect(isolated.aiSnapshot.state.pendingApprovals).toHaveLength(0);
+    isolated.dispose();
+  });
+
   it('keeps an unknown command off the wire until approval, then queues it', async () => {
     const { sink } = collect();
     manager = new SessionManager(sink);

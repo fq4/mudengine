@@ -3778,6 +3778,7 @@ export class SessionManager {
     }
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
+      if (!command) return { ok: false, message: 'Refused: command cannot be empty' };
       const objective = this.aiAgent.state.objective.toLowerCase();
       if (
         /\b(inspect|check|observe)\b/.test(objective) &&
