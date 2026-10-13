@@ -33,6 +33,19 @@ describe('AutonomousAgent', () => {
     const agent = new AutonomousAgent(provider, { execute: vi.fn() }); agent.enable('x'); const pending = agent.tick(observation); agent.pause(); reject(new Error('aborted')); await pending;
     expect(agent.state.status).toBe('paused');
   });
+  it('preserves the objective and exposes provider validation failures', async () => {
+    const provider: AiProvider = {
+      decide: vi.fn().mockRejectedValue(new Error('AI response contains an unsupported action')),
+      usage: () => ({ requests: 1, inputTokens: 10, outputTokens: 5, estimatedCostUsd: 0 })
+    };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn() });
+    agent.enable('inspect the room');
+    await agent.tick(observation);
+    expect(agent.state.objective).toBe('inspect the room');
+    expect(agent.state.lastActionResult).toContain('unsupported action');
+    expect(agent.state.explanation).toContain('objective is preserved');
+    expect(agent.state.status).toBe('error');
+  });
   it('waits for navigation state to change before requesting another decision', async () => {
     const decide = vi.fn().mockResolvedValue({ objective: 'travel', explanation: 'Route to the destination', action: { name: 'navigate_to', reason: 'travel', args: { destination: '1/2' } } });
     const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };

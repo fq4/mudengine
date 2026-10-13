@@ -16,6 +16,13 @@ describe('OpenRouterProvider', () => {
     expect(request.messages[1]?.content).toContain('Observed direction refusal');
     expect(request.messages[1]?.content).toContain('"confidence":0.9');
   });
+  it('instructs the model not to communicate for informational objectives', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'inspect', explanation: 'look', action: { name: 'inspect_room', reason: 'safe' } }) } }] }), { status: 200 }));
+    await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['inspect_room', 'send_message'] }, 'inspect the room');
+    const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
+    expect(request.messages[0]?.content).toContain('For an informational objective, inspect or observe first');
+    expect(request.messages[0]?.content).toContain('Use send_message only when the objective explicitly requests communication');
+  });
   it('reports provider connectivity without exposing credentials', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const result = await new OpenRouterProvider({ apiKey: 'secret', model: 'test/model' }).testConnection();

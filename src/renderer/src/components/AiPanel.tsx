@@ -54,14 +54,15 @@ export default function AiPanel({ session }: { session: SessionId }) {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && goal.trim()) {
               run(api.aiGoal(session, goal.trim()));
-              setGoal('');
             }
           }}
           placeholder="Explore nearby safe rooms"
         />
       </div>
       <div className="ai-panel-actions">
-        <button onClick={() => run(api.aiEnable(session))}>Start / Resume</button>
+        <button onClick={() => (goal.trim() ? run(api.aiGoal(session, goal.trim())) : run(api.aiEnable(session)))}>
+          Start / Resume
+        </button>
         <button onClick={() => run(api.aiPause(session))}>Pause</button>
         <button onClick={() => run(api.aiStop(session))}>Stop</button>
         <button onClick={() => run(api.aiClearGoal(session))}>Clear goal</button>

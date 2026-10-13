@@ -77,7 +77,11 @@ export class AutonomousAgent {
       return decision;
     } catch (error) {
       if (controller.signal.aborted) { this.state.usage = this.provider.usage(); return null; }
-      this.state.status = 'error'; this.state.consecutiveFailures++; this.remember('failure', error instanceof Error ? error.message : String(error)); this.state.usage = this.provider.usage(); return null;
+      const message = error instanceof Error ? error.message : String(error);
+      this.state.status = 'error'; this.state.consecutiveFailures++;
+      this.state.lastActionResult = `AI decision failed: ${message}`;
+      this.state.explanation = 'The objective is preserved. Correct the objective or resume to retry.';
+      this.remember('failure', message); this.state.usage = this.provider.usage(); return null;
     }
     finally { const usageAfter = this.provider.usage(); this.aggregateBudget?.settle({ inputTokens: Math.max(0, usageAfter.inputTokens - usageBefore.inputTokens), outputTokens: Math.max(0, usageAfter.outputTokens - usageBefore.outputTokens), estimatedCostUsd: Math.max(0, usageAfter.estimatedCostUsd - usageBefore.estimatedCostUsd) }); this.aborter = null; this.ticking = false; }
   }

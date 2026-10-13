@@ -3417,6 +3417,9 @@ export class SessionManager {
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
     if (action.name === 'send_message') {
+      const objective = this.aiAgent.state.objective.toLowerCase();
+      const communicationRequested = /\b(communicat|conversation|convers|chat|message|messag|talk|tell|gossip|say|speak|social|contact|ask)\w*\b/.test(objective);
+      if (!communicationRequested) return { ok: false, message: 'AI social action refused: the current objective does not request communication' };
       const channel = action.args?.channel;
       const message = typeof action.args?.message === 'string' ? action.args.message.trim() : '';
       const target = typeof action.args?.target === 'string' ? action.args.target.trim() : undefined;
