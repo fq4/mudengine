@@ -3265,6 +3265,15 @@ export class SessionManager {
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
   aiApprove(id: string): AiSnapshot { const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); if (!approval) { this.aiAgent.state.lastActionResult = 'Approval expired or game state changed'; return this.aiSnapshot; } const classification = classifyCommand(approval.command); if (classification.authorization === 'rejected') { this.aiAgent.state.lastActionResult = `Approval invalidated: ${classification.reason}`; return this.aiSnapshot; } const queued = this.queue.enqueue({ command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}` }); this.aiAgent.state.lastActionResult = queued ? `Approved command queued: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`; return this.aiSnapshot; }
+  aiGrant(id: string, durationMs = 30 * 60_000, maxUses = 1): AiSnapshot {
+    const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target }));
+    if (!approval) { this.aiAgent.state.lastActionResult = 'Temporary authorization expired or game state changed'; return this.aiSnapshot; }
+    const classification = classifyCommand(approval.command);
+    if (classification.authorization !== 'ask-first') { this.aiAgent.state.lastActionResult = `Temporary authorization refused: ${classification.reason}`; return this.aiSnapshot; }
+    const grant = this.aiApprovals.grant(approval.command, Math.min(Math.max(durationMs, 1_000), 60 * 60_000), Math.min(Math.max(maxUses, 1), 20));
+    this.aiAgent.state.lastActionResult = `Temporary authorization active for ${approval.command} until ${new Date(grant.expiresAt).toLocaleTimeString()}`;
+    return this.aiSnapshot;
+  }
   aiReject(id: string): AiSnapshot { this.aiApprovals.reject(id); return this.aiSnapshot; }
   aiMemories(): import('../../shared/ai').AiMemoryRecord[] { return this.aiMemory?.list() ?? []; }
   aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }
@@ -3315,7 +3324,7 @@ export class SessionManager {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
       const classification = classifyCommand(command);
       if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
-      if (classification.authorization === 'ask-first') { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); return { ok: false, message: `Approval required (${approval.id}): ${classification.reason}` }; }
+      if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command)) { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); return { ok: false, message: `Approval required (${approval.id}): ${classification.reason}` }; }
       return { ok: this.queue.enqueue({ command, priority: 'user', reason: action.reason }), message: 'Command delegated to CommandQueue' };
     }
     return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };

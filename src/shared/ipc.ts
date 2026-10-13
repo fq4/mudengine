@@ -614,6 +614,7 @@ export const Invoke = {
   aiGoal: 'ai:goal',
   aiAction: 'ai:action',
   aiApprove: 'ai:approve',
+  aiGrant: 'ai:grant',
   aiReject: 'ai:reject',
   aiMemories: 'ai:memories',
   aiForgetMemory: 'ai:forget-memory',
@@ -1239,6 +1240,7 @@ export interface IpcApi {
   aiGoal(session: SessionId, goal: string): Promise<AiSnapshot>;
   aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
   aiApprove(session: SessionId, id: string): Promise<AiSnapshot>;
+  aiGrant(session: SessionId, id: string, durationMs?: number, maxUses?: number): Promise<AiSnapshot>;
   aiReject(session: SessionId, id: string): Promise<AiSnapshot>;
   aiMemories(session: SessionId): Promise<AiMemoryRecord[]>;
   aiForgetMemory(session: SessionId, id: string): Promise<AiMemoryRecord[]>;
