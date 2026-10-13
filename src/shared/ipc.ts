@@ -619,6 +619,7 @@ export const Invoke = {
   aiReject: 'ai:reject',
   aiMemories: 'ai:memories',
   aiForgetMemory: 'ai:forget-memory',
+  aiUpdateMemory: 'ai:update-memory',
   // -- per session
   connect: 'session:connect',
   disconnect: 'session:disconnect',
@@ -1246,6 +1247,7 @@ export interface IpcApi {
   aiReject(session: SessionId, id: string): Promise<AiSnapshot>;
   aiMemories(session: SessionId): Promise<AiMemoryRecord[]>;
   aiForgetMemory(session: SessionId, id: string): Promise<AiMemoryRecord[]>;
+  aiUpdateMemory(session: SessionId, id: string, text: string): Promise<AiMemoryRecord[]>;
 
   listSessions(): Promise<SessionSummary[]>;
   listProfiles(): Promise<ProfileSummary[]>;

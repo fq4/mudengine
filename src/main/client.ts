@@ -1653,6 +1653,7 @@ function registerIpc(): void {
   handle(Invoke.aiReject, (_caller, session: SessionId, id: string) => host?.get(session)?.manager.aiReject(id));
   handle(Invoke.aiMemories, (_caller, session: SessionId) => host?.get(session)?.manager.aiMemories() ?? []);
   handle(Invoke.aiForgetMemory, (_caller, session: SessionId, id: string) => host?.get(session)?.manager.aiForgetMemory(id) ?? []);
+  handle(Invoke.aiUpdateMemory, (_caller, session: SessionId, id: string, text: string) => host?.get(session)?.manager.aiUpdateMemory(id, text) ?? []);
 
   /**
    * Who is walking, for pricing a route against them.

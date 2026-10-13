@@ -3284,6 +3284,7 @@ export class SessionManager {
   aiReject(id: string): AiSnapshot { this.aiApprovals.reject(id); return this.aiSnapshot; }
   aiMemories(): import('../../shared/ai').AiMemoryRecord[] { return this.aiMemory?.list() ?? []; }
   aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }
+  aiUpdateMemory(id: string, text: string): import('../../shared/ai').AiMemoryRecord[] { const value = text.trim(); if (value.length > 0 && value.length <= 2_000) this.aiMemory?.update(id, { text: value }); return this.aiMemories(); }
   aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); void this.aiTick(); return this.aiSnapshot; }
   async aiTick(event?: string): Promise<void> { await this.aiAgent.tick(this.aiObservation(event)); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {

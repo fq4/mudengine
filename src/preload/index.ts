@@ -107,6 +107,7 @@ const api: IpcApi = {
   aiReject: (session, id) => ipcRenderer.invoke(Invoke.aiReject, session, id),
   aiMemories: (session) => ipcRenderer.invoke(Invoke.aiMemories, session),
   aiForgetMemory: (session, id) => ipcRenderer.invoke(Invoke.aiForgetMemory, session, id),
+  aiUpdateMemory: (session, id, text) => ipcRenderer.invoke(Invoke.aiUpdateMemory, session, id, text),
   aiGoal: (session, goal) => ipcRenderer.invoke(Invoke.aiGoal, session, goal),
   aiAction: (session, action) => ipcRenderer.invoke(Invoke.aiAction, session, action),
 
