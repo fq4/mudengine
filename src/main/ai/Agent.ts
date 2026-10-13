@@ -11,7 +11,10 @@ import {
 import { AiAggregateBudget, AiBudget } from './Budget';
 
 export interface AiExecutor {
-  execute(action: AiAction): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }>;
+  execute(
+    action: AiAction,
+    source?: 'agent' | 'approved'
+  ): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }>;
 }
 export class AutonomousAgent {
   readonly state: AiState;
@@ -206,7 +209,7 @@ export class AutonomousAgent {
         phase: 'executing',
         message: 'Executing through MudEngine capability'
       };
-      const result = await this.executor.execute(decision.action);
+      const result = await this.executor.execute(decision.action, 'agent');
       if (controller.signal.aborted) {
         this.state.usage = this.provider.usage();
         return null;

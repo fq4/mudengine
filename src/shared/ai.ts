@@ -76,6 +76,7 @@ export interface AiApproval {
   target?: string;
   knownFacts?: string[];
   prediction?: string;
+  action?: AiAction;
   createdAt: number;
   expiresAt: number;
   status: 'pending' | 'approved' | 'executed' | 'rejected' | 'expired';

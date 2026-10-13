@@ -99,9 +99,15 @@ import {
   objectiveAvailableActions
 } from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
-import { validateActionPolicy } from '../ai/ActionPolicy';
+import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
 import type { AiMemoryStore } from '../ai/MemoryStore';
-import { AI_ACTIONS, type AiAction, type AiObservation, type AiPolicyRule, type AiSnapshot } from '../../shared/ai';
+import {
+  AI_ACTIONS,
+  type AiAction,
+  type AiObservation,
+  type AiPolicyRule,
+  type AiSnapshot
+} from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
 import {
@@ -1663,7 +1669,7 @@ export class SessionManager {
     this.aiProvider = new OpenRouterProvider();
     this.aiAgent = new AutonomousAgent(
       this.aiProvider,
-      { execute: async (action) => this.executeAiAction(action) },
+      { execute: async (action, source) => this.executeAiAction(action, source) },
       undefined,
       this.aggregateBudgetController
     );
@@ -1731,8 +1737,7 @@ export class SessionManager {
       // A destination-bearing, non-stopped plan is still delegated work; do
       // not spend another provider request replanning during that handoff.
       const progress = this.walker.progress;
-      if (progress.destinationRoom !== null && progress.status !== 'stopped')
-        return 'active';
+      if (progress.destinationRoom !== null && progress.status !== 'stopped') return 'active';
       this.aiNavigationDestination = null;
       return 'failed';
     });
@@ -3447,7 +3452,8 @@ export class SessionManager {
   aiEnable(model?: string): AiSnapshot {
     if (this.tracker.current.phase !== 'in-game') {
       this.aiAgent.stop();
-      this.aiAgent.state.lastActionResult = 'AI cannot resume until the active character is in-game';
+      this.aiAgent.state.lastActionResult =
+        'AI cannot resume until the active character is in-game';
       return this.aiSnapshot;
     }
     if (model) this.aiProvider.setModel(model);
@@ -3513,6 +3519,17 @@ export class SessionManager {
     const approval = this.aiApprovals.approve(id, context());
     if (!approval) {
       this.aiAgent.approvalResolved('Approval expired or game state changed');
+      return this.aiSnapshot;
+    }
+    if (approval.action) {
+      void this.executeAiAction(approval.action, 'approved').then((result) => {
+        this.aiApprovals.markExecuted(approval.id);
+        this.aiAgent.approvalResolved(
+          result.ok
+            ? `Approved AI action completed: ${result.message}`
+            : `Approved AI action refused: ${result.message}`
+        );
+      });
       return this.aiSnapshot;
     }
     const classification = classifyCommand(approval.command, this.aiPermissionLayers);
@@ -3643,7 +3660,10 @@ export class SessionManager {
     )
       return { ok: false, message: 'Invalid AI action' };
     if (!AI_ACTIONS.includes(candidate.name as (typeof AI_ACTIONS)[number]))
-      return { ok: false, message: `AI response contains an unsupported action: ${candidate.name}` };
+      return {
+        ok: false,
+        message: `AI response contains an unsupported action: ${candidate.name}`
+      };
     const typed = candidate as AiAction;
     const policyError = validateActionPolicy(typed, {
       objective: this.aiAgent.state.objective,
@@ -3654,8 +3674,29 @@ export class SessionManager {
     return this.executeAiAction(typed);
   }
   private async executeAiAction(
-    action: AiAction
+    action: AiAction,
+    source: 'agent' | 'approved' | undefined = undefined
   ): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }> {
+    const policy = actionPolicy(action.name);
+    if (source === 'agent' && policy.authorization === 'ask-first') {
+      const contextHash = JSON.stringify({
+        room: this.tracker.current.room,
+        target: this.tracker.current.combat.target
+      });
+      const approval = this.aiApprovals.request(
+        `ai-action:${action.name}`,
+        action.reason,
+        'high',
+        contextHash,
+        Date.now(),
+        { action }
+      );
+      return {
+        ok: false,
+        pendingApproval: true,
+        message: `Approval required (${approval.id}): ${policy.summary}`
+      };
+    }
     if (
       action.name === 'inspect_character' ||
       action.name === 'inspect_room' ||
@@ -4143,7 +4184,8 @@ export class SessionManager {
 
   async connect(target: ConnectionTarget): Promise<ConnectionState> {
     this.aiAgent.stop();
-    this.aiAgent.state.lastActionResult = 'AI suspended for reconnect; reassess current state before resuming';
+    this.aiAgent.state.lastActionResult =
+      'AI suspended for reconnect; reassess current state before resuming';
     this.aiApprovals.resetTransient();
     for (const command of Object.keys(this.aiSessionPolicyOverrides))
       delete this.aiSessionPolicyOverrides[command];
@@ -4755,7 +4797,8 @@ export class SessionManager {
    */
   private leftTheRealm(): void {
     this.aiAgent.stop();
-    this.aiAgent.state.lastActionResult = 'AI suspended after leaving the realm; reassess current state before resuming';
+    this.aiAgent.state.lastActionResult =
+      'AI suspended after leaving the realm; reassess current state before resuming';
     this.aiApprovals.resetTransient();
     for (const command of Object.keys(this.aiSessionPolicyOverrides))
       delete this.aiSessionPolicyOverrides[command];

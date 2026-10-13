@@ -24,6 +24,9 @@ their existing safety adapters.
 - Node and renderer typechecks passed after the policy integration.
 - Provider contract regressions: 14 OpenRouter tests passed after adding the
   `inspect_npc` schema and safety guidance.
+- Agent-originated `ask-first` actions now retain their structured payload in
+  the approval record and execute only that payload after approval; approval,
+  agent, and SessionManager regressions passed (284 tests).
 - Production build and `check:secrets` passed; the build retains the existing
   renderer chunk-size warning only.
 - The bounded live `kefka` harness passed all eight scenarios with zero safety
@@ -50,7 +53,7 @@ key remain outside the repository.
   inspection, recovery, and interaction objectives.
 - Add mocked reconnect, interrupted-objective, denied-approval, and invalid
   command scenarios to the bounded harness tests.
-- The current approval store is command-payload based; extending approval to
-  high-risk structured actions requires a dedicated action payload model before
-  those actions can be approval-gated through the agent path.
+- Structured high-risk actions now use a dedicated action payload in approval
+  records; raw command approvals continue through the existing permission
+  classifier and command queue.
 - Repeat permitted live checks only after each adapter is covered locally.
