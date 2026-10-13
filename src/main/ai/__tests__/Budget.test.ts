@@ -45,4 +45,10 @@ describe('AiBudget', () => {
     const budget = new AiAggregateBudget();
     expect(budget.configure({ requestsPerMinute: 0, requestsPerHour: -1, sessionCostUsd: 0, sessionTokens: 1 })).toEqual({ requestsPerMinute: 1, requestsPerHour: 1, sessionCostUsd: 0.01, sessionTokens: 100 });
   });
+  it('reports only aggregate requests still inside the hourly window', () => {
+    const budget = new AiAggregateBudget();
+    budget.reserve(1_000);
+    budget.reserve(3_600_000);
+    expect(budget.snapshot(3_660_001).requests).toBe(1);
+  });
 });

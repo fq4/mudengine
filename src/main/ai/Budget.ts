@@ -23,8 +23,9 @@ export class AiAggregateBudget {
     };
     return this.getLimits();
   }
+  private prune(now: number): void { while (this.requests[0] !== undefined && this.requests[0] <= now - 60 * 60_000) this.requests.shift(); }
   check(now = Date.now()): { ok: true } | { ok: false; reason: string; resetAt: number } {
-    while (this.requests[0] !== undefined && this.requests[0] <= now - 60 * 60_000) this.requests.shift();
+    this.prune(now);
     const minute = this.requests.filter((at) => at > now - 60_000).length;
     if (minute >= this.limits.requestsPerMinute) return { ok: false, reason: `Aggregate request budget reached (${this.limits.requestsPerMinute}/minute)`, resetAt: (this.requests.find((at) => at > now - 60_000) ?? now) + 60_000 };
     if (this.requests.length >= this.limits.requestsPerHour) return { ok: false, reason: `Aggregate request budget reached (${this.limits.requestsPerHour}/hour)`, resetAt: (this.requests[0] ?? now) + 3_600_000 };
@@ -34,7 +35,7 @@ export class AiAggregateBudget {
   }
   reserve(at = Date.now()): void { this.requests.push(at); }
   settle(delta: { inputTokens: number; outputTokens: number; estimatedCostUsd: number }): void { this.inputTokens += delta.inputTokens; this.outputTokens += delta.outputTokens; this.cost += delta.estimatedCostUsd; }
-  snapshot(): AiAggregateBudgetSnapshot { return { limits: this.getLimits(), requests: this.requests.length, inputTokens: this.inputTokens, outputTokens: this.outputTokens, estimatedCostUsd: this.cost }; }
+  snapshot(now = Date.now()): AiAggregateBudgetSnapshot { this.prune(now); return { limits: this.getLimits(), requests: this.requests.length, inputTokens: this.inputTokens, outputTokens: this.outputTokens, estimatedCostUsd: this.cost }; }
 }
 
 export class AiBudget {
