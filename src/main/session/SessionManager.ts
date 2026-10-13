@@ -1002,6 +1002,7 @@ export class SessionManager {
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
   private aiNavigationDestination: string | null = null;
+  private aiEquipmentBaseline: string | null = null;
   readonly rules: RuleEngine;
   /** The realm's message table, answering the realm. See `MessageTriggers`. */
   readonly messages: MessageTriggers;
@@ -1645,10 +1646,19 @@ export class SessionManager {
     this.aiAgent.setDelegatedOperationActive((action) => {
       if (action === 'navigate_to') return this.walker.walking || this.tracker.pendingMoves > 0 || this.loops.progress.status === 'running';
       if (action === 'engage_enemy') return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
-      if (action === 'recover_health') return Boolean(this.recovery.recovering);
+      if (action === 'recover_health') return Boolean(this.recovery.recovering || this.queue.queued((intent) => intent.command === 'rest'));
       return false;
     });
     this.aiAgent.setDelegatedOperationStatus((action) => {
+      if (action === 'recover_health') {
+        return this.recovery.recovering || this.queue.queued((intent) => intent.command === 'rest') ? 'active' : 'completed';
+      }
+      if (action === 'manage_equipment') {
+        if (this.walker.walking || this.loops.progress.status === 'running' || this.recovery.recovering) return 'active';
+        const current = JSON.stringify(this.tracker.current.inventory);
+        if (this.aiEquipmentBaseline !== null && current !== this.aiEquipmentBaseline) this.aiEquipmentBaseline = null;
+        return 'completed';
+      }
       if (action !== 'navigate_to' || this.aiNavigationDestination === null) return null;
       const room = this.tracker.current.room;
       const current = room.map !== null && room.number !== null ? `${room.map}/${room.number}` : null;
@@ -3381,6 +3391,7 @@ export class SessionManager {
     if (action.name === 'inspect_character' || action.name === 'inspect_room' || action.name === 'inspect_inventory' || action.name === 'inspect_map' || action.name === 'inspect_combat_result') return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
     if (action.name === 'recover_health') return { ok: this.queue.enqueue({ command: 'rest', priority: 'emergency', reason: `AI: ${action.reason}` }), message: 'Recovery delegated to CommandQueue' };
     if (action.name === 'manage_equipment') {
+      this.aiEquipmentBaseline = JSON.stringify(this.tracker.current.inventory);
       this.gear.onCharacter(this.tracker.current, this.walker.walking || this.loops.progress.status === 'running', this.recovery.recovering);
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
