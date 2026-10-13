@@ -296,3 +296,17 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   stop canceled AI work without blocking manual play.
 - The run used four provider requests for navigation and issued no combat,
   social, equipment, item, or spending commands.
+
+### 2026-10-13 - delegated route handoff hardening
+
+- Walker-backed AI navigation now treats a destination-bearing, non-stopped
+  route as active during the short handoff between verified movement legs.
+  This prevents a transient empty queue from being interpreted as a failed
+  strategic action and avoids unnecessary replanning where the lifecycle can
+  prove the route is still valid.
+- Focused Agent/SessionManager regressions passed: 271/271. Node and web
+  typechecks passed. The bounded live harness passed all eight scenarios with
+  zero violations; navigation remained within the existing request budget.
+  The live trace still shows a bounded extra decision around the Kefka `st`
+  alias transition, so no request reduction is claimed beyond the fixed
+  false-failure window.

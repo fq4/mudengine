@@ -1720,6 +1720,14 @@ export class SessionManager {
         this.loops.progress.status === 'running'
       )
         return 'active';
+      // Walker advances one verified leg at a time. Between the arrival
+      // observation for one leg and enqueueing the next, there may be no
+      // pending queue item for a tick even though the route is still valid.
+      // A destination-bearing, non-stopped plan is still delegated work; do
+      // not spend another provider request replanning during that handoff.
+      const progress = this.walker.progress;
+      if (progress.destinationRoom !== null && progress.status !== 'stopped')
+        return 'active';
       this.aiNavigationDestination = null;
       return 'failed';
     });

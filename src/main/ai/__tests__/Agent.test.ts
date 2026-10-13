@@ -148,6 +148,30 @@ describe('AutonomousAgent', () => {
     await agent.tick({ ...observation, room: { id: 2 } });
     expect(decide).toHaveBeenCalledTimes(1);
   });
+
+  it('does not re-plan while a multi-step delegated route is between legs', async () => {
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'travel',
+      explanation: 'Route',
+      action: { name: 'navigate_to', reason: 'travel' }
+    });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
+    };
+    const agent = new AutonomousAgent(provider, {
+      execute: vi.fn().mockResolvedValue({ ok: true, message: 'accepted' })
+    });
+    let active = true;
+    agent.setDelegatedOperationStatus(() => (active ? 'active' : 'completed'));
+    agent.enable('travel');
+    await agent.tick(observation);
+    await agent.tick({ ...observation, room: { id: 2 }, event: 'arrival' });
+    expect(decide).toHaveBeenCalledTimes(1);
+    active = false;
+    await agent.tick({ ...observation, room: { id: 3 }, event: 'arrival' });
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
   it('uses an explicit delegated lifecycle before re-planning navigation', async () => {
     const decide = vi
       .fn()
