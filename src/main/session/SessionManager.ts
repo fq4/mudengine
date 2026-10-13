@@ -3298,12 +3298,19 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiGrant(id: string, durationMs = 30 * 60_000, maxUses = 1): AiSnapshot {
-    const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target }));
-    if (!approval) { this.aiAgent.state.lastActionResult = 'Temporary authorization expired or game state changed'; return this.aiSnapshot; }
+    const context = () => JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
+    const approval = this.aiApprovals.approve(id, context());
+    if (!approval) { this.aiAgent.approvalResolved('Temporary authorization expired or game state changed'); return this.aiSnapshot; }
     const classification = classifyCommand(approval.command);
-    if (classification.authorization !== 'ask-first') { this.aiAgent.state.lastActionResult = `Temporary authorization refused: ${classification.reason}`; return this.aiSnapshot; }
+    if (classification.authorization !== 'ask-first') { this.aiAgent.approvalResolved(`Temporary authorization refused: ${classification.reason}`); return this.aiSnapshot; }
     const grant = this.aiApprovals.grant(approval.command, approval.contextHash, Math.min(Math.max(durationMs, 1_000), 60 * 60_000), Math.min(Math.max(maxUses, 1), 20));
-    this.aiAgent.state.lastActionResult = `Temporary authorization active for ${approval.command} until ${new Date(grant.expiresAt).toLocaleTimeString()}`;
+    const queued = this.queue.enqueue({
+      command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}`,
+      expiresAt: Math.min(approval.expiresAt, grant.expiresAt),
+      stillWanted: () => approval.contextHash === context() && Date.now() < approval.expiresAt && this.aiApprovals.snapshot().grants.some((item) => item.id === grant.id),
+      onSent: () => { this.aiApprovals.allows(approval.command, approval.contextHash); this.aiApprovals.markExecuted(approval.id); }
+    });
+    this.aiAgent.approvalResolved(queued ? `Approved command queued with temporary authorization: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`);
     return this.aiSnapshot;
   }
   aiRevokeGrant(id: string): AiSnapshot { this.aiApprovals.revokeGrant(id); this.aiAgent.state.lastActionResult = 'Temporary authorization revoked'; return this.aiSnapshot; }
