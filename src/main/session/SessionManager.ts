@@ -89,6 +89,7 @@ import { Events } from '../automation/Events';
 import { AutonomousAgent } from '../ai/Agent';
 import { OpenRouterProvider } from '../ai/OpenRouter';
 import { classifyCommand } from '../ai/Permissions';
+import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import type { AiAction, AiObservation, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
@@ -994,6 +995,7 @@ export class SessionManager {
   readonly queue: CommandQueue;
   private readonly aiAgent: AutonomousAgent;
   private readonly aiProvider: OpenRouterProvider;
+  private readonly aiSocial = new SocialGate();
   readonly rules: RuleEngine;
   /** The realm's message table, answering the realm. See `MessageTriggers`. */
   readonly messages: MessageTriggers;
@@ -3272,6 +3274,18 @@ export class SessionManager {
     if (action.name === 'manage_equipment') {
       this.gear.onCharacter(this.tracker.current, this.walker.walking || this.loops.progress.status === 'running', this.recovery.recovering);
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
+    }
+    if (action.name === 'send_message') {
+      const channel = action.args?.channel;
+      const message = typeof action.args?.message === 'string' ? action.args.message.trim() : '';
+      const target = typeof action.args?.target === 'string' ? action.args.target.trim() : undefined;
+      if (!['local', 'gossip', 'tell', 'telepath', 'broadcast'].includes(String(channel)) || message.length === 0 || message.length > 240) return { ok: false, message: 'Refused: invalid social channel or message length' };
+      if ((channel === 'tell' || channel === 'telepath') && !target) return { ok: false, message: 'Refused: private communication requires a target' };
+      const allowed = this.aiSocial.allow({ channel: channel as AiSocialChannel, target, message });
+      if (!allowed.ok) return { ok: false, message: allowed.reason };
+      const command = channel === 'local' ? `.${message}` : channel === 'gossip' ? `gos ${message}` : channel === 'broadcast' ? `-${message}` : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
+      const queued = this.queue.enqueue({ command, priority: 'user', reason: action.reason });
+      return { ok: queued, message: queued ? `${channel} message accepted by CommandQueue` : 'Message was refused by CommandQueue' };
     }
     if (action.name === 'engage_enemy') {
       const name = typeof action.args?.name === 'string' ? action.args.name : '';

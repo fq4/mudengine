@@ -2,7 +2,7 @@
 export type AiStatus = 'disabled' | 'paused' | 'idle' | 'thinking' | 'executing' | 'error';
 export type AiActionName =
   | 'inspect_character' | 'inspect_room' | 'inspect_inventory' | 'inspect_map'
-  | 'navigate_to' | 'engage_enemy' | 'recover_health' | 'inspect_combat_result'
+  | 'navigate_to' | 'engage_enemy' | 'recover_health' | 'inspect_combat_result' | 'send_message'
   | 'manage_equipment' | 'execute_supported_command' | 'wait';
 
 export interface AiObservation {
@@ -40,7 +40,7 @@ export interface AiSnapshot { state: AiState; observation: AiObservation; }
 
 export const AI_ACTIONS: readonly AiActionName[] = [
   'inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map',
-  'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result',
+  'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'send_message',
   'manage_equipment', 'execute_supported_command', 'wait'
 ];
 
