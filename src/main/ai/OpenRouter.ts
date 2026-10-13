@@ -1,4 +1,4 @@
-import { validateDecision, type AiDecision, type AiObservation, type AiProvider, type AiUsage } from '../../shared/ai';
+import { validateDecision, type AiDecision, type AiObservation, type AiProvider, type AiProviderDiagnostic, type AiUsage } from '../../shared/ai';
 export type { AiProvider } from '../../shared/ai';
 
 export class OpenRouterProvider implements AiProvider {
@@ -11,6 +11,18 @@ export class OpenRouterProvider implements AiProvider {
   }
   usage(): AiUsage { return { ...this.stats }; }
   setModel(model: string): void { if (model.trim()) this.model = model.trim(); }
+  async testConnection(signal?: AbortSignal): Promise<AiProviderDiagnostic> {
+    const at = Date.now();
+    if (!this.key) return { ok: false, provider: 'openrouter', model: this.model, message: 'OpenRouter is not configured; set the API key in the main-process environment.', at };
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 10_000); timer.unref?.();
+    if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/models', { method: 'GET', signal: controller.signal, headers: { Authorization: `Bearer ${this.key}` } });
+      if (!response.ok) return { ok: false, provider: 'openrouter', model: this.model, message: `OpenRouter returned HTTP ${response.status}`, at };
+      return { ok: true, provider: 'openrouter', model: this.model, message: 'OpenRouter connection and credentials verified.', at };
+    } catch (error) { return { ok: false, provider: 'openrouter', model: this.model, message: error instanceof Error ? error.message : String(error), at }; }
+    finally { clearTimeout(timer); }
+  }
   async decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision> {
     if (!this.key) throw new Error('OpenRouter is not configured. Set OPENROUTER_API_KEY in the main-process environment.');
     const controller = new AbortController();

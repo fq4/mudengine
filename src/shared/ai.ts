@@ -33,6 +33,7 @@ export interface AiApproval { id: string; command: string; reason: string; risk:
 export interface AiTemporaryGrant { id: string; command: string; createdAt: number; expiresAt: number; remainingUses: number | null; status: 'active' | 'expired' | 'exhausted' | 'revoked'; }
 export interface AiUsage { requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number; }
 export interface AiProvider { decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision>; usage(): AiUsage; }
+export interface AiProviderDiagnostic { ok: boolean; provider: string; model?: string; message: string; at: number; }
 export interface AiState {
   enabled: boolean; status: AiStatus; objective: string; activity: string;
   explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;

@@ -7,4 +7,16 @@ describe('OpenRouterProvider', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'look', action: { name: 'inspect_room', reason: 'safe' } }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }), { status: 200 }));
     const p = new OpenRouterProvider({ apiKey: 'test' }); expect((await p.decide({ character: {}, room: {}, availableActions: ['inspect_room'] }, 'x')).action.name).toBe('inspect_room'); expect(p.usage().requests).toBe(1);
   });
+  it('reports provider connectivity without exposing credentials', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    const result = await new OpenRouterProvider({ apiKey: 'secret', model: 'test/model' }).testConnection();
+    expect(result).toMatchObject({ ok: true, provider: 'openrouter', model: 'test/model' });
+    expect(fetch).toHaveBeenCalledWith('https://openrouter.ai/api/v1/models', expect.objectContaining({ method: 'GET', headers: { Authorization: 'Bearer secret' } }));
+    expect(JSON.stringify(result)).not.toContain('secret');
+  });
+  it('reports missing credentials without making a request', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch');
+    const result = await new OpenRouterProvider({ apiKey: '' }).testConnection();
+    expect(result.ok).toBe(false); expect(fetch).not.toHaveBeenCalled();
+  });
 });

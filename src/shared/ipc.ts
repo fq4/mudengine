@@ -615,6 +615,7 @@ export const Invoke = {
   aiAction: 'ai:action',
   aiApprove: 'ai:approve',
   aiGrant: 'ai:grant',
+  aiProviderTest: 'ai:provider-test',
   aiReject: 'ai:reject',
   aiMemories: 'ai:memories',
   aiForgetMemory: 'ai:forget-memory',
@@ -1241,6 +1242,7 @@ export interface IpcApi {
   aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
   aiApprove(session: SessionId, id: string): Promise<AiSnapshot>;
   aiGrant(session: SessionId, id: string, durationMs?: number, maxUses?: number): Promise<AiSnapshot>;
+  aiProviderTest(session: SessionId): Promise<import('./ai').AiProviderDiagnostic>;
   aiReject(session: SessionId, id: string): Promise<AiSnapshot>;
   aiMemories(session: SessionId): Promise<AiMemoryRecord[]>;
   aiForgetMemory(session: SessionId, id: string): Promise<AiMemoryRecord[]>;

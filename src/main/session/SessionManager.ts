@@ -3270,6 +3270,7 @@ export class SessionManager {
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
+  async aiProviderTest(): Promise<import('../../shared/ai').AiProviderDiagnostic> { return this.aiProvider.testConnection(); }
   aiApprove(id: string): AiSnapshot { const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); if (!approval) { this.aiAgent.state.lastActionResult = 'Approval expired or game state changed'; return this.aiSnapshot; } const classification = classifyCommand(approval.command); if (classification.authorization === 'rejected') { this.aiAgent.state.lastActionResult = `Approval invalidated: ${classification.reason}`; return this.aiSnapshot; } const queued = this.queue.enqueue({ command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}` }); this.aiAgent.state.lastActionResult = queued ? `Approved command queued: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`; return this.aiSnapshot; }
   aiGrant(id: string, durationMs = 30 * 60_000, maxUses = 1): AiSnapshot {
     const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target }));
