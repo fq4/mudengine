@@ -238,3 +238,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - `st` is now treated as movement and counted against the movement cap, while
   `stand` and `rest` remain blocked. The monitor regression passed, and the
   corrected bounded live run passed all eight scenarios with zero violations.
+
+### 2026-10-13 — event-aware memory retrieval
+
+- Persistent-memory selection now combines the active objective with the
+  meaningful event that triggered reassessment, so event-specific navigation
+  or failure knowledge is not hidden by a standing objective.
+- Targeted memory/session tests and node typecheck passed. The bounded
+  `kefka` run passed all eight scenarios with zero violations.

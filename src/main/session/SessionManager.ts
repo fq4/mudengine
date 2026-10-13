@@ -3363,15 +3363,18 @@ export class SessionManager {
     const room = state.room;
     const inventory = state.inventory;
     const character = compactCharacterObservation(state);
-    const memories = (
-      this.aiMemory?.relevant(this.aiAgent.state.objective || event || '') ?? []
-    ).map(({ category, text, provenance, confidence, verified }) => ({
-      category,
-      text: text.slice(0, 400),
-      provenance: provenance.slice(0, 160),
-      confidence,
-      verified
-    }));
+    const memoryQuery = [this.aiAgent.state.objective, event]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join(' ');
+    const memories = (this.aiMemory?.relevant(memoryQuery) ?? []).map(
+      ({ category, text, provenance, confidence, verified }) => ({
+        category,
+        text: text.slice(0, 400),
+        provenance: provenance.slice(0, 160),
+        confidence,
+        verified
+      })
+    );
     return {
       character,
       room,
