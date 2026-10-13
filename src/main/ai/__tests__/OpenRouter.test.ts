@@ -24,4 +24,9 @@ describe('OpenRouterProvider', () => {
     await expect(new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: [] }, 'x')).resolves.toBeTruthy();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+  it('does not retry an authentication failure', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 401 }));
+    await expect(new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: [] }, 'x')).rejects.toThrow('HTTP 401');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
