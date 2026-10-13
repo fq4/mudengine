@@ -191,6 +191,17 @@ describe('the raw byte record', () => {
 });
 
 describe('AI reconnect lifecycle', () => {
+  it('rejects unsupported direct AI actions at the session boundary', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const result = await isolated.aiAction({ name: 'inspect_status', reason: 'inspect' });
+    expect(result).toEqual({
+      ok: false,
+      message: 'AI response contains an unsupported action: inspect_status'
+    });
+    isolated.dispose();
+  });
+
   it('keeps an unknown command off the wire until approval, then queues it', async () => {
     const { sink } = collect();
     manager = new SessionManager(sink);

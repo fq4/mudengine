@@ -96,7 +96,7 @@ import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../ai
 import { compactCharacterObservation } from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
 import type { AiMemoryStore } from '../ai/MemoryStore';
-import type { AiAction, AiObservation, AiPolicyRule, AiSnapshot } from '../../shared/ai';
+import { AI_ACTIONS, type AiAction, type AiObservation, type AiPolicyRule, type AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
 import { splitStop } from '../../shared/loops';
 import {
@@ -3637,6 +3637,8 @@ export class SessionManager {
     const candidate = action as Partial<AiAction>;
     if (typeof candidate.name !== 'string' || typeof candidate.reason !== 'string')
       return { ok: false, message: 'Invalid AI action' };
+    if (!AI_ACTIONS.includes(candidate.name as (typeof AI_ACTIONS)[number]))
+      return { ok: false, message: `AI response contains an unsupported action: ${candidate.name}` };
     return this.executeAiAction(candidate as AiAction);
   }
   private async executeAiAction(
