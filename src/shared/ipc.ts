@@ -613,6 +613,7 @@ export const Invoke = {
   aiStop: 'ai:stop',
   aiEmergencyStop: 'ai:emergency-stop',
   aiGoal: 'ai:goal',
+  aiClearGoal: 'ai:clear-goal',
   aiAction: 'ai:action',
   aiApprove: 'ai:approve',
   aiGrant: 'ai:grant',
@@ -1244,6 +1245,7 @@ export interface IpcApi {
   aiStop(session: SessionId): Promise<AiSnapshot>;
   aiEmergencyStop(session: SessionId): Promise<AiSnapshot>;
   aiGoal(session: SessionId, goal: string): Promise<AiSnapshot>;
+  aiClearGoal(session: SessionId): Promise<AiSnapshot>;
   aiAction(session: SessionId, action: AiAction): Promise<{ ok: boolean; message: string }>;
   aiApprove(session: SessionId, id: string): Promise<AiSnapshot>;
   aiGrant(session: SessionId, id: string, durationMs?: number, maxUses?: number): Promise<AiSnapshot>;

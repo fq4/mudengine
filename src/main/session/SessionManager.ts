@@ -3294,7 +3294,8 @@ export class SessionManager {
   aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }
   aiUpdateMemory(id: string, text: string): import('../../shared/ai').AiMemoryRecord[] { const value = text.trim(); if (value.length > 0 && value.length <= 2_000) this.aiMemory?.update(id, { text: value }); return this.aiMemories(); }
   aiSetMemoryMetadata(id: string, verified: boolean, pinned: boolean): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.update(id, { verified: verified === true, pinned: pinned === true }); return this.aiMemories(); }
-  aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); void this.aiTick(); return this.aiSnapshot; }
+  aiGoal(goal: string): AiSnapshot { this.aiApprovals.resetTransient(); this.aiAgent.enable(goal.trim()); if (goal.trim()) void this.aiTick(); return this.aiSnapshot; }
+  aiClearGoal(): AiSnapshot { this.aiApprovals.resetTransient(); this.aiAgent.stop(); this.aiAgent.state.objective = ''; this.aiAgent.state.objectiveComplete = false; this.aiAgent.state.currentAction = null; this.aiAgent.state.lastActionResult = 'AI objective cleared'; return this.aiSnapshot; }
   async aiTick(event?: string): Promise<void> { await this.aiAgent.tick(this.aiObservation(event)); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
     if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };

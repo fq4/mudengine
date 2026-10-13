@@ -1647,6 +1647,7 @@ function registerIpc(): void {
   handle(Invoke.aiStop, (_caller, session: SessionId) => host?.get(session)?.manager.aiStop());
   handle(Invoke.aiEmergencyStop, (_caller, session: SessionId) => host?.get(session)?.manager.aiEmergencyStop());
   handle(Invoke.aiGoal, (_caller, session: SessionId, goal: string) => host?.get(session)?.manager.aiGoal(goal));
+  handle(Invoke.aiClearGoal, (_caller, session: SessionId) => host?.get(session)?.manager.aiClearGoal());
   handle(Invoke.aiAction, (_caller, session: SessionId, action: unknown) => host?.get(session)?.manager.aiAction(action));
   handle(Invoke.aiApprove, (_caller, session: SessionId, id: string) => host?.get(session)?.manager.aiApprove(id));
   handle(Invoke.aiGrant, (_caller, session: SessionId, id: string, durationMs?: number, maxUses?: number) => host?.get(session)?.manager.aiGrant(id, durationMs, maxUses));

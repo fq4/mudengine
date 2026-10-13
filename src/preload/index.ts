@@ -112,6 +112,7 @@ const api: IpcApi = {
   aiUpdateMemory: (session, id, text) => ipcRenderer.invoke(Invoke.aiUpdateMemory, session, id, text),
   aiSetMemoryMetadata: (session, id, verified, pinned) => ipcRenderer.invoke(Invoke.aiSetMemoryMetadata, session, id, verified, pinned),
   aiGoal: (session, goal) => ipcRenderer.invoke(Invoke.aiGoal, session, goal),
+  aiClearGoal: (session) => ipcRenderer.invoke(Invoke.aiClearGoal, session),
   aiAction: (session, action) => ipcRenderer.invoke(Invoke.aiAction, session, action),
 
   listSessions: () => ipcRenderer.invoke(Invoke.listSessions),
