@@ -46,4 +46,12 @@ describe('canonical AI action policy', () => {
       )
     ).toMatch(/Player inspection/);
   });
+
+  it('keeps recovery autonomous, delegated, and argument-free', () => {
+    expect(actionPolicy('recover_health')).toMatchObject({
+      authorization: 'autonomous',
+      completion: 'delegated'
+    });
+    expect(validateActionPolicy({ name: 'recover_health', reason: 'restore health' }, context)).toBeNull();
+  });
 });
