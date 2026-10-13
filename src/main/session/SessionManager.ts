@@ -93,7 +93,11 @@ import { classifyCommand, type AiPermissionLayers, type AiAuthorization } from '
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
 import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../ai/navigation';
-import { compactCharacterObservation, objectiveAvailableActions } from '../ai/observation';
+import {
+  compactCharacterObservation,
+  objectiveActionPolicies,
+  objectiveAvailableActions
+} from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
 import { validateActionPolicy } from '../ai/ActionPolicy';
 import type { AiMemoryStore } from '../ai/MemoryStore';
@@ -3398,6 +3402,7 @@ export class SessionManager {
       },
       ...(memories.length ? { memories } : {}),
       availableActions: objectiveAvailableActions(this.aiAgent.state.objective),
+      actionPolicies: objectiveActionPolicies(this.aiAgent.state.objective),
       ...(event ? { event } : {})
     };
   }

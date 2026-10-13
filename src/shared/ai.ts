@@ -12,6 +12,12 @@ export interface AiObservation {
   memories?: Array<Pick<AiMemoryRecord, 'category' | 'text' | 'provenance' | 'confidence' | 'verified'>>;
   map?: unknown;
   availableActions: readonly AiActionName[];
+  actionPolicies?: Array<{
+    name: AiActionName;
+    risk: 'safe' | 'routine' | 'high' | 'unknown' | 'prohibited';
+    authorization: 'autonomous' | 'ask-first' | 'rejected';
+    summary: string;
+  }>;
   event?: string;
   execution?: { action: AiState['currentAction']; lastResult: string; recent: string[] };
 }

@@ -7,6 +7,7 @@ export function compactCharacterObservation<
 }
 
 import type { AiActionName } from '../../shared/ai';
+import { actionPolicy } from './ActionPolicy';
 
 /**
  * Advertise only capabilities relevant to the current objective. This is a
@@ -26,4 +27,17 @@ export function objectiveAvailableActions(objective: string): AiActionName[] {
     actions.push('send_message');
   if (/\b(command|use|execute|run|unknown)\b/.test(value)) actions.push('execute_supported_command');
   return actions;
+}
+
+/** The provider sees the same policy metadata the executor enforces. */
+export function objectiveActionPolicies(objective: string) {
+  return objectiveAvailableActions(objective).map((name) => {
+    const policy = actionPolicy(name);
+    return {
+      name,
+      risk: policy.risk,
+      authorization: policy.authorization,
+      summary: policy.summary
+    };
+  });
 }

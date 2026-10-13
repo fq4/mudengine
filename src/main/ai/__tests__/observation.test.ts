@@ -1,4 +1,8 @@
-import { compactCharacterObservation, objectiveAvailableActions } from '../observation';
+import {
+  compactCharacterObservation,
+  objectiveActionPolicies,
+  objectiveAvailableActions
+} from '../observation';
 import { describe, expect, it } from 'vitest';
 
 describe('AI character observation projection', () => {
@@ -30,5 +34,12 @@ describe('objective capability advertisement', () => {
     const actions = objectiveAvailableActions('Explore safely, then communicate with the group.');
     expect(actions).toEqual(expect.arrayContaining(['navigate_to', 'send_message']));
     expect(actions).not.toContain('manage_equipment');
+  });
+
+  it('exposes policy metadata alongside advertised capabilities', () => {
+    const policies = objectiveActionPolicies('Navigate safely to 1/2.');
+    const navigation = policies.find((policy) => policy.name === 'navigate_to');
+    expect(navigation).toMatchObject({ risk: 'routine', authorization: 'autonomous' });
+    expect(navigation?.summary).toMatch(/Walker/);
   });
 });
