@@ -4,6 +4,9 @@
 # `git status` and was one `git add -A` away from being committed.
 node_modules
 node_modules/
+.env
+.env.*
+!.env.example
 out/
 dist/
 release/
