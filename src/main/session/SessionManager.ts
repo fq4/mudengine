@@ -3266,7 +3266,7 @@ export class SessionManager {
     return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event ? { event } : {}) };
   }
 
-  get aiSnapshot(): AiSnapshot { const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history }, observation: this.aiObservation() }; }
+  get aiSnapshot(): AiSnapshot { const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation() }; }
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
