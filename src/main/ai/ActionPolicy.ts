@@ -39,6 +39,20 @@ export const AI_ACTION_POLICIES: Readonly<Record<AiActionName, ActionPolicy>> = 
   inspect_room: immediate('inspect_room', 'Read the authoritative room state'),
   inspect_inventory: immediate('inspect_inventory', 'Read the authoritative inventory state'),
   inspect_map: immediate('inspect_map', 'Read the known world route/map state'),
+  inspect_npc: {
+    name: 'inspect_npc',
+    risk: 'safe',
+    authorization: 'autonomous',
+    summary: 'Read authoritative facts about a named non-player character',
+    failure: 'Refuse unknown or player targets; never infer private data.',
+    audit: 'ai.inspect_npc.observed',
+    completion: 'immediate',
+    validate: (action) => {
+      const name = action.args?.name;
+      if (typeof name !== 'string' || !name.trim()) return 'NPC inspection requires a name';
+      return name.trim().startsWith('@') ? 'Player inspection is prohibited' : null;
+    }
+  },
   inspect_combat_result: immediate('inspect_combat_result', 'Read the latest combat result'),
   wait: immediate('wait', 'Wait for a meaningful state change'),
   navigate_to: {

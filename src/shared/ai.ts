@@ -1,7 +1,7 @@
 /** Public, provider-neutral contract for optional autonomous gameplay. */
 export type AiStatus = 'disabled' | 'paused' | 'budget-paused' | 'idle' | 'thinking' | 'executing' | 'error';
 export type AiActionName =
-  | 'inspect_character' | 'inspect_room' | 'inspect_inventory' | 'inspect_map'
+  | 'inspect_character' | 'inspect_room' | 'inspect_inventory' | 'inspect_map' | 'inspect_npc'
   | 'navigate_to' | 'engage_enemy' | 'recover_health' | 'inspect_combat_result' | 'send_message'
   | 'manage_equipment' | 'execute_supported_command' | 'wait';
 
@@ -55,7 +55,7 @@ export interface AiPolicyRule { command: string; authorization: 'autonomous' | '
 export interface AiSnapshot { state: AiState; observation: AiObservation; policy?: AiPolicyRule[]; aggregateBudget?: AiAggregateBudgetSnapshot; }
 
 export const AI_ACTIONS: readonly AiActionName[] = [
-  'inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map',
+  'inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'inspect_npc',
   'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'send_message',
   'manage_equipment', 'execute_supported_command', 'wait'
 ];
@@ -75,7 +75,7 @@ export function validateDecision(value: unknown): AiDecision {
   const actionName = typeof normalizedName === 'string' ? (aliases[normalizedName] ?? normalizedName) : normalizedName;
   if (!AI_ACTIONS.includes(actionName as AiActionName))
     throw new Error(`AI response contains an unsupported action: ${String(a.name)}`);
-  const safeInspection = ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'manage_equipment', 'wait'].includes(actionName as string);
+  const safeInspection = ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'inspect_npc', 'manage_equipment', 'wait'].includes(actionName as string);
   const reason = typeof a.reason === 'string' && a.reason.trim()
     ? a.reason.trim()
     : safeInspection

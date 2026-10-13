@@ -11,7 +11,7 @@ CommandQueue. Existing permission, approval, emergency-stop, and manual-input
 boundaries remain authoritative.
 
 Supported action families are observation (`inspect_character`, `inspect_room`,
-`inspect_inventory`, `inspect_map`, `inspect_combat_result`), bounded navigation,
+`inspect_inventory`, `inspect_map`, `inspect_npc`, `inspect_combat_result`), bounded navigation,
 non-consuming recovery, NPC engagement, equipment delegation, social messaging,
 verified/general command fallback, and wait. NPC engagement, equipment, social,
 and unknown-command actions remain approval-gated or otherwise restricted by
@@ -19,7 +19,8 @@ their existing safety adapters.
 
 ## Evidence
 
-- Action-policy regression: 4 tests passed.
+- Action-policy and observation regressions: 9 tests passed, including safe NPC
+  inspection and player-target rejection.
 - Node and renderer typechecks passed after the policy integration.
 - The bounded live `kefka` harness passed all eight scenarios with zero safety
   violations: inspection, one-room navigation, exact two-room navigation,

@@ -3661,6 +3661,7 @@ export class SessionManager {
       action.name === 'inspect_room' ||
       action.name === 'inspect_inventory' ||
       action.name === 'inspect_map' ||
+      action.name === 'inspect_npc' ||
       action.name === 'inspect_combat_result'
     )
       return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
