@@ -3779,6 +3779,8 @@ export class SessionManager {
     if (action.name === 'execute_supported_command') {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
       if (!command) return { ok: false, message: 'Refused: command cannot be empty' };
+      if (/[\\r\\n\\x00]/.test(command) || command.length > 240)
+        return { ok: false, message: 'Refused: command contains invalid syntax or is too long' };
       const objective = this.aiAgent.state.objective.toLowerCase();
       if (
         /\b(inspect|check|observe)\b/.test(objective) &&

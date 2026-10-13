@@ -318,3 +318,12 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - SessionManager regression suite passed 245/245 and both typechecks passed.
   The bounded `kefka` harness again passed all eight scenarios with zero
   violations; the unknown-command approval path remained intact.
+
+### 2026-10-13 - raw-command syntax boundary
+
+- General-command fallback now rejects embedded CR/LF/NUL characters and
+  commands longer than 240 characters before classification or approval.
+  Existing compound-command refusal remains authoritative for multiline input.
+- SessionManager regression suite passed 246/246 and both typechecks passed.
+  The previously run bounded live harness remained green with all eight
+  scenarios passing and zero violations.

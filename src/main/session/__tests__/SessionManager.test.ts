@@ -215,6 +215,29 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('rejects multiline and oversized general commands before approval', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const multiline = await isolated.aiAction({
+      name: 'execute_supported_command',
+      args: { command: 'look\r\nquit' },
+      reason: 'inspect'
+    });
+    const oversized = await isolated.aiAction({
+      name: 'execute_supported_command',
+      args: { command: 'x'.repeat(241) },
+      reason: 'inspect'
+    });
+    expect(multiline.ok).toBe(false);
+    expect(multiline.message).toMatch(/refused/i);
+    expect(oversized).toEqual({
+      ok: false,
+      message: 'Refused: command contains invalid syntax or is too long'
+    });
+    expect(isolated.aiSnapshot.state.pendingApprovals).toHaveLength(0);
+    isolated.dispose();
+  });
+
   it('keeps an unknown command off the wire until approval, then queues it', async () => {
     const { sink } = collect();
     manager = new SessionManager(sink);
