@@ -39,6 +39,7 @@ export class LiveHarnessMonitor {
   private moves = 0;
   private recentActions: string[] = [];
   private recentRooms: string[] = [];
+  private lastUsage: string | null = null;
 
   constructor(readonly limits: LiveHarnessLimits) {}
 
@@ -84,9 +85,18 @@ export class LiveHarnessMonitor {
   }
 
   usage(requests: number, tokens: number, costUsd: number): void {
+    const value = `${requests} requests, ${tokens} tokens, $${costUsd}`;
+    if (value === this.lastUsage) {
+      if (requests > this.limits.maxRequests)
+        this.fail('requests', `Request limit reached: ${requests}`);
+      if (tokens > this.limits.maxTokens) this.fail('tokens', `Token limit reached: ${tokens}`);
+      if (costUsd > this.limits.maxCostUsd) this.fail('cost', `Cost limit reached: $${costUsd}`);
+      return;
+    }
+    this.lastUsage = value;
     this.events.push({
       kind: 'usage',
-      value: `${requests} requests, ${tokens} tokens, $${costUsd}`,
+      value,
       at: Date.now()
     });
     if (requests > this.limits.maxRequests)

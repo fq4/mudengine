@@ -35,4 +35,14 @@ describe('LiveHarnessMonitor', () => {
     monitor.usage(1, 101, 0.11);
     expect(monitor.violations.map(({ code }) => code)).toEqual(['requests', 'tokens', 'cost']);
   });
+
+  it('deduplicates unchanged usage samples while preserving transitions', () => {
+    const monitor = new LiveHarnessMonitor(limits);
+    monitor.usage(1, 10, 0.01);
+    monitor.usage(1, 10, 0.01);
+    monitor.usage(2, 20, 0.02);
+    expect(monitor.events.filter(({ kind }) => kind === 'usage').map(({ value }) => value)).toEqual(
+      ['1 requests, 10 tokens, $0.01', '2 requests, 20 tokens, $0.02']
+    );
+  });
 });
