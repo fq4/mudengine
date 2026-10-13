@@ -1,6 +1,6 @@
 # AI-Enhanced MudEngine: Technical Specification for Review
 
-Status: proposal — research complete, implementation not started
+Status: implementation in progress — the provider, session agent, approvals, budgets, memory, UI controls, and navigation vertical slice are implemented and under integration validation.
 
 ## 1. Goal and constraints
 
@@ -131,18 +131,18 @@ Keep AI code in additive `main/ai`, `shared/ai`, and narrowly scoped IPC/UI modu
 
 Keep provider, memory, permission, and AI UI modules independently testable. Rebase or merge upstream changes into this development branch before each implementation phase; avoid changing upstream files unless an explicit extension point is required. Preserve original behavior when AI is disabled.
 
-## 11. Implementation phases after approval
+## 11. Implementation phases and current status
 
-1. Add typed observation/event contracts and a no-op agent behind a feature flag.
-2. Inventory and codify named capabilities and command evidence/risk metadata from actual MudEngine behavior.
-3. Add provider-neutral decision contract and OpenRouter adapter with budgets/diagnostics.
-4. Add permission gateway, Ask First lifecycle, manual override, and emergency stop.
-5. Add deterministic event-driven execution monitoring and one-action planning.
-6. Add structured memory, persistence scopes, revalidation, and management UI.
-7. Add AI panel/IPC integration and provider configuration.
-8. Validate with realistic offline parser tests, queue tests, approval tests, reconnect/identity tests, provider mocks, budget tests, UI tests, and live opt-in scenarios.
+1. ~~Add typed observation/event contracts and a no-op agent behind a feature flag.~~ Completed.
+2. ~~Inventory and codify named capabilities and command evidence/risk metadata from actual MudEngine behavior.~~ Completed for the current repository; live-server command verification remains required.
+3. ~~Add provider-neutral decision contract and OpenRouter adapter with budgets/diagnostics.~~ Implemented; provider diagnostics and budget enforcement remain under runtime validation.
+4. ~~Add permission gateway, Ask First lifecycle, manual override, and emergency stop.~~ Implemented for the current session agent and UI surface.
+5. Deterministic event-driven execution monitoring and one-action planning. Navigation is implemented through Walker with verified arrival; combat, recovery, equipment, and reconnect lifecycle adapters still require end-to-end validation.
+6. ~~Add structured memory, persistence scopes, revalidation, and management UI.~~ Implemented with scoped records, confidence/provenance, retention, editing, and panel controls; relevance/consolidation needs broader scenario coverage.
+7. ~~Add AI panel/IPC integration and provider configuration.~~ Implemented for Electron and web bridges, including session budget controls.
+8. Validate realistic offline parser/queue/approval/reconnect/provider/budget scenarios and conduct supervised live opt-in testing.
 
-No implementation phase should begin until this specification and the capability/risk inventory are approved.
+The specification is approved and implementation is underway. Remaining phases are validation and closing the capability gaps identified in the inventory; they must not duplicate MudEngine's existing automation.
 
 ## 12. Open research items and acceptance criteria
 

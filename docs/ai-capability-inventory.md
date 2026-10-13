@@ -1,6 +1,6 @@
 # AI Capability Inventory
 
-Status: completed for the first implementation slice; capability classifications remain subject to live-server verification.
+Status: implementation inventory completed; navigation is the verified first vertical slice. Capability classifications remain subject to live-server verification.
 
 The inventory maps AI-facing decisions to existing MudEngine owners. The AI must call these owners through narrow adapters; it must not recreate their loops or write directly to the socket.
 
@@ -30,7 +30,7 @@ The first slice should use `navigate_to` because the repository already owns rou
 5. Completion driven by Walker progress and verified character room state, not by another provider request after every step.
 6. A compact observable snapshot/diagnostic event for the panel and tests.
 
-The first slice should deliberately exclude general command execution, autonomous social behavior, persistent memory writes, and broad permission editing until the gateway contracts are in place.
+The initial slice began with navigation, but the repository now also contains guarded general-command handling, paced social adapters, scoped persistent memory, and approval/policy UI. These additions remain behind the same permission and validation boundaries; they are not evidence that every capability is ready for live autonomous use.
 
 ## Verified reuse decisions
 
@@ -49,3 +49,9 @@ The first slice should deliberately exclude general command execution, autonomou
 - Recovery/equipment adapters report accepted versus completed distinctly.
 - Conversation echoes do not count as incoming replies; public chatter does not wake an unrelated conversation.
 - Unknown general commands require approval and cannot bypass named-capability or queue safeguards.
+
+## Current implementation boundary
+
+- Verified locally: one agent per session, OpenRouter decision flow, validated `navigate_to` delegation through `Walker`, room-confirmed completion, stale approval invalidation, budget pause behavior, scoped memory persistence/editing, manual interruption handling, social pacing, and session-addressed UI/IPC controls.
+- Requires additional integration coverage: combat target lifecycle, recovery/equipment completion observers, identity-change and reconnect restoration, aggregate budgets across simultaneous sessions, server/profile policy editing, and end-to-end live command evidence.
+- Not yet suitable for unattended live use: autonomous PvP, destructive/irreversible actions, real-money actions, private-data handling, or unclassified commands without an explicit approval.
