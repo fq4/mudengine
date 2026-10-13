@@ -166,6 +166,11 @@ async function main() {
     'Inspect my current character and room, then stop.',
     (before, after) => before === after
   );
+  const inventoryInspection = await runScenario(
+    'inventory-inspection',
+    'Inspect my current inventory, then stop.',
+    (before, after) => before === after
+  );
   const navigation = await runScenario(
     'one-room-navigation',
     'Explore one adjacent room using an available exit, then stop.',
