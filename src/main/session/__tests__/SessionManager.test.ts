@@ -190,6 +190,34 @@ describe('the raw byte record', () => {
   });
 });
 
+describe('AI reconnect lifecycle', () => {
+  it('suspends stale AI execution while preserving the objective for reassessment', async () => {
+    const { sink } = collect();
+    manager = new SessionManager(sink);
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    await client();
+
+    manager.aiGoal('');
+    manager.aiSnapshot.state.objective = 'Continue exploring, but reassess after reconnect.';
+    manager.aiSnapshot.state.currentAction = {
+      name: 'navigate_to',
+      phase: 'executing',
+      message: 'Walking'
+    };
+    const before = manager.aiSnapshot.state.objective;
+
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    await client(1);
+    const after = manager.aiSnapshot.state;
+
+    expect(after.objective).toBe(before);
+    expect(after.enabled).toBe(false);
+    expect(after.status).toBe('disabled');
+    expect(after.currentAction).toBeNull();
+    expect(after.pendingApprovals).toEqual([]);
+  });
+});
+
 describe('SessionManager line framing', () => {
   it('frames server output into lines', async () => {
     const { sink, lines } = collect();
