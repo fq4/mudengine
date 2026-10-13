@@ -30,6 +30,8 @@ their existing safety adapters.
 - Full regression suite passed: 247 files, 6,906 tests passed, 2 skipped.
 - Production build and `check:secrets` passed; the build retains the existing
   renderer chunk-size warning only.
+- Production build and credential scan were rerun after objective-completion
+  matching changed; both passed with the same renderer chunk-size warning.
 - The bounded live `kefka` harness passed all eight scenarios with zero safety
   violations: inspection, one-room navigation, exact two-room navigation,
   invalid destination refusal, unknown-command approval, manual interruption,
