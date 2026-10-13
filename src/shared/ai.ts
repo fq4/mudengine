@@ -69,7 +69,8 @@ export function validateDecision(value: unknown): AiDecision {
     check_status: 'inspect_character',
     score: 'inspect_character'
   };
-  const actionName = typeof a.name === 'string' ? (aliases[a.name.toLowerCase()] ?? a.name) : a.name;
+  const normalizedName = typeof a.name === 'string' ? a.name.trim().toLowerCase() : a.name;
+  const actionName = typeof normalizedName === 'string' ? (aliases[normalizedName] ?? normalizedName) : normalizedName;
   if (!AI_ACTIONS.includes(actionName as AiActionName) || typeof a.reason !== 'string')
     throw new Error(`AI response contains an unsupported action: ${String(a.name)}`);
   if (a.args !== undefined && (!a.args || typeof a.args !== 'object' || Array.isArray(a.args)))
