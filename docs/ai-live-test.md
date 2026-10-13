@@ -167,3 +167,12 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - The run recorded zero safety violations. Navigation moved from `1/2141` to
   `1/2140`; the unknown command remained approval-gated, and the only live
   gameplay commands were the authorized observation/navigation probes.
+
+### Verification gates
+
+- AI/session regressions: 315 passed.
+- Node and renderer typechecks: passed.
+- Production Electron build: passed; only the existing large-renderer-chunk
+  warning remains.
+- Repository lint remains blocked by the existing Prettier baseline: 615 files
+  report formatting drift. No broad formatting rewrite was applied.
