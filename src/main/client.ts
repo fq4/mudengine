@@ -13,7 +13,7 @@
  * window that will show it.
  */
 import fs from 'node:fs/promises';
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { ConfigStore } from './config/ConfigStore';
@@ -1347,6 +1347,7 @@ function createInternal(): InternalStore {
 
 function createHost(): SessionHost {
   const aiBudgetFile = home.state('ai-budget.json');
+  let aiBudgetSave = Promise.resolve();
   const aiBudgetState = {
     load: (): unknown => {
       try {
@@ -1356,12 +1357,15 @@ function createHost(): SessionHost {
       }
     },
     save: (state: unknown): void => {
-      try {
-        mkdirSync(path.dirname(aiBudgetFile), { recursive: true });
-        writeFileSync(aiBudgetFile, JSON.stringify(state), 'utf8');
-      } catch (error) {
-        announce('ai', `AI aggregate budget could not be saved: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      const serialized = JSON.stringify(state);
+      aiBudgetSave = aiBudgetSave
+        .then(async () => {
+          await fs.mkdir(path.dirname(aiBudgetFile), { recursive: true });
+          await fs.writeFile(aiBudgetFile, serialized, 'utf8');
+        })
+        .catch((error) => {
+          announce('ai', `AI aggregate budget could not be saved: ${error instanceof Error ? error.message : String(error)}`);
+        });
     }
   };
   return new SessionHost({
