@@ -1,0 +1,185 @@
+/**
+ * Explicit, bounded live verification of the production AI execution path.
+ *
+ * This file deliberately does nothing unless --live is supplied:
+ *   npm run test:ai-live -- --live --profile kefka
+ *
+ * The runner never prints credentials or raw login traffic. It only permits
+ * inspection and movement, and exits as soon as a safety limit is reached.
+ */
+import path from 'node:path';
+import { setTimeout as wait } from 'node:timers/promises';
+import { SessionManager } from '../src/main/session/SessionManager.ts';
+import { RealmLibrary } from '../src/main/world/RealmLibrary.ts';
+import { LiveHarnessMonitor } from '../src/main/ai/LiveHarness.ts';
+import { localProfileNamed, skip } from './lib/local-realm.mjs';
+import { homePaths } from './lib/home.mjs';
+
+const args = process.argv.slice(2);
+const has = (flag) => args.includes(flag);
+const valueOf = (flag) => {
+  const i = args.indexOf(flag);
+  return i < 0 ? undefined : args[i + 1];
+};
+if (!has('--live')) skip('live mode is opt-in; rerun with --live');
+
+const profileId = valueOf('--profile') ?? 'kefka';
+const profile = localProfileNamed(profileId);
+if (!profile) skip(`profile ${profileId} is not configured for the sanctioned test realm`);
+if (!process.env.OPENROUTER_API_KEY) skip('OPENROUTER_API_KEY is not present in the environment');
+
+const monitor = new LiveHarnessMonitor({
+  maxRuntimeMs: Number(valueOf('--max-ms') ?? 120_000),
+  maxMoves: Number(valueOf('--max-moves') ?? 2),
+  maxRequests: Number(valueOf('--max-requests') ?? 8),
+  maxTokens: Number(valueOf('--max-tokens') ?? 30_000),
+  maxCostUsd: Number(valueOf('--max-cost') ?? 0.05),
+  maxRepeatedAction: 2
+});
+const lines = [];
+let currentRoom = null;
+const sink = {
+  data: () => {},
+  block: () => {},
+  state: () => {},
+  telnet: () => {},
+  notice: () => {},
+  line: (line) => {
+    if (currentRoom !== null && line.plain.trim()) lines.push(line.plain.trim().slice(0, 240));
+  },
+  command: (command) => monitor.command(command)
+};
+
+const home = homePaths();
+const realms = new RealmLibrary({
+  shippedDir: path.join(process.cwd(), 'resources', 'world'),
+  resourcesDir: path.join(process.cwd(), 'resources'),
+  cacheDir: home.state('realms'),
+  notify: () => {}
+});
+const world = realms.load(profile.database ?? '').graph;
+const session = new SessionManager(
+  sink,
+  world,
+  {
+    ...profile.config.automation,
+    idle: { ...profile.config.automation.idle, enabled: false },
+    rules: []
+  },
+  profile.config.connection.login
+);
+session.resize({ cols: 100, rows: 30 });
+
+const report = {
+  profile: profile.id,
+  scenarios: [],
+  violations: monitor.violations,
+  trace: monitor.events
+};
+const roomKey = () => {
+  const room = session.character.room;
+  return room?.map !== undefined && room?.number !== undefined
+    ? `${room.map}/${room.number}`
+    : (room?.name ?? '');
+};
+const snapshot = () => session.aiSnapshot;
+const waitFor = async (predicate, timeout = 45_000) => {
+  const end = Date.now() + timeout;
+  while (Date.now() < end && !monitor.failed) {
+    monitor.check();
+    const state = snapshot().state;
+    monitor.usage(
+      state.usage.requests,
+      state.usage.inputTokens + state.usage.outputTokens,
+      state.usage.estimatedCostUsd
+    );
+    if (predicate(state)) return true;
+    await wait(250);
+  }
+  return false;
+};
+const runScenario = async (name, objective, expected) => {
+  const before = roomKey();
+  currentRoom = before;
+  monitor.room(before);
+  session.aiGoal(objective);
+  const complete = await waitFor(
+    (state) =>
+      state.objectiveComplete === true ||
+      state.status === 'error' ||
+      state.status === 'budget-paused'
+  );
+  const after = roomKey();
+  monitor.room(after);
+  const state = snapshot().state;
+  const passed =
+    complete &&
+    state.objectiveComplete === true &&
+    expected(before, after, state) &&
+    !monitor.failed;
+  report.scenarios.push({
+    name,
+    passed,
+    before,
+    after,
+    status: state.status,
+    result: state.lastActionResult,
+    usage: state.usage
+  });
+  session.aiClearGoal();
+  if (monitor.failed) throw new Error(monitor.violations[0].message);
+  return passed;
+};
+
+async function main() {
+  monitor.start();
+  console.log(`AI live test -> ${profile.id} (credentials withheld)`);
+  await session.connect(profile.target);
+  const connected = await waitFor(() => session.character.phase === 'in-game');
+  if (!connected) throw new Error(`did not reach in-game state: ${session.character.phase}`);
+  const inspection = await runScenario(
+    'inspection',
+    'Inspect my current character and room, then stop.',
+    (before, after) => before === after
+  );
+  const navigation = await runScenario(
+    'one-room-navigation',
+    'Explore one adjacent room using an available exit, then stop.',
+    (before, after) => before !== after
+  );
+  const invalid = await session.aiAction({
+    name: 'navigate_to',
+    args: { destination: '999/999999' },
+    reason: 'harness invalid destination check'
+  });
+  report.scenarios.push({
+    name: 'invalid-destination',
+    passed: !invalid.ok,
+    result: invalid.message
+  });
+  const emergency = session.aiEmergencyStop();
+  report.scenarios.push({
+    name: 'emergency-stop',
+    passed: emergency.state.status === 'stopped' || emergency.state.status === 'disabled',
+    result: emergency.state.lastActionResult
+  });
+  report.violations = monitor.violations;
+  report.trace = monitor.events.slice(-50);
+  console.log(JSON.stringify(report, null, 2));
+  if (report.scenarios.some((item) => !item.passed) || report.violations.length)
+    process.exitCode = 1;
+}
+
+try {
+  await main();
+} catch (error) {
+  report.violations.push({
+    code: 'stall',
+    message: error instanceof Error ? error.message : String(error)
+  });
+  console.log(JSON.stringify(report, null, 2));
+  process.exitCode = 1;
+} finally {
+  session.disconnect();
+  session.dispose();
+}

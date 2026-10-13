@@ -52,6 +52,7 @@
     "dist:mac": "npm run check:secrets && npm run build && electron-builder --mac && npm run check:secrets",
     "smoke": "npm run build && node scripts/smoke.mjs",
     "check:live": "npm run build && node --import ./scripts/lib/register.mjs scripts/live-check.mjs",
+    "test:ai-live": "node --import ./scripts/lib/register.mjs scripts/ai-live.mjs",
     "check:secrets": "node --import ./scripts/lib/register.mjs scripts/check-secrets.mjs",
     "check:first-run": "npm run build && node scripts/first-run.mjs",
     "profile:ui": "electron-vite build --sourcemap && node scripts/profile-ui.mjs",
