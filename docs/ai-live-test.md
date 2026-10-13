@@ -228,3 +228,5 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   satisfy travel objectives even when the model sets `done: true`.
 - Agent/provider regressions passed: 40 tests. The bounded `kefka` run passed
   all eight scenarios with zero violations.
+- Production build and both typechecks passed after the completion guard; only
+  the existing large-renderer-chunk warning remains.
