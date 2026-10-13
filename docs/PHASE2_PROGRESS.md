@@ -27,6 +27,7 @@ their existing safety adapters.
 - Agent-originated `ask-first` actions now retain their structured payload in
   the approval record and execute only that payload after approval; approval,
   agent, and SessionManager regressions passed (284 tests).
+- Full regression suite passed: 247 files, 6,906 tests passed, 2 skipped.
 - Production build and `check:secrets` passed; the build retains the existing
   renderer chunk-size warning only.
 - The bounded live `kefka` harness passed all eight scenarios with zero safety
@@ -60,3 +61,6 @@ key remain outside the repository.
   records; raw command approvals continue through the existing permission
   classifier and command queue.
 - Repeat permitted live checks only after each adapter is covered locally.
+- The live harness continues to reject `rest` as an unsafe wire command until
+  the recovery adapter has an explicit proof that it cannot consume resources;
+  no live recovery command has been issued.
