@@ -178,6 +178,17 @@ async function main() {
     passed: !invalid.ok,
     result: invalid.message
   });
+  const unknown = await session.aiAction({
+    name: 'execute_supported_command',
+    args: { command: 'check status' },
+    reason: 'harness unknown-command approval check'
+  });
+  report.scenarios.push({
+    name: 'unknown-command-approval',
+    passed: unknown.ok === false && unknown.message.toLowerCase().includes('approval'),
+    result: unknown.message
+  });
+  session.aiEmergencyStop();
   session.aiGoal('Explore one adjacent room using an available exit, then stop.');
   await wait(500);
   session.send('look\r');

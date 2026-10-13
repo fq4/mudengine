@@ -117,3 +117,10 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - Budget/host persistence tests: 30 passed. Node typecheck passed.
 - Real-server `kefka` harness: all six bounded scenarios passed with no safety
   violations after persistence wiring.
+
+### 2026-10-13 — live unknown-command approval
+
+- The bounded runner now submits `check status` through the production action
+  gateway and verifies that it becomes an approval request without sending the
+  command to the server. The scenario remains observation-only and is followed
+  by an emergency stop before navigation scenarios continue.
