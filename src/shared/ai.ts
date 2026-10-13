@@ -35,7 +35,7 @@ export interface AiUsage { requests: number; inputTokens: number; outputTokens: 
 export interface AiProvider { decide(observation: AiObservation, objective: string, signal?: AbortSignal): Promise<AiDecision>; usage(): AiUsage; }
 export interface AiProviderDiagnostic { ok: boolean; provider: string; model?: string; message: string; at: number; }
 export interface AiState {
-  enabled: boolean; status: AiStatus; objective: string; activity: string;
+  enabled: boolean; status: AiStatus; objective: string; objectiveComplete?: boolean; activity: string;
   explanation: string; lastActionResult: string; memories: AiMemory[]; recent: string[]; usage: AiUsage;
   model: string; lastObservationHash?: string; consecutiveFailures: number;
   currentAction?: { name: AiActionName; phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed'; message: string } | null;

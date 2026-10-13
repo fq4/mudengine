@@ -9,14 +9,14 @@ export class AutonomousAgent {
   private delegatedOperationActive: ((action: AiActionName) => boolean) | null = null;
   private lastFailedAction = '';
   constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
-    this.state = { enabled: false, status: 'disabled', objective: '', activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], ...initial };
+    this.state = { enabled: false, status: 'disabled', objective: '', objectiveComplete: false, activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], ...initial };
   }
-  enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; this.state.consecutiveFailures = 0; this.lastFailedAction = ''; }
+  enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; this.state.objectiveComplete = false; this.state.consecutiveFailures = 0; this.lastFailedAction = ''; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; }
   setDelegatedOperationActive(check: (action: AiActionName) => boolean): void { this.delegatedOperationActive = check; }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
-    if (!this.state.enabled || this.state.status === 'paused' || !this.state.objective) return null;
+    if (!this.state.enabled || this.state.status === 'paused' || this.state.objectiveComplete === true || !this.state.objective) return null;
     if (this.ticking) return null;
     const hash = observationHash(observation);
     if (this.state.currentAction?.phase === 'accepted') {
@@ -35,6 +35,7 @@ export class AutonomousAgent {
       this.state.activity = decision.action.name; this.state.explanation = decision.explanation; this.state.status = 'executing'; this.state.currentAction = { name: decision.action.name, phase: 'requested', message: 'Action requested' }; this.remember('note', decision.explanation);
       const result = await this.executor.execute(decision.action); this.remember(result.ok ? 'success' : 'failure', result.message);
       const delegated = new Set(['navigate_to', 'engage_enemy', 'recover_health', 'manage_equipment']); const phase = result.ok ? (delegated.has(decision.action.name) ? 'accepted' : 'completed') : 'failed'; this.state.currentAction = { name: decision.action.name, phase, message: result.message }; this.state.lastActionResult = result.message; this.state.consecutiveFailures = result.ok ? 0 : this.state.consecutiveFailures + 1; this.state.status = result.ok ? 'idle' : 'error'; this.state.usage = this.provider.usage(); this.lastFailedAction = result.ok ? '' : JSON.stringify(decision.action);
+      if (result.ok && decision.done === true) { this.state.objectiveComplete = true; this.state.activity = 'objective_complete'; this.state.explanation = 'Objective completed; waiting for a new objective.'; this.state.enabled = false; }
       return decision;
     } catch (error) {
       if (this.aborter?.signal.aborted) { this.state.status = this.state.enabled ? 'paused' : 'disabled'; return null; }

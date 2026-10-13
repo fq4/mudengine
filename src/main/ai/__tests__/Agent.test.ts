@@ -46,4 +46,11 @@ describe('AutonomousAgent', () => {
     const first = agent.tick(observation); const second = agent.tick({ ...observation, room: { id: 2 } });
     expect(decide).toHaveBeenCalledTimes(1); release({ objective: 'observe', explanation: 'look', action: { name: 'inspect_room', reason: 'observe' } }); await Promise.all([first, second]);
   });
+  it('stops requesting decisions after a provider marks the objective complete', async () => {
+    const decide = vi.fn().mockResolvedValue({ objective: 'observe', explanation: 'done', done: true, action: { name: 'inspect_room', reason: 'complete' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'observed' }) }); agent.enable('observe');
+    await agent.tick(observation); await agent.tick({ ...observation, room: { id: 2 } });
+    expect(decide).toHaveBeenCalledTimes(1); expect(agent.state.objectiveComplete).toBe(true); expect(agent.state.enabled).toBe(false);
+  });
 });
