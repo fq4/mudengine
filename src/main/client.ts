@@ -13,7 +13,7 @@
  * window that will show it.
  */
 import fs from 'node:fs/promises';
-import { cpSync, existsSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { ConfigStore } from './config/ConfigStore';
@@ -1346,7 +1346,26 @@ function createInternal(): InternalStore {
 }
 
 function createHost(): SessionHost {
+  const aiBudgetFile = home.state('ai-budget.json');
+  const aiBudgetState = {
+    load: (): unknown => {
+      try {
+        return JSON.parse(readFileSync(aiBudgetFile, 'utf8'));
+      } catch {
+        return undefined;
+      }
+    },
+    save: (state: unknown): void => {
+      try {
+        mkdirSync(path.dirname(aiBudgetFile), { recursive: true });
+        writeFileSync(aiBudgetFile, JSON.stringify(state), 'utf8');
+      } catch (error) {
+        announce('ai', `AI aggregate budget could not be saved: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  };
   return new SessionHost({
+    aiAggregateBudgetState: aiBudgetState,
     worldFor,
     // The same write the toolbar's press makes, so the toggle shows it.
     flipSwitch: (id, name, on) => new SettingsEditor({ home }).setAutomationSwitch(id, name, on).ok,

@@ -56,6 +56,7 @@ let notices: Notice[] = [];
 let dialledRealms: ConnectionTarget[] = [];
 /** Whether these sessions want a lost connection dialled back. See `Reconnect`. */
 let autoReconnect = false;
+let savedBudget: unknown;
 /** Where each session's backscroll is written, fresh per test. */
 let backscrollDir = '';
 
@@ -69,6 +70,7 @@ beforeEach(async () => {
   notices = [];
   dialledRealms = [];
   autoReconnect = false;
+  savedBudget = undefined;
 
   server = net.createServer((socket) => {
     const index = accepted.length;
@@ -84,6 +86,7 @@ beforeEach(async () => {
   port = (server.address() as net.AddressInfo).port;
 
   host = new SessionHost({
+    aiAggregateBudgetState: { load: () => savedBudget, save: (state) => { savedBudget = state; } },
     worldFor: () => undefined,
     loreFor: () => NO_LORE,
     // Nothing to learn against without a realm, which is what these run with.
@@ -279,6 +282,38 @@ describe('SessionHost', () => {
       sessionTokens: 5_000
     });
     expect(thorn.aiSnapshot.state.budgetLimits).not.toEqual(mara.aiSnapshot.aggregateBudget?.limits);
+  });
+
+  it('restores aggregate budget state supplied by the user-scoped store', () => {
+    host!.ensure('thorn').manager.aiAggregateBudget({ requestsPerMinute: 3, sessionTokens: 4000 });
+    const first = host!.get('thorn')!.manager.aiSnapshot.aggregateBudget;
+    expect(first?.limits.requestsPerMinute).toBe(3);
+
+    const restored = new SessionHost({
+      aiAggregateBudgetState: { load: () => savedBudget, save: (state) => { savedBudget = state; } },
+      worldFor: () => undefined,
+      loreFor: () => NO_LORE,
+      memoryFor: () => undefined,
+      fightsFor: () => NO_FIGHTS,
+      talkFor: () => NO_TALK,
+      playersFor: () => NO_REALM_PLAYERS,
+      destinationsFor: () => ({ remember: () => {}, matching: () => [] }),
+      playersAt: () => NO_REALM_PLAYERS,
+      belongingsAt: () => NO_BELONGINGS,
+      internal: () => DEFAULT_INTERNAL,
+      publishRoster: () => {},
+      configFor: () => config,
+      autoReconnect: () => false,
+      label: (id) => ({ name: id, server: 'test', accent: 'cyan' }),
+      logDirectory: () => '',
+      toAttached: () => {},
+      toDiagnostics: () => {},
+      toDebugging: () => {},
+      toAll: () => {},
+      notice: () => {}
+    });
+    expect(restored.ensure('thorn').manager.aiSnapshot.aggregateBudget?.limits).toMatchObject({ requestsPerMinute: 3, sessionTokens: 4000 });
+    restored.disposeAll();
   });
 
   it('addresses every coalesced fact it publishes', async () => {

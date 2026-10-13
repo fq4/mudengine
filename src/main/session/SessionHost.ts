@@ -56,7 +56,7 @@ import type { BelongingsSink } from '../../shared/belongings';
 import type { TalkSink } from './TalkLog';
 import { isTalkBlock } from '../../shared/talk';
 import { SessionDebug } from './SessionDebug';
-import { AiAggregateBudget } from '../ai/Budget';
+import { AiAggregateBudget, type AiAggregateBudgetState } from '../ai/Budget';
 
 export interface SessionSlot {
   readonly id: SessionId;
@@ -102,6 +102,8 @@ export interface SessionSlot {
 }
 
 export interface SessionHostOptions {
+  /** Optional user-scoped aggregate quota persistence; transient AI state is never stored here. */
+  aiAggregateBudgetState?: { load(): unknown; save(state: AiAggregateBudgetState): void };
   /**
    * The realm *this character* plays against.
    *
@@ -298,9 +300,14 @@ export interface SessionHostOptions {
 
 export class SessionHost {
   private readonly slots = new Map<SessionId, SessionSlot>();
-  private readonly aggregateAiBudget = new AiAggregateBudget();
+  private readonly aggregateAiBudget: AiAggregateBudget;
 
-  constructor(private readonly options: SessionHostOptions) {}
+  constructor(private readonly options: SessionHostOptions) {
+    this.aggregateAiBudget = new AiAggregateBudget(undefined, () => {
+      this.options.aiAggregateBudgetState?.save(this.aggregateAiBudget.exportState());
+    });
+    this.aggregateAiBudget.restoreState(this.options.aiAggregateBudgetState?.load());
+  }
 
   get ids(): SessionId[] {
     return [...this.slots.keys()];

@@ -1,5 +1,13 @@
 import type { AiAggregateBudgetSnapshot, AiBudgetLimits, AiUsage } from '../../shared/ai';
 
+export interface AiAggregateBudgetState {
+  requests: number[];
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  limits: AiBudgetLimits;
+}
+
 export const DEFAULT_AI_BUDGETS: AiBudgetLimits = { requestsPerMinute: 6, requestsPerHour: 60, sessionCostUsd: 0.25, sessionTokens: 25_000 };
 
 /** Shared quota for all agents in one MudEngine client. */
@@ -10,7 +18,7 @@ export class AiAggregateBudget {
   private cost = 0;
   private pendingTokens = 0;
   private pendingCost = 0;
-  constructor(private limits: AiBudgetLimits = { requestsPerMinute: 30, requestsPerHour: 300, sessionCostUsd: 1, sessionTokens: 100_000 }) {}
+  constructor(private limits: AiBudgetLimits = { requestsPerMinute: 30, requestsPerHour: 300, sessionCostUsd: 1, sessionTokens: 100_000 }, private readonly changed?: () => void) {}
   getLimits(): AiBudgetLimits { return { ...this.limits }; }
   configure(next: Partial<AiBudgetLimits>): AiBudgetLimits {
     this.limits = {
@@ -21,6 +29,7 @@ export class AiAggregateBudget {
       sessionCostUsd: Math.min(Math.max(next.sessionCostUsd ?? this.limits.sessionCostUsd, 0.01), 1_000),
       sessionTokens: next.sessionTokens === undefined ? this.limits.sessionTokens : Math.min(Math.max(Math.floor(next.sessionTokens), 100), 10_000_000)
     };
+    this.changed?.();
     return this.getLimits();
   }
   private prune(now: number): void { while (this.requests[0] !== undefined && this.requests[0] <= now - 60 * 60_000) this.requests.shift(); }
@@ -33,10 +42,21 @@ export class AiAggregateBudget {
     if (this.cost + this.pendingCost >= this.limits.sessionCostUsd) return { ok: false, reason: `Aggregate spending budget reached ($${this.limits.sessionCostUsd.toFixed(2)})`, resetAt: now };
     return { ok: true };
   }
-  reserve(at = Date.now()): void { this.requests.push(at); }
-  settle(delta: { inputTokens: number; outputTokens: number; estimatedCostUsd: number }): void { this.inputTokens += delta.inputTokens; this.outputTokens += delta.outputTokens; this.cost += delta.estimatedCostUsd; }
-  resetUsage(): void { this.requests.length = 0; this.inputTokens = 0; this.outputTokens = 0; this.cost = 0; }
+  reserve(at = Date.now()): void { this.requests.push(at); this.changed?.(); }
+  settle(delta: { inputTokens: number; outputTokens: number; estimatedCostUsd: number }): void { this.inputTokens += delta.inputTokens; this.outputTokens += delta.outputTokens; this.cost += delta.estimatedCostUsd; this.changed?.(); }
+  resetUsage(): void { this.requests.length = 0; this.inputTokens = 0; this.outputTokens = 0; this.cost = 0; this.changed?.(); }
   snapshot(now = Date.now()): AiAggregateBudgetSnapshot { this.prune(now); return { limits: this.getLimits(), requests: this.requests.length, inputTokens: this.inputTokens, outputTokens: this.outputTokens, estimatedCostUsd: this.cost }; }
+  exportState(now = Date.now()): AiAggregateBudgetState { this.prune(now); return { requests: [...this.requests], inputTokens: this.inputTokens, outputTokens: this.outputTokens, estimatedCostUsd: this.cost, limits: this.getLimits() }; }
+  restoreState(state: unknown, now = Date.now()): void {
+    if (!state || typeof state !== 'object') return;
+    const value = state as Partial<AiAggregateBudgetState>;
+    this.requests.splice(0, this.requests.length, ...(Array.isArray(value.requests) ? value.requests.filter((at): at is number => typeof at === 'number' && Number.isFinite(at) && at <= now) : []));
+    this.inputTokens = typeof value.inputTokens === 'number' && Number.isFinite(value.inputTokens) && value.inputTokens >= 0 ? value.inputTokens : 0;
+    this.outputTokens = typeof value.outputTokens === 'number' && Number.isFinite(value.outputTokens) && value.outputTokens >= 0 ? value.outputTokens : 0;
+    this.cost = typeof value.estimatedCostUsd === 'number' && Number.isFinite(value.estimatedCostUsd) && value.estimatedCostUsd >= 0 ? value.estimatedCostUsd : 0;
+    if (value.limits && typeof value.limits === 'object') this.configure(value.limits);
+    this.prune(now);
+  }
 }
 
 export class AiBudget {

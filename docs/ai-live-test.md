@@ -106,3 +106,14 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - Provider/schema regression tests: 13 passed. Node and web typechecks passed.
 - Real-server `kefka` harness: all six bounded scenarios passed again with no
   safety violations; inspection used one request and navigation used two.
+
+### 2026-10-13 — aggregate budget persistence
+
+- Aggregate quota state is now stored in the existing user-scoped home as
+  `ai-budget.json`; only request timestamps, usage totals, and limits are
+  persisted. Pending requests, approvals, objectives, credentials, and game
+  state remain transient.
+- Malformed values and stale request timestamps are ignored during restore.
+- Budget/host persistence tests: 30 passed. Node typecheck passed.
+- Real-server `kefka` harness: all six bounded scenarios passed with no safety
+  violations after persistence wiring.

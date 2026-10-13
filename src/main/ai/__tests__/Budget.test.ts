@@ -59,3 +59,27 @@ describe('AiBudget', () => {
     expect(budget.snapshot(2_000)).toEqual({ limits: { requestsPerMinute: 2, requestsPerHour: 20, sessionCostUsd: 0.5, sessionTokens: 5_000 }, requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 });
   });
 });
+
+describe('AiAggregateBudget persistence', () => {
+  it('round-trips usage and limits while excluding pending state', () => {
+    const source = new AiAggregateBudget();
+    source.configure({ requestsPerMinute: 4, sessionTokens: 5000 });
+    source.reserve(1000);
+    source.settle({ inputTokens: 120, outputTokens: 30, estimatedCostUsd: 0.04 });
+    const restored = new AiAggregateBudget();
+    restored.restoreState(source.exportState(2000), 2000);
+    expect(restored.snapshot(2000)).toMatchObject({
+      limits: expect.objectContaining({ requestsPerMinute: 4, sessionTokens: 5000 }),
+      requests: 1,
+      inputTokens: 120,
+      outputTokens: 30,
+      estimatedCostUsd: 0.04
+    });
+  });
+
+  it('discards malformed and stale request timestamps during restore', () => {
+    const budget = new AiAggregateBudget();
+    budget.restoreState({ requests: [100, 'bad', 3000, Infinity], inputTokens: -1, estimatedCostUsd: NaN }, 2000);
+    expect(budget.snapshot(2000)).toMatchObject({ requests: 1, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 });
+  });
+});
