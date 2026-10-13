@@ -255,3 +255,14 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   emote, private-message, and related aliases during navigation-only runs.
 - Six safety-monitor tests passed, and the bounded `kefka` run passed all eight
   scenarios with zero violations.
+
+### 2026-10-13 - direct AI action schema boundary
+
+- The session-addressed `aiAction` entry point now validates action names against
+  the shared provider action schema before dispatching to any capability. This
+  prevents unsupported direct IPC/UI actions from reaching the execution layer
+  and keeps their diagnostic consistent with provider parsing.
+- `SessionManager.test.ts`: 244/244 passed. Node and web typechecks passed, and
+  the production build passed with only the existing large-renderer-chunk
+  warning. The focused test initially hit Windows sandbox `spawn EPERM`; the
+  permitted rerun passed.
