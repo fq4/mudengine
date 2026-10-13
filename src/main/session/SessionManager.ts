@@ -3883,6 +3883,7 @@ export class SessionManager {
       if (this.queue.holding !== null) {
         // Nothing to observe; the bytes still go out below.
       } else if (command.length > 0) {
+        this.noteAiManualOverride(command);
         /*
          * The tracker is the one thing here that knows the command table, the
          * walker's hint and this room's own text exits, so it is what says
@@ -3958,6 +3959,17 @@ export class SessionManager {
     this.queue.noteTyping(this.outbound.length > 0);
     // And the server holds its answers behind that line, so no claim ages.
     this.tracker.noteTyping(this.outbound.length > 0);
+  }
+
+  /** Manual gameplay wins over an AI strategy; informational reads do not interrupt it. */
+  private noteAiManualOverride(command: string): void {
+    if (!this.aiAgent.state.enabled) return;
+    const classification = classifyCommand(command);
+    if (classification.risk === 'safe') return;
+    this.queue.cancel((intent) => intent.reason?.startsWith('AI:') === true || intent.reason?.startsWith('Approved AI action:') === true);
+    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) this.walker.stop('Manual command interrupted AI navigation');
+    this.aiAgent.pause();
+    this.aiAgent.state.lastActionResult = `AI yielded to manual command: ${command}`;
   }
 
   /**
