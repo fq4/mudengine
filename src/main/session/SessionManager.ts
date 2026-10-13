@@ -3267,7 +3267,10 @@ export class SessionManager {
     return { character: state, room: state.room, inventory: state.inventory, ...(memories.length ? { memories } : {}), availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event ? { event } : {}) };
   }
 
-  get aiSnapshot(): AiSnapshot { const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation() }; }
+  private revalidateAiApprovals(): void {
+    if (this.aiApprovals.revalidate(JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target }))) this.aiAgent.approvalResolved('Approval expired or game state changed; reassess before acting');
+  }
+  get aiSnapshot(): AiSnapshot { this.revalidateAiApprovals(); const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history, temporaryGrants: approvals.grants }, observation: this.aiObservation() }; }
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.state.model = this.aiProvider.modelName(); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
@@ -3297,7 +3300,7 @@ export class SessionManager {
   aiSetMemoryMetadata(id: string, verified: boolean, pinned: boolean): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.update(id, { verified: verified === true, pinned: pinned === true }); return this.aiMemories(); }
   aiGoal(goal: string): AiSnapshot { this.aiApprovals.resetTransient(); this.aiAgent.enable(goal.trim()); if (goal.trim()) void this.aiTick(); return this.aiSnapshot; }
   aiClearGoal(): AiSnapshot { this.aiApprovals.resetTransient(); this.aiAgent.stop(); this.aiAgent.state.objective = ''; this.aiAgent.state.objectiveComplete = false; this.aiAgent.state.currentAction = null; this.aiAgent.state.lastActionResult = 'AI objective cleared'; return this.aiSnapshot; }
-  async aiTick(event?: string): Promise<void> { await this.aiAgent.tick(this.aiObservation(event)); }
+  async aiTick(event?: string): Promise<void> { this.revalidateAiApprovals(); await this.aiAgent.tick(this.aiObservation(event)); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
     if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };
     const candidate = action as Partial<AiAction>;

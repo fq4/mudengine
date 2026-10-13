@@ -4,13 +4,22 @@ export class ApprovalStore {
   private pending: AiApproval[] = [];
   private history: AiApproval[] = [];
   private grants: AiTemporaryGrant[] = [];
+  private sequence = 0;
   request(command: string, reason: string, risk: 'high' | 'unknown', contextHash: string, now = Date.now()): AiApproval {
+    this.revalidate(contextHash, now);
     const existing = this.pending.find((item) => item.command === command && item.reason === reason && item.expiresAt > now);
     if (existing) return existing;
-    const approval: AiApproval = { id: `${now}-${this.pending.length}`, command, reason, risk, contextHash, createdAt: now, expiresAt: now + (risk === 'high' ? 60_000 : 120_000), status: 'pending' };
+    const approval: AiApproval = { id: `${now}-${this.sequence++}`, command, reason, risk, contextHash, createdAt: now, expiresAt: now + (risk === 'high' ? 60_000 : 120_000), status: 'pending' };
     this.pending.push(approval); return approval;
   }
   expire(now = Date.now()): void { this.expireAll(now); }
+  revalidate(contextHash: string, now = Date.now()): number {
+    const before = this.pending.length;
+    this.expireAll(now);
+    for (const item of [...this.pending]) if (item.contextHash !== contextHash) this.finish(item, 'expired');
+    for (const grant of this.grants) if (grant.status === 'active' && grant.contextHash !== contextHash) grant.status = 'revoked';
+    return before - this.pending.length;
+  }
   approve(id: string, contextHash: string): AiApproval | null { const item = this.pending.find((candidate) => candidate.id === id); if (!item || item.expiresAt <= Date.now()) { if (item) this.finish(item, 'expired'); return null; } if (item.contextHash !== contextHash) { this.finish(item, 'expired'); return null; } this.finish(item, 'approved'); return item; }
   reject(id: string): AiApproval | null { const item = this.pending.find((candidate) => candidate.id === id); if (!item) return null; this.finish(item, 'rejected'); return item; }
   markExecuted(id: string): boolean {

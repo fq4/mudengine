@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { ApprovalStore } from '../Approvals';
 describe('ApprovalStore', () => {
+  it('invalidates pending actions and grants permanently when context changes', () => {
+    const store = new ApprovalStore();
+    const first = store.request('buy potion', 'supplies', 'high', 'room-a');
+    store.grant('buy potion', 'room-a', 60_000, 2);
+    expect(store.revalidate('room-b')).toBe(1);
+    expect(store.approve(first.id, 'room-a')).toBeNull();
+    expect(store.allows('buy potion', 'room-a')).toBe(false);
+    const second = store.request('buy potion', 'supplies', 'high', 'room-b', first.createdAt);
+    expect(second.id).not.toBe(first.id);
+    expect(store.snapshot().history[0]?.status).toBe('expired');
+  });
   it('deduplicates and expires unknown-command approvals', () => {
     const store = new ApprovalStore(); const now = Date.now(); const first = store.request('mystery', 'need it', 'unknown', 'state', now); const same = store.request('mystery', 'need it', 'unknown', 'state', now + 100);
     expect(same.id).toBe(first.id); expect(store.snapshot().pending).toHaveLength(1); store.expire(now + 121001); expect(store.snapshot().history[0]?.status).toBe('expired');
