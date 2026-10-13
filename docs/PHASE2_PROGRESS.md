@@ -22,6 +22,10 @@ their existing safety adapters.
 - Action-policy and observation regressions: 9 tests passed, including safe NPC
   inspection and player-target rejection.
 - Node and renderer typechecks passed after the policy integration.
+- Provider contract regressions: 14 OpenRouter tests passed after adding the
+  `inspect_npc` schema and safety guidance.
+- Production build and `check:secrets` passed; the build retains the existing
+  renderer chunk-size warning only.
 - The bounded live `kefka` harness passed all eight scenarios with zero safety
   violations: inspection, one-room navigation, exact two-room navigation,
   invalid destination refusal, unknown-command approval, manual interruption,
@@ -46,4 +50,7 @@ key remain outside the repository.
   inspection, recovery, and interaction objectives.
 - Add mocked reconnect, interrupted-objective, denied-approval, and invalid
   command scenarios to the bounded harness tests.
+- The current approval store is command-payload based; extending approval to
+  high-risk structured actions requires a dedicated action payload model before
+  those actions can be approval-gated through the agent path.
 - Repeat permitted live checks only after each adapter is covered locally.
