@@ -3270,6 +3270,13 @@ export class SessionManager {
   aiEnable(model?: string): AiSnapshot { if (model) this.aiProvider.setModel(model); this.aiAgent.enable(); return this.aiSnapshot; }
   aiPause(): AiSnapshot { this.aiAgent.pause(); return this.aiSnapshot; }
   aiStop(): AiSnapshot { this.aiAgent.stop(); return this.aiSnapshot; }
+  aiEmergencyStop(): AiSnapshot {
+    this.aiAgent.stop();
+    this.queue.cancel((intent) => intent.reason?.startsWith('AI:') === true || intent.reason?.startsWith('Approved AI action:') === true);
+    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) this.walker.stop('AI emergency stop');
+    this.aiAgent.state.lastActionResult = 'Emergency stop active; AI commands canceled. Manual gameplay remains available.';
+    return this.aiSnapshot;
+  }
   async aiProviderTest(): Promise<import('../../shared/ai').AiProviderDiagnostic> { return this.aiProvider.testConnection(); }
   aiApprove(id: string): AiSnapshot { const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); if (!approval) { this.aiAgent.state.lastActionResult = 'Approval expired or game state changed'; return this.aiSnapshot; } const classification = classifyCommand(approval.command); if (classification.authorization === 'rejected') { this.aiAgent.state.lastActionResult = `Approval invalidated: ${classification.reason}`; return this.aiSnapshot; } const queued = this.queue.enqueue({ command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}` }); this.aiAgent.state.lastActionResult = queued ? `Approved command queued: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`; return this.aiSnapshot; }
   aiGrant(id: string, durationMs = 30 * 60_000, maxUses = 1): AiSnapshot {
@@ -3295,7 +3302,7 @@ export class SessionManager {
   }
   private async executeAiAction(action: AiAction): Promise<{ ok: boolean; message: string }> {
     if (action.name === 'inspect_character' || action.name === 'inspect_room' || action.name === 'inspect_inventory' || action.name === 'inspect_map' || action.name === 'inspect_combat_result') return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
-    if (action.name === 'recover_health') return { ok: this.queue.enqueue({ command: 'rest', priority: 'emergency', reason: action.reason }), message: 'Recovery delegated to CommandQueue' };
+    if (action.name === 'recover_health') return { ok: this.queue.enqueue({ command: 'rest', priority: 'emergency', reason: `AI: ${action.reason}` }), message: 'Recovery delegated to CommandQueue' };
     if (action.name === 'manage_equipment') {
       this.gear.onCharacter(this.tracker.current, this.walker.walking || this.loops.progress.status === 'running', this.recovery.recovering);
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
@@ -3309,7 +3316,7 @@ export class SessionManager {
       const allowed = this.aiSocial.allow({ channel: channel as AiSocialChannel, target, message });
       if (!allowed.ok) return { ok: false, message: allowed.reason };
       const command = channel === 'local' ? `.${message}` : channel === 'gossip' ? `gos ${message}` : channel === 'broadcast' ? `-${message}` : `${channel === 'tell' ? '>' : '/'}${target} ${message}`;
-      const queued = this.queue.enqueue({ command, priority: 'user', reason: action.reason });
+      const queued = this.queue.enqueue({ command, priority: 'user', reason: `AI: ${action.reason}` });
       return { ok: queued, message: queued ? `${channel} message accepted by CommandQueue` : 'Message was refused by CommandQueue' };
     }
     if (action.name === 'engage_enemy') {
@@ -3333,7 +3340,7 @@ export class SessionManager {
       const classification = classifyCommand(command);
       if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
       if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command)) { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); return { ok: false, message: `Approval required (${approval.id}): ${classification.reason}` }; }
-      return { ok: this.queue.enqueue({ command, priority: 'user', reason: action.reason }), message: 'Command delegated to CommandQueue' };
+      return { ok: this.queue.enqueue({ command, priority: 'user', reason: `AI: ${action.reason}` }), message: 'Command delegated to CommandQueue' };
     }
     return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };
   }

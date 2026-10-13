@@ -200,6 +200,7 @@ export function createWebBridge(): IpcApi {
     aiEnable: (session, model) => invoke(Invoke.aiEnable, session, model),
     aiPause: (session) => invoke(Invoke.aiPause, session),
     aiStop: (session) => invoke(Invoke.aiStop, session),
+    aiEmergencyStop: (session) => invoke(Invoke.aiEmergencyStop, session),
     aiGoal: (session, goal) => invoke(Invoke.aiGoal, session, goal),
     aiAction: (session, action) => invoke(Invoke.aiAction, session, action),
     aiApprove: (session, id) => invoke(Invoke.aiApprove, session, id),
