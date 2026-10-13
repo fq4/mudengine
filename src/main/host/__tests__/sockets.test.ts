@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import net from 'node:net';
+import { WebSocket } from 'ws';
 
 import {
   acceptKey,

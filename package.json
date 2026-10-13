@@ -199,6 +199,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/react-test-renderer": "^18.3.1",
+    "@types/ws": "^8.5.12",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
@@ -210,7 +211,8 @@
     "tsx": "^4.23.12",
     "typescript": "^5.7.2",
     "vite": "^5.4.11",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "ws": "^8.21.1"
   },
   "allowScripts": {
     "electron@33.4.11": true,
