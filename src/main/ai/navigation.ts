@@ -1,6 +1,12 @@
 import type { ExitEntity } from '../../shared/entities';
 import { roomId } from '../../shared/world';
 
+/** Preserve an exact room target stated by the objective over a model shortcut. */
+export function objectiveNavigationDestination(objective: string, requested: string): string {
+  const address = objective.match(/\b(\d+)\s*\/\s*(\d+)\b/);
+  return address === null ? requested.trim() : roomId(Number(address[1]), Number(address[2]));
+}
+
 /** Resolve only destinations supported by authoritative room data. */
 export function resolveAiNavigationTarget(
   destination: string,

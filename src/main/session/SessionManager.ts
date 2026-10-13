@@ -92,7 +92,7 @@ import { OpenRouterProvider } from '../ai/OpenRouter';
 import { classifyCommand, type AiPermissionLayers, type AiAuthorization } from '../ai/Permissions';
 import { SocialGate, type AiSocialChannel } from '../ai/SocialGate';
 import { ApprovalStore } from '../ai/Approvals';
-import { resolveAiNavigationTarget } from '../ai/navigation';
+import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../ai/navigation';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import type { AiAction, AiObservation, AiPolicyRule, AiSnapshot } from '../../shared/ai';
 import type { Loop } from '../../shared/loops';
@@ -3725,7 +3725,11 @@ export class SessionManager {
     }
     if (action.name === 'navigate_to') {
       const raw = action.args?.destination;
-      const destination = typeof raw === 'string' ? raw.trim() : '';
+      const requested = typeof raw === 'string' ? raw.trim() : '';
+      // An exact room address in the user objective is the strategic target;
+      // do not let a model substitute a merely valid adjacent exit for it.
+      // The route is still resolved against the authoritative room/world data.
+      const destination = objectiveNavigationDestination(this.aiAgent.state.objective, requested);
       const current = this.tracker.current.room;
       const target = resolveAiNavigationTarget(destination, current.exits);
       if (!target)

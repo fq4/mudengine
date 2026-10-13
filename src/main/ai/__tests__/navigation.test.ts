@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { resolveAiNavigationTarget } from '../navigation';
+import { objectiveNavigationDestination, resolveAiNavigationTarget } from '../navigation';
 
 describe('AI navigation destination resolution', () => {
+  it('preserves an exact objective address over a model-selected exit', () => {
+    expect(objectiveNavigationDestination('Navigate to 1/2142, then stop', 'south')).toBe('1/2142');
+    expect(objectiveNavigationDestination('Explore an available exit', 'south')).toBe('south');
+  });
   const exits = [{ direction: 'north', targetMap: 1, targetRoom: 2 }];
 
   it('resolves an exact room address and a decorated room address', () => {

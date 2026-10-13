@@ -168,6 +168,15 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   `1/2140`; the unknown command remained approval-gated, and the only live
   gameplay commands were the authorized observation/navigation probes.
 
+### 2026-10-13 — bounded multi-room navigation regression
+
+- The expanded harness initially exposed that the model could substitute a
+  valid adjacent direction for an exact room target, stopping one room short.
+- The executor now treats an exact `map/room` address in the objective as
+  authoritative, while still routing through `WorldGraph` and `Walker`.
+- After the fix, the live two-room scenario reached `1/2142` from `1/2141`
+  with zero safety violations. The bounded run passed all eight scenarios.
+
 ### Verification gates
 
 - AI/session regressions: 315 passed.

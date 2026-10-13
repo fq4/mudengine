@@ -23,6 +23,13 @@ describe('OpenRouterProvider', () => {
     expect(request.messages[0]?.content).toContain('For an informational objective, inspect or observe first');
     expect(request.messages[0]?.content).toContain('Use send_message only when the objective explicitly requests communication');
   });
+  it('requires an exact destination when the objective names one', async () => {
+    const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'travel', explanation: 'route', action: { name: 'navigate_to', args: { destination: '1/2' }, reason: 'exact target' } }) } }] }), { status: 200 }));
+    await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['navigate_to'] }, 'Navigate to 1/2, then stop.');
+    expect(request.mock.calls[0]?.[1]).toBeDefined();
+    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
+    expect(body.messages[0].content).toContain('must use that exact address and never substitute a direction');
+  });
   it('directs unknown informational commands through the supported-command action', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'status', explanation: 'check', action: { name: 'execute_supported_command', args: { command: 'status' }, reason: 'requested status' } }) } }] }), { status: 200 }));
     await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['execute_supported_command'] }, 'Check my current status using an unknown informational command');

@@ -16,6 +16,7 @@ import { homePaths } from './lib/home.mjs';
 import fs from 'node:fs';
 import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
+import { roomId } from '../src/shared/world.ts';
 
 const args = process.argv.slice(2);
 const has = (flag) => args.includes(flag);
@@ -47,7 +48,7 @@ if (!process.env.OPENROUTER_API_KEY)
 
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: Number(valueOf('--max-ms') ?? 120_000),
-  maxMoves: Number(valueOf('--max-moves') ?? 2),
+  maxMoves: Number(valueOf('--max-moves') ?? 3),
   maxRequests: Number(valueOf('--max-requests') ?? 8),
   maxTokens: Number(valueOf('--max-tokens') ?? 30_000),
   maxCostUsd: Number(valueOf('--max-cost') ?? 0.05),
@@ -55,6 +56,7 @@ const monitor = new LiveHarnessMonitor({
 });
 const lines = [];
 let currentRoom = null;
+let multiRoomTarget = null;
 const sink = {
   data: () => {},
   block: () => {},
@@ -143,6 +145,7 @@ const runScenario = async (name, objective, expected) => {
     passed,
     before,
     after,
+    ...(name === 'two-room-navigation' ? { target: multiRoomTarget } : {}),
     status: state.status,
     result: state.lastActionResult,
     usage: state.usage
@@ -167,6 +170,24 @@ async function main() {
     'one-room-navigation',
     'Explore one adjacent room using an available exit, then stop.',
     (before, after) => before !== after
+  );
+  const current = session.character.room;
+  const twoRoomTarget =
+    current?.map !== undefined && current.number !== undefined
+      ? [...world.withinSteps(roomId(current.map, current.number), 2).entries()]
+          .find(([target, distance]) => {
+            if (distance !== 2) return false;
+            const route = world.route(roomId(current.map, current.number), target);
+            return !route.blocked && route.steps.length === 2;
+          })?.[0]
+      : undefined;
+  if (twoRoomTarget === undefined)
+    throw new Error('Could not find a bounded two-room target from the authoritative room');
+  multiRoomTarget = twoRoomTarget;
+  const multiRoom = await runScenario(
+    'two-room-navigation',
+    `Navigate to the authoritative destination ${twoRoomTarget}, then stop.`,
+    (_before, after) => after === twoRoomTarget
   );
   const invalid = await session.aiAction({
     name: 'navigate_to',
