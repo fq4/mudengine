@@ -230,3 +230,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   all eight scenarios with zero violations.
 - Production build and both typechecks passed after the completion guard; only
   the existing large-renderer-chunk warning remains.
+
+### 2026-10-13 — server-specific navigation alias safety
+
+- A live trace exposed `st` as a valid Kefka navigation alias that changed the
+  room; the harness initially misclassified it as an unsafe recovery command.
+- `st` is now treated as movement and counted against the movement cap, while
+  `stand` and `rest` remain blocked. The monitor regression passed, and the
+  corrected bounded live run passed all eight scenarios with zero violations.
