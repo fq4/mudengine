@@ -3420,7 +3420,16 @@ export class SessionManager {
       const classification = classifyCommand(command, this.aiPermissionLayers);
       if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
       const contextHash = JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target });
-      if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command, contextHash)) { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', contextHash); return { ok: false, pendingApproval: true, message: `Approval required (${approval.id}): ${classification.reason}` }; }
+      if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command, contextHash)) {
+        const room = this.tracker.current.room;
+        const target = this.tracker.current.combat.target;
+        const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', contextHash, Date.now(), {
+          target: target ?? undefined,
+          knownFacts: [`Current room: ${room.map ?? '?'}/${room.number ?? '?'}`, target ? `Current combat target: ${target}` : 'No active combat target'],
+          prediction: classification.risk === 'high' ? 'The command may spend, transfer, or permanently alter game resources.' : 'The command may have an unverified side effect on this MUD.'
+        });
+        return { ok: false, pendingApproval: true, message: `Approval required (${approval.id}): ${classification.reason}` };
+      }
       return { ok: this.queue.enqueue({ command, priority: 'user', reason: `AI: ${action.reason}` }), message: 'Command delegated to CommandQueue' };
     }
     return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };

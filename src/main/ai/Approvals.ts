@@ -5,11 +5,11 @@ export class ApprovalStore {
   private history: AiApproval[] = [];
   private grants: AiTemporaryGrant[] = [];
   private sequence = 0;
-  request(command: string, reason: string, risk: 'high' | 'unknown', contextHash: string, now = Date.now()): AiApproval {
+  request(command: string, reason: string, risk: 'high' | 'unknown', contextHash: string, now = Date.now(), details: Pick<AiApproval, 'target' | 'knownFacts' | 'prediction'> = {}): AiApproval {
     this.revalidate(contextHash, now);
     const existing = this.pending.find((item) => item.command === command && item.reason === reason && item.expiresAt > now);
     if (existing) return existing;
-    const approval: AiApproval = { id: `${now}-${this.sequence++}`, command, reason, risk, contextHash, createdAt: now, expiresAt: now + (risk === 'high' ? 60_000 : 120_000), status: 'pending' };
+    const approval: AiApproval = { id: `${now}-${this.sequence++}`, command, reason, risk, contextHash, ...details, createdAt: now, expiresAt: now + (risk === 'high' ? 60_000 : 120_000), status: 'pending' };
     this.pending.push(approval); return approval;
   }
   expire(now = Date.now()): void { this.expireAll(now); }
