@@ -12,6 +12,7 @@ import {
 import type { AutomationSnapshot } from '../../shared/automation';
 import type { ConnectionState, StreamLine, TelnetEvent } from '../../shared/types';
 import { tuning } from '../app/tuning';
+import { redactSecrets } from './redactSecrets';
 
 /**
  * The live trace of one session, for the debug window and for a bug report.
@@ -56,7 +57,10 @@ export class SessionDebug {
    */
   private character: CharacterState = EMPTY_CHARACTER;
 
-  constructor(private readonly emit: (record: DebugRecord) => void) {}
+  constructor(
+    private readonly emit: (record: DebugRecord) => void,
+    private readonly secrets: readonly string[] = []
+  ) {}
 
   get all(): readonly DebugRecord[] {
     return this.records;
@@ -72,9 +76,11 @@ export class SessionDebug {
       seq: this.seq,
       at: Date.now(),
       kind,
-      tag,
-      text,
-      ...(detail === undefined || detail.length === 0 ? {} : { detail })
+      tag: redactSecrets(tag, this.secrets),
+      text: redactSecrets(text, this.secrets),
+      ...(detail === undefined || detail.length === 0
+        ? {}
+        : { detail: redactSecrets(detail, this.secrets) })
     };
     this.records.push(record);
     while (this.records.length > tuning().session.debugLogLimit) {

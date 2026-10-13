@@ -65,6 +65,26 @@ afterEach(() => {
  * you cannot develop the colour half of a rule against.
  */
 describe('what a capture keeps', () => {
+  it('redacts synthetic credentials from decoded, framed, raw, and outbound records', async () => {
+    const secret = 'synthetic-password-42';
+    const capture = new SessionCapture({
+      directory: dir,
+      maxBytes: 64 * 1024,
+      secrets: [secret]
+    });
+    capture.open(target, new Date('2026-08-25T12:00:00Z'), 'credential-test');
+    capture.text(`Password: ${secret}`);
+    capture.line(line(`Password: ${secret}`));
+    capture.bytes(Buffer.from(secret, 'utf8'));
+    capture.out(secret, 'automation');
+    const file = capture.path;
+    await capture.close();
+    const contents = fs.readFileSync(file, 'utf8');
+    expect(contents).not.toContain(secret);
+    expect(contents).toContain('••••••••');
+    expect(contents).toContain(Buffer.from('[redacted inbound bytes]').toString('base64'));
+  });
+
   it('keeps decoded text with its escape sequences intact', async () => {
     const capture = open();
     capture.text('[1;32mNewhaven[0m\r\n');

@@ -30,10 +30,13 @@ import path from 'node:path';
 import { slug, stamp } from './filename';
 import { errorMessage } from '../../shared/values';
 import type { ConnectionTarget, StreamLine } from '../../shared/types';
+import { redactInboundBytes, redactSecrets } from './redactSecrets';
 
 export interface SessionCaptureOptions {
   directory: string;
   maxBytes: number;
+  /** Secrets are never retained in raw inbound or decoded capture records. */
+  secrets?: readonly string[];
   onProblem?: ((message: string) => void) | undefined;
   /**
    * The capture has created its file. Said here rather than at the dial,
@@ -121,22 +124,29 @@ export class SessionCapture {
 
   /** Bytes off the socket, Telnet-stripped and not yet decoded. */
   bytes(buffer: Buffer): void {
-    this.record({ k: 'in', raw: buffer.toString('base64') });
+    const safe = redactInboundBytes(buffer, this.options.secrets ?? []);
+    this.record({ k: 'in', raw: safe.toString('base64') });
   }
 
   /** Decoded text, escape sequences intact. */
   text(value: string): void {
-    this.record({ k: 'text', s: value });
+    this.record({ k: 'text', s: redactSecrets(value, this.options.secrets ?? []) });
   }
 
   /** A framed line, as the parser will see it. */
   line(value: StreamLine): void {
-    this.record({ k: 'line', s: value.plain, raw: value.text, term: value.terminator });
+    const secrets = this.options.secrets ?? [];
+    this.record({
+      k: 'line',
+      s: redactSecrets(value.plain, secrets),
+      raw: redactSecrets(value.text, secrets),
+      term: value.terminator
+    });
   }
 
   /** A command the client sent, whoever decided to send it. */
   out(command: string, source: 'user' | 'automation' = 'user'): void {
-    this.record({ k: 'out', s: command, src: source });
+    this.record({ k: 'out', s: redactSecrets(command, this.options.secrets ?? []), src: source });
   }
 
   /**

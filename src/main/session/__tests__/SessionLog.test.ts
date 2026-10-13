@@ -41,6 +41,16 @@ afterEach(() => {
 });
 
 describe('what a session log keeps', () => {
+  it('redacts synthetic credentials before writing decoded output', async () => {
+    const secret = 'synthetic-api-key-99';
+    const log = new SessionLog({ directory: dir, maxBytes: 1024, secrets: [secret] });
+    log.open(target, new Date('2026-08-25T12:00:00Z'), 'credential-test');
+    log.write(`server echoed ${secret}\r\n`);
+    const text = await contents(log);
+    expect(text).not.toContain(secret);
+    expect(text).toContain('••••••••');
+  });
+
   it('writes what the server said', async () => {
     const log = open();
     log.write('Newhaven Village Entrance\r\n');

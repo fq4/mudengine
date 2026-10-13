@@ -24,6 +24,7 @@
 import { Backscroll } from './Backscroll';
 import { SessionCapture } from './SessionCapture';
 import { SessionLog } from './SessionLog';
+import { redactSecrets } from './redactSecrets';
 import { Reconnect } from './Reconnect';
 import {
   BUSY_PHASES,
@@ -322,7 +323,10 @@ export class SessionHost {
     if (slot) {
       const config = this.options.configFor(id);
       slot.manager.setAiPermissionLayers({
-        server: config.servers.find((server) => server.host === config.connection.host && server.port === config.connection.port)?.aiPolicy,
+        server: config.servers.find(
+          (server) =>
+            server.host === config.connection.host && server.port === config.connection.port
+        )?.aiPolicy,
         profile: config.aiPolicy
       });
     }
@@ -350,6 +354,11 @@ export class SessionHost {
     if (existing) return existing;
 
     const config = this.options.configFor(id);
+    const secrets = [
+      config.connection.login.username,
+      config.connection.login.password,
+      process.env.OPENROUTER_API_KEY ?? ''
+    ].filter((value): value is string => value.length > 0);
 
     /*
      * Built before the manager, because the sink below closes over it. It needs
@@ -386,8 +395,9 @@ export class SessionHost {
      * Its own route for exactly that reason: sharing the diagnostics flag, a
      * window with the Stream card open paid for records nothing in it read.
      */
-    const debug = new SessionDebug((record) =>
-      this.options.toDebugging(Push.debug, { session: id, payload: record })
+    const debug = new SessionDebug(
+      (record) => this.options.toDebugging(Push.debug, { session: id, payload: record }),
+      secrets
     );
 
     const manager = new SessionManager(
@@ -403,11 +413,12 @@ export class SessionHost {
          * and a line the console chose not to show still happened.
          */
         decoded: (text) => {
-          slot.log?.write(text);
-          slot.capture?.text(text);
+          const safe = redactSecrets(text, secrets);
+          slot.log?.write(safe);
+          slot.capture?.text(safe);
           // The debug window's `in` records: what the server actually sent,
           // before the feed decided what the console is shown.
-          debug.text(text);
+          debug.text(safe);
         },
         /*
          * What the console shows, for the console — and for the backscroll,
@@ -415,22 +426,29 @@ export class SessionHost {
          * and must be what it would have painted.
          */
         data: (chunk) => {
-          slot.backscroll.write(chunk.text);
-          this.options.toAttached(Push.data, { session: id, payload: chunk });
+          const safe = { ...chunk, text: redactSecrets(chunk.text, secrets) };
+          slot.backscroll.write(safe.text);
+          this.options.toAttached(Push.data, { session: id, payload: safe });
         },
         line: (line) => {
+          const safe = {
+            ...line,
+            text: redactSecrets(line.text, secrets),
+            plain: redactSecrets(line.plain, secrets)
+          };
           // The capture is a record and gets every line; the push is a paint
           // concern and goes only where something is showing it.
-          slot.capture?.line(line);
-          debug.line(line);
-          this.options.toDiagnostics(Push.line, { session: id, payload: line });
+          slot.capture?.line(safe);
+          debug.line(safe);
+          this.options.toDiagnostics(Push.line, { session: id, payload: safe });
         },
         block: (block) => {
-          debug.block(block);
-          this.options.toAll(Push.block, { session: id, payload: block });
+          const safe = { ...block, text: redactSecrets(block.text, secrets) };
+          debug.block(safe);
+          this.options.toAll(Push.block, { session: id, payload: safe });
           // What was said outlives the socket: the Talk card's history is
           // written down and seeded back into the next attach's snapshot.
-          if (isTalkBlock(block)) this.options.talkFor(id).append(block);
+          if (isTalkBlock(safe)) this.options.talkFor(id).append(safe);
         },
         character: (state) => {
           debug.characterState(state);
@@ -519,7 +537,10 @@ export class SessionHost {
       config.connection.locate,
       this.options.aiMemoryFor?.(id),
       {
-        server: config.servers.find((server) => server.host === config.connection.host && server.port === config.connection.port)?.aiPolicy,
+        server: config.servers.find(
+          (server) =>
+            server.host === config.connection.host && server.port === config.connection.port
+        )?.aiPolicy,
         profile: config.aiPolicy
       },
       this.aggregateAiBudget
@@ -594,6 +615,11 @@ export class SessionHost {
     const config = this.options.configFor(id);
     const directory = this.options.logDirectory();
     const problem = (message: string): void => this.options.notice({ session: id, message });
+    const secrets = [
+      config.connection.login.username,
+      config.connection.login.password,
+      process.env.OPENROUTER_API_KEY ?? ''
+    ].filter((value): value is string => value.length > 0);
 
     // A fresh file per connection, so a reconnect does not interleave two
     // sessions into one log.
@@ -601,6 +627,7 @@ export class SessionHost {
       slot.capture ??= new SessionCapture({
         directory,
         maxBytes: config.logging.maxBytes,
+        secrets,
         onProblem: problem,
         // Said when the file exists, not when the dial went out: a retry that
         // never connects creates no capture and should announce none.
@@ -618,6 +645,7 @@ export class SessionHost {
       slot.log ??= new SessionLog({
         directory,
         maxBytes: config.logging.maxBytes,
+        secrets,
         onProblem: problem
       });
       slot.log.open(target, undefined, id);

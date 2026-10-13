@@ -27,12 +27,15 @@ import { slug, stamp } from './filename';
 import { stripAnsi } from '../net/LineTokenizer';
 import type { ConnectionTarget } from '../../shared/types';
 import { errorMessage } from '../../shared/values';
+import { redactSecrets } from './redactSecrets';
 
 export interface SessionLogOptions {
   /** Directory to write into. Created if missing. */
   directory: string;
   /** Stop appending past this many bytes. */
   maxBytes: number;
+  /** Secrets are redacted before decoded output reaches disk. */
+  secrets?: readonly string[];
   /** Reports the first failure, and the cap being reached. */
   onProblem?: ((message: string) => void) | undefined;
 }
@@ -123,7 +126,8 @@ export class SessionLog {
   /** Appends decoded server output. ANSI is stripped; CR is normalised away. */
   write(text: string): void {
     if (!this.active) return;
-    this.append(stripAnsi(text).replace(/\r\n?/g, '\n'));
+    const clean = stripAnsi(text).replace(/\r\n?/g, '\n');
+    this.append(redactSecrets(clean, this.options.secrets ?? []));
   }
 
   /**
