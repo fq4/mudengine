@@ -327,3 +327,9 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - SessionManager regression suite passed 246/246 and both typechecks passed.
   The previously run bounded live harness remained green with all eight
   scenarios passing and zero violations.
+
+### 2026-10-13 - direct-action reason validation
+
+- Direct IPC/UI AI actions now require a non-empty reason, matching provider
+  decision validation and keeping execution history explainable.
+- SessionManager regression suite passed 247/247 and both typechecks passed.
