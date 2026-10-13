@@ -22,7 +22,7 @@ General commands pass through the centralized risk classifier: known information
 
 Social messages use typed channels and application pacing. Gossip uses the MUD's `gos` command; local speech uses the room-only dot command. A 30-second minimum interval and near-duplicate suppression are enforced before queueing an AI message, and self-echoed or incomplete conversation output does not wake the agent. Manual commands remain outside these AI gates.
 
-AI command policy is layered as global defaults, matching server policy, and the active profile policy, with more-specific exact-command rules taking precedence. The AI panel shows the effective rule source and permits session-scoped overrides; those overrides are intentionally not persisted as permanent profile/server policy changes.
+AI command policy is layered as global defaults, matching server policy, and the active profile policy, with more-specific exact-command rules taking precedence. The AI panel shows the effective rule source and supports both session-scoped overrides and explicitly scoped permanent writes through the settings persistence path.
 
 Provider requests are independently limited by the AI budget controller (currently 6 requests/minute, 60/hour, 25,000 tokens, and $0.25/session defaults). When a hard limit is reached, the panel shows `budget-paused`; new AI decisions stop while deterministic MudEngine automation and manual gameplay continue. OpenRouter connectivity can be tested from the panel without exposing the credential.
 
