@@ -142,7 +142,7 @@ Keep provider, memory, permission, and AI UI modules independently testable. Reb
 7. ~~Add AI panel/IPC integration and provider configuration.~~ Implemented for Electron and web bridges, including session budget controls.
 8. Validate realistic offline parser/queue/approval/reconnect/provider/budget scenarios and conduct supervised live opt-in testing.
 
-The specification is approved and implementation is underway. Remaining phases are validation and closing the capability gaps identified in the inventory; they must not duplicate MudEngine's existing automation.
+The specification is approved and implementation is underway. Aggregate budget state now persists in the user-scoped home without persisting transient AI execution state. Remaining phases are validation and closing the capability gaps identified in the inventory; they must not duplicate MudEngine's existing automation.
 
 ## 12. Open research items and acceptance criteria
 
