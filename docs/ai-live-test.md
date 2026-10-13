@@ -220,3 +220,11 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - Full regression verification passed 243 files, 6,883 tests, and 2 skips;
   two Windows timing-sensitive tests failed only under the concurrent full
   run and both passed in isolation.
+
+### 2026-10-13 — objective/action completion guard
+
+- Explicit navigation objectives now require a successful `navigate_to` action
+  before the agent can mark them complete; unrelated inspection actions cannot
+  satisfy travel objectives even when the model sets `done: true`.
+- Agent/provider regressions passed: 40 tests. The bounded `kefka` run passed
+  all eight scenarios with zero violations.

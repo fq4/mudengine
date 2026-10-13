@@ -308,6 +308,8 @@ export class AutonomousAgent {
   }
   private actionSatisfiesObjective(action: AiActionName): boolean {
     const objective = this.state.objective.toLowerCase();
+    if (/\b(navigate|travel|go to|walk to|explore)\b/.test(objective))
+      return action === 'navigate_to';
     if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(objective))
       return action === 'manage_equipment';
     if (/\b(recover|health|heal|rest)\b/.test(objective)) return action === 'recover_health';

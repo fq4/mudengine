@@ -220,6 +220,25 @@ describe('AutonomousAgent', () => {
     expect(agent.state.objectiveComplete).toBe(false);
     expect(agent.state.enabled).toBe(true);
   });
+  it('does not complete a travel objective from an unrelated inspection', async () => {
+    const decide = vi.fn().mockResolvedValue({
+      objective: 'travel to the bank',
+      explanation: 'Inspecting first',
+      done: true,
+      action: { name: 'inspect_room', reason: 'reassess' }
+    });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({ requests: 1, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
+    };
+    const agent = new AutonomousAgent(provider, {
+      execute: vi.fn().mockResolvedValue({ ok: true, message: 'Observed inspect room' })
+    });
+    agent.enable('travel to the bank');
+    await agent.tick({ ...observation, availableActions: ['inspect_room', 'navigate_to'] });
+    expect(agent.state.objectiveComplete).toBe(false);
+    expect(agent.state.status).toBe('idle');
+  });
   it('completes a bounded inspection objective when the model omits done', async () => {
     const decide = vi.fn().mockResolvedValue({
       objective: 'inspect',
