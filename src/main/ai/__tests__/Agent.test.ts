@@ -88,4 +88,14 @@ describe('AutonomousAgent', () => {
     await agent.tick({ ...observation, room: { id: 2 } });
     expect(decide).toHaveBeenCalledTimes(1);
   });
+
+  it('resumes an objective after approval resolution without forcing a new request', async () => {
+    const decide = vi.fn().mockResolvedValue({ objective: 'supplies', explanation: 'Buy', action: { name: 'execute_supported_command', args: { command: 'buy potion' }, reason: 'supplies' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: false, pendingApproval: true, message: 'Approval required' }) });
+    agent.enable('supplies'); await agent.tick(observation); agent.approvalResolved('Approved command queued');
+    expect(agent.state.status).toBe('idle');
+    await agent.tick(observation);
+    expect(decide).toHaveBeenCalledTimes(1);
+  });
 });

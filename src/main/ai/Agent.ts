@@ -15,6 +15,12 @@ export class AutonomousAgent {
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; if (this.state.currentAction && ['requested', 'accepted', 'executing'].includes(this.state.currentAction.phase)) this.state.currentAction = { ...this.state.currentAction, phase: 'interrupted', message: 'AI action interrupted' }; }
   setDelegatedOperationActive(check: (action: AiActionName) => boolean): void { this.delegatedOperationActive = check; }
+  approvalResolved(message: string): void {
+    if (this.state.status !== 'paused' || this.state.currentAction?.phase !== 'requested') return;
+    this.state.status = this.state.enabled ? 'idle' : 'disabled';
+    this.state.currentAction = { ...this.state.currentAction, message };
+    this.state.lastActionResult = message;
+  }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
     if (!this.state.enabled || this.state.status === 'paused' || this.state.objectiveComplete === true || !this.state.objective) return null;
     if (this.ticking) return null;

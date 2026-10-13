@@ -3278,7 +3278,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   async aiProviderTest(): Promise<import('../../shared/ai').AiProviderDiagnostic> { return this.aiProvider.testConnection(); }
-  aiApprove(id: string): AiSnapshot { const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); if (!approval) { this.aiAgent.state.lastActionResult = 'Approval expired or game state changed'; return this.aiSnapshot; } const classification = classifyCommand(approval.command); if (classification.authorization === 'rejected') { this.aiAgent.state.lastActionResult = `Approval invalidated: ${classification.reason}`; return this.aiSnapshot; } const queued = this.queue.enqueue({ command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}` }); this.aiAgent.state.lastActionResult = queued ? `Approved command queued: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`; return this.aiSnapshot; }
+  aiApprove(id: string): AiSnapshot { const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); if (!approval) { this.aiAgent.approvalResolved('Approval expired or game state changed'); return this.aiSnapshot; } const classification = classifyCommand(approval.command); if (classification.authorization === 'rejected') { this.aiAgent.approvalResolved(`Approval invalidated: ${classification.reason}`); return this.aiSnapshot; } const queued = this.queue.enqueue({ command: approval.command, priority: 'user', reason: `Approved AI action: ${approval.reason}` }); this.aiAgent.approvalResolved(queued ? `Approved command queued: ${approval.command}` : `Approved command was refused by CommandQueue: ${approval.command}`); return this.aiSnapshot; }
   aiGrant(id: string, durationMs = 30 * 60_000, maxUses = 1): AiSnapshot {
     const approval = this.aiApprovals.approve(id, JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target }));
     if (!approval) { this.aiAgent.state.lastActionResult = 'Temporary authorization expired or game state changed'; return this.aiSnapshot; }
@@ -3289,7 +3289,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiRevokeGrant(id: string): AiSnapshot { this.aiApprovals.revokeGrant(id); this.aiAgent.state.lastActionResult = 'Temporary authorization revoked'; return this.aiSnapshot; }
-  aiReject(id: string): AiSnapshot { this.aiApprovals.reject(id); return this.aiSnapshot; }
+  aiReject(id: string): AiSnapshot { const approval = this.aiApprovals.reject(id); this.aiAgent.approvalResolved(approval ? `Approval rejected: ${approval.command}` : 'Approval was already resolved or expired'); return this.aiSnapshot; }
   aiMemories(): import('../../shared/ai').AiMemoryRecord[] { return this.aiMemory?.list() ?? []; }
   aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }
   aiUpdateMemory(id: string, text: string): import('../../shared/ai').AiMemoryRecord[] { const value = text.trim(); if (value.length > 0 && value.length <= 2_000) this.aiMemory?.update(id, { text: value }); return this.aiMemories(); }
