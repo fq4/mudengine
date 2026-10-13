@@ -11,7 +11,17 @@ export class AiAggregateBudget {
   private pendingCost = 0;
   constructor(private limits: AiBudgetLimits = { requestsPerMinute: 30, requestsPerHour: 300, sessionCostUsd: 1, sessionTokens: 100_000 }) {}
   getLimits(): AiBudgetLimits { return { ...this.limits }; }
-  configure(next: Partial<AiBudgetLimits>): AiBudgetLimits { this.limits = { ...this.limits, ...next }; return this.getLimits(); }
+  configure(next: Partial<AiBudgetLimits>): AiBudgetLimits {
+    this.limits = {
+      ...this.limits,
+      ...next,
+      requestsPerMinute: Math.min(Math.max(Math.floor(next.requestsPerMinute ?? this.limits.requestsPerMinute), 1), 600),
+      requestsPerHour: Math.min(Math.max(Math.floor(next.requestsPerHour ?? this.limits.requestsPerHour), 1), 10_000),
+      sessionCostUsd: Math.min(Math.max(next.sessionCostUsd ?? this.limits.sessionCostUsd, 0.01), 1_000),
+      sessionTokens: next.sessionTokens === undefined ? this.limits.sessionTokens : Math.min(Math.max(Math.floor(next.sessionTokens), 100), 10_000_000)
+    };
+    return this.getLimits();
+  }
   check(now = Date.now()): { ok: true } | { ok: false; reason: string; resetAt: number } {
     while (this.requests[0] !== undefined && this.requests[0] <= now - 60 * 60_000) this.requests.shift();
     const minute = this.requests.filter((at) => at > now - 60_000).length;

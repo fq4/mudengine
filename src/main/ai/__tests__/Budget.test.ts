@@ -41,4 +41,8 @@ describe('AiBudget', () => {
     budget.settle({ inputTokens: 60, outputTokens: 40, estimatedCostUsd: 0.25 });
     expect(budget.check(2000)).toMatchObject({ ok: false, reason: 'Aggregate token budget reached (100 tokens)' });
   });
+  it('clamps aggregate overrides before they can disable enforcement', () => {
+    const budget = new AiAggregateBudget();
+    expect(budget.configure({ requestsPerMinute: 0, requestsPerHour: -1, sessionCostUsd: 0, sessionTokens: 1 })).toEqual({ requestsPerMinute: 1, requestsPerHour: 1, sessionCostUsd: 0.01, sessionTokens: 100 });
+  });
 });
