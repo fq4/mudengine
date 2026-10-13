@@ -3261,9 +3261,9 @@ export class SessionManager {
     return this.tracker.current;
   }
 
-  private aiObservation(): AiObservation {
+  private aiObservation(event?: string): AiObservation {
     const state = this.tracker.current;
-    return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'] };
+    return { character: state, room: state.room, inventory: state.inventory, availableActions: ['inspect_character', 'inspect_room', 'inspect_inventory', 'inspect_map', 'navigate_to', 'engage_enemy', 'recover_health', 'inspect_combat_result', 'manage_equipment', 'send_message', 'execute_supported_command', 'wait'], ...(event ? { event } : {}) };
   }
 
   get aiSnapshot(): AiSnapshot { const approvals = this.aiApprovals.snapshot(); return { state: { ...this.aiAgent.state, pendingApprovals: approvals.pending, approvalHistory: approvals.history }, observation: this.aiObservation() }; }
@@ -3284,7 +3284,7 @@ export class SessionManager {
   aiMemories(): import('../../shared/ai').AiMemoryRecord[] { return this.aiMemory?.list() ?? []; }
   aiForgetMemory(id: string): import('../../shared/ai').AiMemoryRecord[] { this.aiMemory?.remove(id); return this.aiMemories(); }
   aiGoal(goal: string): AiSnapshot { this.aiAgent.enable(goal); void this.aiTick(); return this.aiSnapshot; }
-  async aiTick(): Promise<void> { await this.aiAgent.tick(this.aiObservation()); }
+  async aiTick(event?: string): Promise<void> { await this.aiAgent.tick(this.aiObservation(event)); }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
     if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };
     const candidate = action as Partial<AiAction>;
@@ -5579,7 +5579,7 @@ export class SessionManager {
     // Republish only on a real change: during a combat burst most lines say
     // nothing new, and a HUD re-render per line is exactly the stall the
     // architecture exists to prevent.
-    if (changed) this.reactToState();
+    if (changed) this.reactToState(block.type);
   }
 
   /**
@@ -5590,7 +5590,7 @@ export class SessionManager {
    * condition started or ended (`MessageTriggers`) — runs the same decisions
    * in the same order rather than waiting for the next status line.
    */
-  private reactToState(): void {
+  private reactToState(event?: string): void {
     const state = this.tracker.current;
     /*
      * A message's *rest until full* is over once the figure is, and letting
@@ -5599,7 +5599,7 @@ export class SessionManager {
      */
     if (this.releaseRestsIfFull(state)) return;
     this.publishCharacter();
-    void this.aiTick();
+    if (event === undefined || this.isAiMeaningfulEvent(event)) void this.aiTick(event);
     /*
      * Walking out to the menu is a character *leaving*, and everything
      * automated is about the one that was here. Before the modules below
@@ -5853,6 +5853,15 @@ export class SessionManager {
         this.combat.awaitingKit
       );
     }
+  }
+
+  /** Only events that can change strategy wake the provider; routine parser churn does not. */
+  private isAiMeaningfulEvent(event: string): boolean {
+    return event === 'conversation-gossip' || event === 'conversation-directed' || event === 'conversation-local' ||
+      event === 'conversation-telepath' || event === 'conversation-yell' || event === 'mob-dies' ||
+      event === 'user-dies' || event === 'user-gain-experience' || event === 'room-exits' ||
+      event === 'command-not-understood' || event === 'command-refused' || event === 'user-search-failed' ||
+      event === 'spell-refused' || event === 'status-line' || event === 'player-status';
   }
 
   /**
