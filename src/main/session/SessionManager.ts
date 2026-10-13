@@ -5579,7 +5579,11 @@ export class SessionManager {
     // Republish only on a real change: during a combat burst most lines say
     // nothing new, and a HUD re-render per line is exactly the stall the
     // architecture exists to prevent.
-    if (changed) this.reactToState(block.type);
+    if (changed) {
+      const event = this.aiEventForBlock(block);
+      if (event !== null) this.reactToState(event);
+      else this.publishCharacter();
+    }
   }
 
   /**
@@ -5857,11 +5861,21 @@ export class SessionManager {
 
   /** Only events that can change strategy wake the provider; routine parser churn does not. */
   private isAiMeaningfulEvent(event: string): boolean {
-    return event === 'conversation-gossip' || event === 'conversation-directed' || event === 'conversation-local' ||
-      event === 'conversation-telepath' || event === 'conversation-yell' || event === 'mob-dies' ||
+    return event === 'conversation-gossip' || event === 'conversation-broadcast' || event === 'conversation-directed' || event === 'conversation-local' ||
+      event === 'conversation-telepath' || event === 'conversation-yell' || event === 'conversation-gangpath' || event === 'conversation-auction' || event === 'mob-dies' ||
       event === 'user-dies' || event === 'user-gain-experience' || event === 'room-exits' ||
-      event === 'command-not-understood' || event === 'command-refused' || event === 'user-search-failed' ||
+      event === 'direction-failed' || event === 'peek-failed' || event === 'command-not-understood' || event === 'command-refused' || event === 'user-search-failed' ||
       event === 'spell-refused' || event === 'status-line' || event === 'player-status';
+  }
+
+  /** Conversation headers and the character's own echoed speech are not inbound prompts. */
+  private aiEventForBlock(block: Block): string | null {
+    if (!block.type.startsWith('conversation-')) return block.type;
+    const message = block.groups['message'];
+    const speaker = block.groups['player'];
+    if (typeof message !== 'string' || message.trim().length === 0) return null;
+    if (speaker === undefined || speaker.trim().toLowerCase() === 'you' || speaker.trim() === (this.tracker.current.name ?? '').trim()) return null;
+    return block.type;
   }
 
   /**
