@@ -19,8 +19,8 @@ their existing safety adapters.
 
 ## Evidence
 
-- Action-policy and observation regressions: 9 tests passed, including safe NPC
-  inspection and player-target rejection.
+- Action-policy and observation regressions: 10 tests passed, including safe
+  NPC inspection, player-target rejection, and autonomous recovery delegation.
 - Node and renderer typechecks passed after the policy integration.
 - Provider contract regressions: 14 OpenRouter tests passed after adding the
   `inspect_npc` schema and safety guidance.
