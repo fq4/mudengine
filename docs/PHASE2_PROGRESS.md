@@ -36,6 +36,9 @@ their existing safety adapters.
 - Live usage: four provider requests for navigation, under the harness token
   and cost limits. No combat, PvP, social, equipment, item, or spending action
   was issued.
+- Revalidation after structured approval enforcement passed all eight scenarios
+  again with zero violations; the bounded two-room route completed from the
+  authoritative starting room to its two-step target.
 
 ## Local live configuration
 
