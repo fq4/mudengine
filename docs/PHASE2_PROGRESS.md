@@ -54,7 +54,10 @@ key remain outside the repository.
 - Add deterministic coverage for each policy adapter's completion and failure
   lifecycle, including non-consuming recovery and harmless NPC inspection.
 - Improve multi-step objective decomposition and completion evidence for
-  inspection, recovery, and interaction objectives.
+  inspection, recovery, and interaction objectives. Single-action completion
+  now requires the action family named by character, room, inventory, NPC,
+  navigation, recovery, or equipment objectives; generic actions no longer
+  satisfy those bounded objectives.
 - Add mocked reconnect, interrupted-objective, denied-approval, and invalid
   command scenarios to the bounded harness tests.
 - Structured high-risk actions now use a dedicated action payload in approval

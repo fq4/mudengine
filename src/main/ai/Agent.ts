@@ -313,6 +313,11 @@ export class AutonomousAgent {
     const objective = this.state.objective.toLowerCase();
     if (/\b(navigate|travel|go to|walk to|explore)\b/.test(objective))
       return action === 'navigate_to';
+    if (/\b(npc|non[- ]player|townsperson|villager)\b/.test(objective))
+      return action === 'inspect_npc' || action === 'engage_enemy';
+    if (/\b(inventory|backpack|pack)\b/.test(objective)) return action === 'inspect_inventory';
+    if (/\b(character|status|stats?)\b/.test(objective)) return action === 'inspect_character';
+    if (/\b(room|location|area)\b/.test(objective)) return action === 'inspect_room';
     if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(objective))
       return action === 'manage_equipment';
     if (/\b(recover|health|heal|rest)\b/.test(objective)) return action === 'recover_health';
