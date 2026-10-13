@@ -4,6 +4,21 @@ import type { AiProvider } from '../../../shared/ai';
 
 const observation = { character: { hp: 10 }, room: { id: 1 }, availableActions: ['inspect_character'] as const };
 describe('AutonomousAgent', () => {
+  it.each(['pause', 'stop', 'redirect'] as const)('discards a late provider response after %s', async (control) => {
+    let release!: (value: unknown) => void;
+    const decide = vi.fn().mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const provider: AiProvider = { decide, usage: () => ({ requests: 1, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const execute = vi.fn();
+    const agent = new AutonomousAgent(provider, { execute });
+    agent.enable('old objective');
+    const pending = agent.tick(observation);
+    if (control === 'redirect') agent.enable('new objective'); else agent[control]();
+    release({ objective: 'old objective', explanation: 'go', action: { name: 'navigate_to', reason: 'old objective' } });
+    expect(await pending).toBeNull();
+    expect(execute).not.toHaveBeenCalled();
+    expect(agent.state.status).toBe(control === 'pause' ? 'paused' : control === 'stop' ? 'disabled' : 'idle');
+    expect(agent.state.objective).toBe(control === 'redirect' ? 'new objective' : 'old objective');
+  });
   it('suppresses unchanged observations and executes validated decisions', async () => {
     const decide = vi.fn().mockResolvedValue({ objective: 'survive', explanation: 'Inspect first', action: { name: 'inspect_character', reason: 'safety' } });
     const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };

@@ -11,7 +11,7 @@ export class AutonomousAgent {
   constructor(private readonly provider: AiProvider, private readonly executor: AiExecutor, private readonly budget = new AiBudget(), initial?: Partial<AiState>) {
     this.state = { enabled: false, status: 'disabled', objective: '', objectiveComplete: false, activity: '', explanation: '', lastActionResult: '', memories: [], recent: [], usage: provider.usage(), model: 'openrouter', consecutiveFailures: 0, currentAction: null, pendingApprovals: [], approvalHistory: [], ...initial };
   }
-  enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; this.state.objectiveComplete = false; this.state.consecutiveFailures = 0; this.lastFailedAction = ''; }
+  enable(objective = this.state.objective): void { this.aborter?.abort(); this.state.lastObservationHash = undefined; this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; this.state.objectiveComplete = false; this.state.consecutiveFailures = 0; this.lastFailedAction = ''; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
   stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; if (this.state.currentAction && ['requested', 'accepted', 'executing'].includes(this.state.currentAction.phase)) this.state.currentAction = { ...this.state.currentAction, phase: 'interrupted', message: 'AI action interrupted' }; }
   setDelegatedOperationActive(check: (action: AiActionName) => boolean): void { this.delegatedOperationActive = check; }
@@ -45,12 +45,15 @@ export class AutonomousAgent {
     if (!budget.ok) { this.state.status = 'budget-paused'; this.state.budgetResetAt = budget.resetAt; this.state.lastActionResult = `Budget Paused: ${budget.reason}`; return null; }
     this.state.budgetResetAt = undefined;
     this.state.lastObservationHash = hash; this.state.status = 'thinking'; this.aborter = new AbortController(); this.ticking = true;
+    const controller = this.aborter;
     this.budget.noteRequest();
     try {
-      const decision = await this.provider.decide(observation, this.state.objective, this.aborter.signal);
+      const decision = await this.provider.decide(observation, this.state.objective, controller.signal);
+      if (controller.signal.aborted) { this.state.usage = this.provider.usage(); return null; }
       this.state.activity = decision.action.name; this.state.explanation = decision.explanation; this.state.status = 'executing'; this.state.currentAction = { name: decision.action.name, phase: 'requested', message: 'Action requested' }; this.remember('note', decision.explanation);
       this.state.currentAction = { ...this.state.currentAction!, phase: 'executing', message: 'Executing through MudEngine capability' };
       const result = await this.executor.execute(decision.action);
+      if (controller.signal.aborted) { this.state.usage = this.provider.usage(); return null; }
       if (result.pendingApproval) {
         this.remember('note', result.message);
         this.state.currentAction = { name: decision.action.name, phase: 'requested', message: result.message };
@@ -64,7 +67,7 @@ export class AutonomousAgent {
       if (result.ok && decision.done === true && phase === 'completed') { this.state.objectiveComplete = true; this.state.activity = 'objective_complete'; this.state.explanation = 'Objective completed; waiting for a new objective.'; this.state.enabled = false; }
       return decision;
     } catch (error) {
-      if (this.aborter?.signal.aborted) { this.state.status = this.state.enabled ? 'paused' : 'disabled'; return null; }
+      if (controller.signal.aborted) { this.state.usage = this.provider.usage(); return null; }
       this.state.status = 'error'; this.state.consecutiveFailures++; this.remember('failure', error instanceof Error ? error.message : String(error)); this.state.usage = this.provider.usage(); return null;
     }
     finally { this.aborter = null; this.ticking = false; }
