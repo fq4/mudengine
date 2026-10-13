@@ -3303,7 +3303,7 @@ export class SessionManager {
     if (typeof candidate.name !== 'string' || typeof candidate.reason !== 'string') return { ok: false, message: 'Invalid AI action' };
     return this.executeAiAction(candidate as AiAction);
   }
-  private async executeAiAction(action: AiAction): Promise<{ ok: boolean; message: string }> {
+  private async executeAiAction(action: AiAction): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }> {
     if (action.name === 'inspect_character' || action.name === 'inspect_room' || action.name === 'inspect_inventory' || action.name === 'inspect_map' || action.name === 'inspect_combat_result') return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
     if (action.name === 'recover_health') return { ok: this.queue.enqueue({ command: 'rest', priority: 'emergency', reason: `AI: ${action.reason}` }), message: 'Recovery delegated to CommandQueue' };
     if (action.name === 'manage_equipment') {
@@ -3342,7 +3342,7 @@ export class SessionManager {
       const command = typeof action.args?.command === 'string' ? action.args.command.trim() : '';
       const classification = classifyCommand(command);
       if (classification.authorization === 'rejected') return { ok: false, message: `Refused: ${classification.reason}` };
-      if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command)) { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); return { ok: false, message: `Approval required (${approval.id}): ${classification.reason}` }; }
+      if (classification.authorization === 'ask-first' && !this.aiApprovals.allows(command)) { const approval = this.aiApprovals.request(command, action.reason, classification.risk === 'high' ? 'high' : 'unknown', JSON.stringify({ room: this.tracker.current.room, target: this.tracker.current.combat.target })); return { ok: false, pendingApproval: true, message: `Approval required (${approval.id}): ${classification.reason}` }; }
       return { ok: this.queue.enqueue({ command, priority: 'user', reason: `AI: ${action.reason}` }), message: 'Command delegated to CommandQueue' };
     }
     return { ok: false, message: `Action ${action.name} requires a route or deterministic adapter` };

@@ -74,4 +74,18 @@ describe('AutonomousAgent', () => {
     await agent.tick(observation);
     expect(agent.state.objectiveComplete).toBe(false); expect(agent.state.currentAction?.phase).toBe('accepted');
   });
+
+  it('pauses only the pending action instead of treating Ask First as a failure', async () => {
+    const decide = vi.fn().mockResolvedValue({ objective: 'recover supplies', explanation: 'Buy supplies', action: { name: 'execute_supported_command', args: { command: 'buy potion' }, reason: 'recover supplies' } });
+    const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const execute = vi.fn().mockResolvedValue({ ok: false, pendingApproval: true, message: 'Approval required (a): spending requires approval' });
+    const agent = new AutonomousAgent(provider, { execute });
+    agent.enable('recover supplies');
+    await agent.tick(observation);
+    expect(agent.state.status).toBe('paused');
+    expect(agent.state.consecutiveFailures).toBe(0);
+    expect(agent.state.currentAction).toMatchObject({ phase: 'requested' });
+    await agent.tick({ ...observation, room: { id: 2 } });
+    expect(decide).toHaveBeenCalledTimes(1);
+  });
 });
