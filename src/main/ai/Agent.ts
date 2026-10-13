@@ -13,7 +13,7 @@ export class AutonomousAgent {
   }
   enable(objective = this.state.objective): void { this.state.enabled = true; this.state.status = 'idle'; this.state.objective = objective; this.state.objectiveComplete = false; this.state.consecutiveFailures = 0; this.lastFailedAction = ''; }
   pause(): void { this.aborter?.abort(); this.state.status = this.state.enabled ? 'paused' : 'disabled'; }
-  stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; }
+  stop(): void { this.aborter?.abort(); this.state.enabled = false; this.state.status = 'disabled'; if (this.state.currentAction && ['requested', 'accepted', 'executing'].includes(this.state.currentAction.phase)) this.state.currentAction = { ...this.state.currentAction, phase: 'interrupted', message: 'AI action interrupted' }; }
   setDelegatedOperationActive(check: (action: AiActionName) => boolean): void { this.delegatedOperationActive = check; }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
     if (!this.state.enabled || this.state.status === 'paused' || this.state.objectiveComplete === true || !this.state.objective) return null;

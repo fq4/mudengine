@@ -53,6 +53,12 @@ describe('AutonomousAgent', () => {
     await agent.tick(observation); await agent.tick({ ...observation, room: { id: 2 } });
     expect(decide).toHaveBeenCalledTimes(1); expect(agent.state.objectiveComplete).toBe(true); expect(agent.state.enabled).toBe(false);
   });
+  it('marks an accepted delegated action interrupted when stopped', async () => {
+    const provider: AiProvider = { decide: vi.fn().mockResolvedValue({ objective: 'travel', explanation: 'go', action: { name: 'navigate_to', reason: 'travel' } }), usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
+    const agent = new AutonomousAgent(provider, { execute: vi.fn().mockResolvedValue({ ok: true, message: 'accepted' }) }); agent.enable('travel');
+    await agent.tick(observation); agent.stop();
+    expect(agent.state.currentAction?.phase).toBe('interrupted');
+  });
   it('does not mark a delegated objective complete on queue acceptance', async () => {
     const decide = vi.fn().mockResolvedValue({ objective: 'travel', explanation: 'arrive', done: true, action: { name: 'navigate_to', reason: 'travel' } });
     const provider: AiProvider = { decide, usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }) };
