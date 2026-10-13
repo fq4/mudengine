@@ -195,7 +195,7 @@ describe('AI policy persistence', () => {
     expect(global.aiPolicy.commands['inspect altar']).toBe('ask-first');
     expect(editor.saveProfile('Vaelor', draft())).toEqual({ ok: true });
     expect(editor.saveAiPolicy('profile', 'Vaelor', 'inspect altar', 'autonomous')).toEqual({ ok: true });
-    expect(read('Vaelor').aiPolicy.commands['inspect altar']).toBe('autonomous');
+    expect((read('Vaelor').aiPolicy as { commands: Record<string, string> }).commands['inspect altar']).toBe('autonomous');
     expect(editor.saveAiPolicy('profile', 'Vaelor', 'inspect altar', null)).toEqual({ ok: true });
     expect(read('Vaelor').aiPolicy).toBeUndefined();
   });
