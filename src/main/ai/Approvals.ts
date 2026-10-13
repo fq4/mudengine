@@ -13,6 +13,12 @@ export class ApprovalStore {
   expire(now = Date.now()): void { this.expireAll(now); }
   approve(id: string, contextHash: string): AiApproval | null { const item = this.pending.find((candidate) => candidate.id === id); if (!item || item.expiresAt <= Date.now()) { if (item) this.finish(item, 'expired'); return null; } if (item.contextHash !== contextHash) { this.finish(item, 'expired'); return null; } this.finish(item, 'approved'); return item; }
   reject(id: string): AiApproval | null { const item = this.pending.find((candidate) => candidate.id === id); if (!item) return null; this.finish(item, 'rejected'); return item; }
+  markExecuted(id: string): boolean {
+    const item = this.history.find((candidate) => candidate.id === id && candidate.status === 'approved');
+    if (!item) return false;
+    item.status = 'executed';
+    return true;
+  }
   grant(command: string, contextHash: string, durationMs: number, maxUses: number | null = 1, now = Date.now()): AiTemporaryGrant {
     this.expireAll(now);
     const existing = this.grants.find((item) => item.command === command && item.contextHash === contextHash && item.status === 'active' && item.expiresAt > now);

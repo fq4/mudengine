@@ -6,6 +6,7 @@ describe('ApprovalStore', () => {
     expect(same.id).toBe(first.id); expect(store.snapshot().pending).toHaveLength(1); store.expire(now + 121001); expect(store.snapshot().history[0]?.status).toBe('expired');
   });
   it('approves one exact pending action only for the same state', () => { const store = new ApprovalStore(); const item = store.request('open vault', 'inspect', 'high', 'state'); expect(store.approve(item.id, 'changed')).toBeNull(); const next = store.request('open vault', 'inspect', 'high', 'state'); expect(store.approve(next.id, 'state')?.status).toBe('approved'); expect(store.snapshot().pending).toHaveLength(0); });
+  it('records execution separately after an approved action is accepted', () => { const store = new ApprovalStore(); const item = store.request('open vault', 'inspect', 'high', 'state'); store.approve(item.id, 'state'); expect(store.markExecuted(item.id)).toBe(true); expect(store.snapshot().history.at(-1)?.status).toBe('executed'); });
   it('limits a temporary authorization to the exact command and use count', () => {
     const store = new ApprovalStore(); const now = Date.now();
     store.grant('buy potion', 'state-a', 60_000, 2, now);
