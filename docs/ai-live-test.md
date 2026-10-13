@@ -206,3 +206,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - The extracted projection helper was revalidated against the live server;
   all eight scenarios passed with zero violations and inspection used 1,694
   input tokens.
+- Production build and both typechecks passed. Repository lint remains the
+  existing Prettier baseline issue, now reporting 616 files including the new
+  helper; no broad formatting rewrite was applied.
