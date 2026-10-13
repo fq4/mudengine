@@ -61,11 +61,20 @@ export function validateDecision(value: unknown): AiDecision {
   if (typeof v.objective !== 'string' || typeof v.explanation !== 'string' || !action || typeof action !== 'object')
     throw new Error('AI response requires objective, explanation and action');
   const a = action as Record<string, unknown>;
-  if (!AI_ACTIONS.includes(a.name as AiActionName) || typeof a.reason !== 'string')
-    throw new Error('AI response contains an unsupported action');
+  const aliases: Record<string, AiActionName> = {
+    look: 'inspect_room',
+    inspect: 'inspect_room',
+    room_info: 'inspect_room',
+    status: 'inspect_character',
+    check_status: 'inspect_character',
+    score: 'inspect_character'
+  };
+  const actionName = typeof a.name === 'string' ? (aliases[a.name.toLowerCase()] ?? a.name) : a.name;
+  if (!AI_ACTIONS.includes(actionName as AiActionName) || typeof a.reason !== 'string')
+    throw new Error(`AI response contains an unsupported action: ${String(a.name)}`);
   if (a.args !== undefined && (!a.args || typeof a.args !== 'object' || Array.isArray(a.args)))
     throw new Error('AI action args must be an object');
-  return { objective: v.objective, explanation: v.explanation, action: { name: a.name as AiActionName, reason: a.reason, args: a.args as Record<string, unknown> | undefined }, done: v.done === true };
+  return { objective: v.objective, explanation: v.explanation, action: { name: actionName as AiActionName, reason: a.reason, args: a.args as Record<string, unknown> | undefined }, done: v.done === true };
 }
 
 export function observationHash(observation: AiObservation): string {

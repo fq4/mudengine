@@ -30,6 +30,13 @@ describe('OpenRouterProvider', () => {
     expect(request.messages[0]?.content).toContain('For an unknown informational command, use execute_supported_command');
     expect(request.messages[0]?.content).toContain('Never invent an action name');
   });
+  it('normalizes safe inspection aliases but rejects unknown actions', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'inspect', explanation: 'look', action: { name: 'look', reason: 'inspect room' }, done: true }) } }] }), { status: 200 }));
+    const decision = await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['inspect_room'] }, 'inspect the room');
+    expect(decision.action.name).toBe('inspect_room');
+    fetch.mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'x', action: { name: 'dance', reason: 'x' } }) } }] }), { status: 200 }));
+    await expect(new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: [] }, 'x')).rejects.toThrow('dance');
+  });
   it('reports provider connectivity without exposing credentials', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const result = await new OpenRouterProvider({ apiKey: 'secret', model: 'test/model' }).testConnection();
