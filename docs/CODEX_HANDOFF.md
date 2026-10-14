@@ -3,10 +3,11 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `2f1b801` (`Cover safe AI command queue execution`)
-- Working tree: clean at handoff
+- Latest commit: `9d8f35f` (`Document final Phase 3 validation`)
+- Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
-- Phase 2 development is not started.
+- Phase 3 bounded autonomous gameplay work is implemented and verified on
+  `development`. Phase 2 safety boundaries remain authoritative.
 
 ## Project and architecture
 
@@ -25,6 +26,8 @@ MudEngine is a cross-platform Electron/Vite client, terminal, parser, world mode
 - One provider-neutral agent per connected session and active character.
 - OpenRouter integration with structured response validation, diagnostics, cancellation, bounded retry, usage, and estimated cost tracking.
 - One high-level validated action at a time, delegated to existing systems.
+- Ordered bounded multi-step objective plans with prerequisite enforcement,
+  progress states, same-observation reassessment, and completion guards.
 - Exact-destination and bounded multi-room navigation through `WorldGraph`/`Walker`, with verified arrival and lifecycle states.
 - Objective completion guards, meaningful-event gating, compact observations, and objective-scoped capability advertisement.
 - Session approvals with expiry, state invalidation, history, rejection/expiration feedback, emergency stop, layered permissions, and hard/aggregate budgets.
@@ -41,11 +44,17 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
-- AI suite: 83 tests passed.
+- AI suite and planner regressions pass, including ordered-plan and
+  same-observation reassessment coverage.
 - SessionManager suite: 248 tests passed.
 - Node/web typechecks passed.
 - Production Electron build passed; the existing large-renderer-chunk warning remains.
-- Bounded `kefka` harness passed all eight scenarios with zero violations: inspection, one/two-room navigation, invalid destination, unknown-command approval, manual interruption, budget enforcement, and emergency stop.
+- Bounded `kefka` harness passed all ten scenarios with zero violations:
+  multi-step inspection, inventory inspection, conditional NPC inspection,
+  one/two-room navigation, invalid destination, unknown-command approval,
+  manual interruption, budget enforcement, and emergency stop.
+- Final full validation passed 250 test files (6,920 tests passed, 2 skipped),
+  realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
 - `npm run lint` currently fails the repository-wide pre-existing Prettier baseline. Do not perform a broad formatter rewrite as handoff work.
 
@@ -57,7 +66,9 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
 2. Define an explicit action-to-policy mapping before hiding named capabilities by policy.
 3. Improve general-command completion feedback beyond queue acceptance while preserving CommandQueue ownership.
 4. Investigate the concurrent migration-test temporary-home race.
-5. Do not begin Phase 2 feature development until this handoff is accepted.
+5. Phase 3 is complete for the approved safe capability scope. Keep live use
+   bounded to the harness safety rules; future scope expansion requires a new
+   review and explicit authorization.
 
 ## Setup on another computer
 
