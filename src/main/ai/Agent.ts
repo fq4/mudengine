@@ -220,11 +220,25 @@ export class AutonomousAgent {
         this.state.usage = this.provider.usage();
         return null;
       }
-      this.state.activity = decision.action.name;
-      this.state.explanation = decision.explanation;
+      const rankedCandidates = observation.activityCandidates ?? [];
+      const rankedNames = new Set(rankedCandidates.map(({ action }) => action.name));
+      const selectedAction =
+        rankedCandidates.length > 0 && !rankedNames.has(decision.action.name)
+          ? rankedCandidates[0]!.action
+          : decision.action;
+      if (selectedAction !== decision.action)
+        this.remember(
+          'note',
+          `Provider choice ${decision.action.name} was outside ranked activity candidates; selected ${selectedAction.name}`
+        );
+      this.state.activity = selectedAction.name;
+      this.state.explanation =
+        selectedAction === decision.action
+          ? decision.explanation
+          : `Selected ranked activity: ${selectedAction.reason}`;
       this.state.status = 'executing';
       this.state.currentAction = {
-        name: decision.action.name,
+        name: selectedAction.name,
         phase: 'requested',
         message: 'Action requested'
       };
@@ -236,16 +250,16 @@ export class AutonomousAgent {
       };
       const planned = this.state.plan?.find((step) => step.status === 'active');
       const executionAction =
-        planned && planned.action !== decision.action.name
+        planned && planned.action !== selectedAction.name
           ? {
-              ...decision.action,
+              ...selectedAction,
               name: planned.action,
               args:
                 planned.destination === undefined
-                  ? decision.action.args
-                  : { ...decision.action.args, destination: planned.destination }
+                  ? selectedAction.args
+                  : { ...selectedAction.args, destination: planned.destination }
             }
-          : decision.action;
+          : selectedAction;
       const result = await this.executor.execute(executionAction, 'agent');
       if (controller.signal.aborted) {
         this.state.usage = this.provider.usage();

@@ -35,15 +35,39 @@ export function selectActivity(state: CharacterState, goal = ''): ActivitySelect
     candidates.push(
       observe('manage_equipment', 70, 'the player goal requests equipment evaluation')
     );
-  if (/explore|room|surroundings|look/.test(lower))
+  if (/explore|room|area|surroundings|look|observe|assess/.test(lower))
     candidates.push(observe('inspect_room', 60, 'the player goal requests current surroundings'));
+  if (/\bexplore\b/.test(lower)) {
+    const exit = state.room.exits.find(
+      ({ targetMap, targetRoom, requirement }) =>
+        targetMap !== null && targetRoom !== null && requirement === null
+    );
+    if (exit)
+      candidates.push({
+        action: {
+          name: 'navigate_to',
+          args: {
+            destination:
+              exit.targetMap !== null && exit.targetRoom !== null
+                ? `${exit.targetMap}/${exit.targetRoom}`
+                : exit.direction
+          },
+          reason: 'An authoritative available exit supports bounded exploration'
+        },
+        priority: 70,
+        rationale: 'exploration can safely delegate one available exit to Walker'
+      });
+  }
   if (!goal.trim())
     candidates.push(observe('inspect_room', 10, 'observe the current room before choosing further work'));
   const mob = state.room.occupants.find(
     (occupant) =>
       occupant.kind === 'mob' && occupant.mob && !occupant.charmed && !occupant.uncertain
   );
-  if (/fight|combat|hunt|enemy/.test(lower) && mob)
+  const combatRequested =
+    /fight|combat|hunt|enemy/.test(lower) &&
+    !/(?:do not|don't|without|never)[^.!?]{0,40}\b(?:fight|combat|attack)\b/.test(lower);
+  if (combatRequested && mob)
     candidates.push({
       action: {
         name: 'engage_enemy',

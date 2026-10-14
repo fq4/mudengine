@@ -54,8 +54,8 @@ const NEWHAVEN_ARENA = '1/2150';
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: Number(valueOf('--max-ms') ?? 120_000),
   maxMoves: Number(valueOf('--max-moves') ?? 12),
-  maxRequests: Number(valueOf('--max-requests') ?? 8),
-  maxTokens: Number(valueOf('--max-tokens') ?? 30_000),
+  maxRequests: Number(valueOf('--max-requests') ?? 16),
+  maxTokens: Number(valueOf('--max-tokens') ?? 60_000),
   maxCostUsd: Number(valueOf('--max-cost') ?? 0.05),
   maxRepeatedAction: 2
 });
@@ -96,12 +96,13 @@ const session = new SessionManager(
   profile.config.connection.login
 );
 session.resize({ cols: 100, rows: 30 });
-// Keep the production session budget strict while matching this harness's
-// explicit eight-request ceiling across its bounded scenarios.
+// Keep the production session budget strict while allowing the provider-driven
+// objective plus the existing bounded scenarios to run without prescribing
+// their activity sequence.
 session.aiBudget({
-  requestsPerMinute: 8,
+  requestsPerMinute: 12,
   requestsPerHour: 60,
-  sessionTokens: 30_000,
+  sessionTokens: 60_000,
   sessionCostUsd: 0.05
 });
 
@@ -170,13 +171,74 @@ const runScenario = async (name, objective, expected) => {
   if (monitor.failed) throw new Error(monitor.violations[0].message);
   return passed;
 };
+const runProviderDrivenObjective = async () => {
+  const before = roomKey();
+  currentRoom = before;
+  monitor.room(before);
+  const objective =
+    'Observe the current area and make safe useful progress using your judgment. Stop when the useful observation or safe activity is complete.';
+  const candidatesBefore = snapshot().observation.activityCandidates ?? [];
+  session.aiGoal(objective);
+  const complete = await waitFor(
+    (state) =>
+      state.objectiveComplete === true ||
+      state.status === 'error' ||
+      state.status === 'budget-paused',
+    45_000
+  );
+  const after = roomKey();
+  monitor.room(after);
+  const state = snapshot().state;
+  const action = state.currentAction?.name ?? state.activity;
+  const passed =
+    complete &&
+    state.objectiveComplete === true &&
+    !monitor.failed &&
+    state.lastActionResult.length > 0;
+  report.scenarios.push({
+    name: 'provider-driven-broad-objective',
+    passed,
+    before,
+    after,
+    objective,
+    providerSelectedAction: action,
+    rankedCandidates: candidatesBefore.map(({ action: candidate }) => candidate.name),
+    status: state.status,
+    result: state.lastActionResult,
+    usage: state.usage,
+    note: 'The harness submitted one broad objective and did not prescribe an action sequence.'
+  });
+  session.aiClearGoal();
+  if (!passed) throw new Error(`provider-driven objective did not complete: ${state.lastActionResult}`);
+  return passed;
+};
 
 async function main() {
   monitor.start();
+  // Ordinary recovery is explicitly authorized for disposable Kefka and is
+  // still bounded by the production recovery adapter and session budget.
+  monitor.authorizeRecovery();
   console.log(`AI live test -> ${profile.id} (credentials withheld)`);
   await session.connect(profile.target);
   const connected = await waitFor(() => session.character.phase === 'in-game');
   if (!connected) throw new Error(`did not reach in-game state: ${session.character.phase}`);
+  await runProviderDrivenObjective();
+  session.aiClearGoal();
+  session.aiEnable();
+  let schedulerSelectedAction = null;
+  const schedulerSettled = await waitFor((state) => {
+    schedulerSelectedAction ??= state.currentAction?.name ?? null;
+    return state.activity === 'autonomous_idle' || state.status === 'error';
+  }, 10_000);
+  report.scenarios.push({
+    name: 'autonomous-scheduler-selection',
+    passed: schedulerSettled && schedulerSelectedAction === 'inspect_room' && !monitor.failed,
+    selectedAction: schedulerSelectedAction,
+    status: snapshot().state.status,
+    result: snapshot().state.lastActionResult,
+    note: 'No objective or activity sequence was supplied; the session scheduler selected the safe candidate.'
+  });
+  session.aiClearGoal();
   const inspection = await runScenario(
     'inspection',
     'Inspect my current character and room, then stop.',

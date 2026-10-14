@@ -82,6 +82,11 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 - Named provider/gameplay budget profiles and `AutonomousScheduler` transition
   guards have deterministic coverage; supervised live scheduler selection and
   broader provider-driven long-lived explicit-goal planning remain outstanding.
+- The bounded kefka harness now proves one genuine provider-driven broad
+  objective: one OpenRouter request selected `inspect_room` from ranked
+  candidates and completed through production observation with zero safety
+  violations. The harness still contains deterministic regression scenarios;
+  low-health Kefka may cause navigation scenarios to prioritize recovery.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 

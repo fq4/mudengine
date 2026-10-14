@@ -33,7 +33,10 @@ export function buildObjectivePlan(objective: string): ObjectiveStep[] {
     add('inspect_room', 'Discover visible NPCs');
   if (/\b(npc|non[- ]player|townsperson|villager)\b/.test(lower))
     add('inspect_npc', 'Inspect a visible NPC');
-  if (/\b(fight|combat|attack|engage)\b/.test(lower)) {
+  const combatRequested =
+    /\b(fight|combat|attack|engage)\b/.test(lower) &&
+    !/(?:do not|don't|without|never)[^.!?]{0,40}\b(?:fight|combat|attack)\b/.test(lower);
+  if (combatRequested) {
     add('engage_enemy', 'Engage a verified PvE target');
     add('inspect_combat_result', 'Assess the combat result');
   }
@@ -45,15 +48,15 @@ export function buildObjectivePlan(objective: string): ObjectiveStep[] {
   const order = (step: ObjectiveStep): number => {
     // Combat must never outrun authoritative target inspection, even when
     // the prose mentions engagement before the NPC noun.
-    if (step.action === 'inspect_npc' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+    if (step.action === 'inspect_npc' && combatRequested)
       return 100;
-    if (step.action === 'engage_enemy' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+    if (step.action === 'engage_enemy' && combatRequested)
       return 110;
-    if (step.action === 'inspect_combat_result' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+    if (step.action === 'inspect_combat_result' && combatRequested)
       return 120;
-    if (step.action === 'recover_health' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+    if (step.action === 'recover_health' && combatRequested)
       return 130;
-    if (step.action === 'manage_equipment' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+    if (step.action === 'manage_equipment' && combatRequested)
       return 140;
     const terms: Record<AiActionName, RegExp> = {
       inspect_inventory: /inventory|backpack|pack/i,

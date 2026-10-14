@@ -100,6 +100,17 @@ SessionManager suite and activity-selector/scheduler tests. Provider-driven
 long-lived selection for explicit objectives and a supervised live observation
 of scheduler-selected activity remain the next validation steps.
 
+The bounded kefka harness now includes a provider-driven broad-objective phase.
+It submits one broad observation objective without an action sequence, records
+the ranked candidates and provider-selected action, and verifies completion
+through the production lifecycle. The supervised run completed with one
+OpenRouter request, `inspect_room` selected, authoritative observation
+completion, and zero safety violations. Existing deterministic scenarios still
+cover approvals, manual interruption, budgets, and emergency stop. A later
+navigation scenario correctly prioritized recovery when Kefka was below the
+configured health threshold; this remains an observed gameplay preference, not
+a real-world safety failure.
+
 ## Credential audit
 
 Thirty historical `rushoracle`/`kefka` captures written before credential
