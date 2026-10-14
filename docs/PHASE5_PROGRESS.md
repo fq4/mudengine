@@ -98,7 +98,10 @@ failures and is interrupted by stop, emergency stop, or a new explicit goal.
 Recent deterministic integration work tightened the scheduler restart path: the
 session objective-clear/stop/emergency-stop paths now reset scheduler state so
 empty objective mode can resume cleanly without carrying stale completion or
-last-observation markers into the next autonomous cycle.
+last-observation markers into the next autonomous cycle. The full autonomous
+scheduler lifecycle is now exercised deterministically across repeated
+transitions, interrupted objectives, failed activities, stale observations, and
+recovery after an explicit goal is cleared.
 
 The session integration has focused offline coverage through the existing
 SessionManager suite and activity-selector/scheduler tests. Provider-driven

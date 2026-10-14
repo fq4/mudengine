@@ -42,4 +42,18 @@ describe('AutonomousScheduler', () => {
     expect(scheduler.state.completed).toEqual([]);
     expect(scheduler.state.lastObservation).toBeNull();
   });
+
+  it('supports a full transition cycle across repeated authoritative observations', () => {
+    const scheduler = new AutonomousScheduler(2);
+    expect(scheduler.choose(candidates, 'initial-room')).toBeDefined();
+    scheduler.finish(true, 'room-observed');
+    expect(scheduler.choose(candidates, 'inventory-needed')?.name).toBe('inspect_inventory');
+    scheduler.finish(false, 'inventory-failed');
+    expect(scheduler.state.status).toBe('idle');
+    expect(scheduler.choose(candidates, 'inventory-needed-again')?.name).toBe('inspect_inventory');
+    scheduler.finish(true, 'inventory-recovered');
+    expect(scheduler.state.status).toBe('idle');
+    expect(scheduler.choose(candidates, 'fresh-observation')).toBeNull();
+    expect(scheduler.state.status).toBe('completed');
+  });
 });
