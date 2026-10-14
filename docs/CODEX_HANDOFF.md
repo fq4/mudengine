@@ -3,11 +3,12 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `26def05` (`Extend bounded live verification through recovery and equipment`)
+- Latest commit: `6a95e22` (`Refresh Phase 4 handoff state`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
-- Phase 3 bounded autonomous gameplay work is implemented and verified on
-  `development`. Phase 2 safety boundaries remain authoritative.
+- Phase 4 implementation and bounded live verification are complete on
+  `development`; Phase 5 work is tracked in `docs/PHASE5_PROGRESS.md`. Phase 2
+  safety boundaries remain authoritative.
 
 ## Project and architecture
 
@@ -43,7 +44,7 @@ MudEngine is a cross-platform Electron/Vite client, terminal, parser, world mode
 
 ## Safety boundaries
 
-Manual input always wins. AI must not bypass `CommandQueue`, permissions, approvals, budgets, or emergency stop. Live `kefka` testing is restricted to observation and safe navigation.
+Manual input always wins. AI must not bypass `CommandQueue`, permissions, approvals, budgets, or emergency stop. Live `kefka` testing is bounded; combat requires fresh authoritative target, health, escape, and budget checks.
 
 Do not enable unattended live testing for combat, PvP, social interaction, equipment changes, item use, spending, destructive/irreversible actions, private-data handling, or unclassified commands. Never disable TLS verification or commit credentials.
 
@@ -62,9 +63,12 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
 - `npm run lint` currently fails the repository-wide pre-existing Prettier baseline. Do not perform a broad formatter rewrite as handoff work.
-- Phase 4 has started with deterministic PvE target classification; no live
-  combat or item consumption has been attempted. The bounded kefka harness has
-  passed 12 scenarios with zero violations, including both refusal gates.
+- Phase 4 arena combat integration has been live-verified. The latest encounter
+  ended without authoritative victory evidence; the harness reports `ended`
+  unless `user-gain-experience` is observed. Recovery was skipped at full HP,
+  then inventory inspection and EquipmentManager evaluation completed safely.
+- Phase 5 objective selection is not yet autonomous; the current harness uses
+  deterministic bounded choices. See `docs/PHASE5_PROGRESS.md`.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 
