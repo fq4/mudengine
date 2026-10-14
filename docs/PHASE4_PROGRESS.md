@@ -24,6 +24,11 @@ through `CommandQueue`; the canonical policy keeps it approval-gated until a
 specific ordinary item is verified safe for supervised live use. Unknown item
 names never reach the wire.
 
+Inventory preflight now also requires realm identity, rejects equipped or
+depleted items, and refuses protected items. This keeps organization and use
+decisions grounded in the authoritative carried listing rather than names
+alone.
+
 Combat objectives now decompose into room discovery, NPC inspection, verified
 PvE engagement, combat-result assessment, and recovery steps. The planner
 cannot mark a combat objective complete from inspection alone.
@@ -50,6 +55,8 @@ recovery or stop safely.
 - Agent regressions cover reactivation after a changed observation and prevent
   retries on an unchanged state.
 - Combat-outcome regressions cover active, ended, unsafe, and unknown states.
+- Inventory-safety regressions cover exact matching, identity, equipped,
+  depleted, and protected-item refusals.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape

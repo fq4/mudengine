@@ -3,6 +3,7 @@ import type { RoomOccupant } from '../../../shared/character';
 import { findSafeCombatNpc, findSafeNpc } from '../NpcDiscovery';
 import { assessCombatEligibility } from '../CombatSafety';
 import { combatOutcome } from '../CombatOutcome';
+import { assessItemUse } from '../InventorySafety';
 
 const occupant = (
   name: string,
@@ -67,5 +68,19 @@ describe('safe NPC discovery', () => {
     expect(combatOutcome({ engaged: true, target: null }, { hp: null, hpMax: null })).toBe(
       'unknown'
     );
+  });
+
+  it('requires identified, carried, usable items', () => {
+    const base = {
+      name: 'ration',
+      source: 'wire' as const,
+      slot: null,
+      equipped: false,
+      charges: 2
+    };
+    expect(assessItemUse([base], 'ration').ok).toBe(false);
+    expect(assessItemUse([{ ...base, id: 4 }], 'ration').ok).toBe(true);
+    expect(assessItemUse([{ ...base, id: 4, equipped: true }], 'ration').ok).toBe(false);
+    expect(assessItemUse([{ ...base, id: 4, charges: 0 }], 'ration').ok).toBe(false);
   });
 });

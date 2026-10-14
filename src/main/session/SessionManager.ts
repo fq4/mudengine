@@ -103,6 +103,7 @@ import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
 import { findSafeNpc } from '../ai/NpcDiscovery';
 import { assessCombatEligibility } from '../ai/CombatSafety';
 import { combatOutcome } from '../ai/CombatOutcome';
+import { assessItemUse } from '../ai/InventorySafety';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
@@ -3742,14 +3743,9 @@ export class SessionManager {
     }
     if (action.name === 'use_item') {
       const name = typeof action.args?.name === 'string' ? action.args.name.trim() : '';
-      const item = this.tracker.current.inventory.items.find(
-        (carried) => carried.name.toLowerCase() === name.toLowerCase()
-      );
-      if (!item)
-        return {
-          ok: false,
-          message: 'Refused: item is not present in the authoritative inventory'
-        };
+      const eligibility = assessItemUse(this.tracker.current.inventory.items, name);
+      if (!eligibility.ok) return { ok: false, message: `Refused: ${eligibility.reason}` };
+      const item = eligibility.item;
       const queued = this.queue.enqueue({
         command: `use ${item.name}`,
         priority: 'user',
