@@ -3733,6 +3733,13 @@ export class SessionManager {
           message: 'Recovery delegated to CommandQueue'
         };
     if (action.name === 'manage_equipment') {
+      if (
+        !/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/i.test(this.aiAgent.state.objective)
+      )
+        return {
+          ok: false,
+          message: 'Refused: the objective does not request equipment management'
+        };
       this.aiEquipmentBaseline = JSON.stringify(this.tracker.current.inventory);
       this.gear.onCharacter(
         this.tracker.current,

@@ -34,6 +34,11 @@ boundary: a valid-looking action is refused unless the current objective
 explicitly requests PvE combat or item use. This protects both provider and
 direct action paths from capability drift.
 
+Equipment execution is now objective-scoped at the same boundary. Equipment
+changes are refused unless the current objective explicitly requests gear,
+armor, weapons, or wearing equipment, while the existing EquipmentManager
+continues to perform the deterministic adapter work after the guard passes.
+
 Combat objectives now decompose into room discovery, NPC inspection, verified
 PvE engagement, combat-result assessment, and recovery steps. The planner
 cannot mark a combat objective complete from inspection alone.
@@ -63,7 +68,8 @@ recovery or stop safely.
 - Inventory-safety regressions cover exact matching, identity, equipped,
   depleted, and protected-item refusals.
 - Objective-scoped execution remains covered by the existing policy and agent
-  regressions; typechecks pass after the executor guard.
+  regressions; connected SessionManager coverage includes the equipment guard
+  path; typechecks pass after the executor guard.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape
