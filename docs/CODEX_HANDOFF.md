@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `279523f` (`Expose fresh activity candidates to AI planning`)
+- Latest commit: `8490f63` (`Fix scheduler completion regression`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 4 implementation and bounded live verification are complete on
@@ -72,6 +72,9 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   strategically within the explicit player goal; execution remains delegated
   to production adapters. The bounded harness remains deterministic for live
   safety. See `docs/PHASE5_PROGRESS.md`.
+- Named provider/gameplay budget profiles and `AutonomousScheduler` transition
+  guards now have deterministic coverage; session wiring and provider-driven
+  long-lived live selection remain outstanding.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 
