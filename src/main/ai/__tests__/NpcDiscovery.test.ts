@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomOccupant } from '../../../shared/character';
-import { findSafeNpc } from '../NpcDiscovery';
+import { findSafeCombatNpc, findSafeNpc } from '../NpcDiscovery';
 
-const occupant = (name: string, kind: RoomOccupant['kind'], npc = false): RoomOccupant => ({
+const occupant = (
+  name: string,
+  kind: RoomOccupant['kind'],
+  npc = false,
+  combat = false,
+  overrides: Partial<RoomOccupant> = {}
+): RoomOccupant => ({
   name,
   kind,
   npc: npc ? ({ name } as RoomOccupant['npc']) : undefined,
@@ -13,7 +19,9 @@ const occupant = (name: string, kind: RoomOccupant['kind'], npc = false): RoomOc
   costly: 'never',
   charmed: false,
   hidden: false,
-  free: false
+  free: false,
+  ...overrides,
+  ...(combat ? { mob: { name } as RoomOccupant['mob'], disposition: 'hostile' } : {})
 });
 
 describe('safe NPC discovery', () => {
@@ -30,5 +38,16 @@ describe('safe NPC discovery', () => {
   });
   it('selects the first authoritative NPC when no preference is supplied', () => {
     expect(findSafeNpc([occupant('Merchant', 'unknown', true)])?.name).toBe('Merchant');
+  });
+
+  it('selects only an authoritative conservative hostile mob for PvE', () => {
+    expect(findSafeCombatNpc([occupant('Guard', 'unknown', true)])).toBeNull();
+    expect(findSafeCombatNpc([occupant('Rat', 'mob', false, true)])?.name).toBe('Rat');
+    expect(
+      findSafeCombatNpc([
+        occupant('Charmed rat', 'mob', false, true, { charmed: true }),
+        occupant('Good guardian', 'mob', false, true, { costly: 'always' })
+      ])
+    ).toBeNull();
   });
 });

@@ -34,6 +34,9 @@ MudEngine is a cross-platform Electron/Vite client, terminal, parser, world mode
 - Scoped persistent memory with provenance, confidence, verification, editing, and relevance retrieval.
 - Manual-input priority and reconnect/realm-leave identity cleanup.
 - Guarded adapters for combat, recovery, equipment, communication, and general-command fallback.
+- Phase 4 PvE target safety gate: engagement requires authoritative hostile mob
+  evidence and rejects players, unknowns, charmed mobs, passive targets, and
+  always-costly alignment targets before AutoCombat.
 - General-command safeguards: unknown commands require approval; known safe commands queue directly; empty, oversized, multiline, NUL-containing, and prohibited commands are refused.
 
 ## Safety boundaries
@@ -57,6 +60,8 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
 - `npm run lint` currently fails the repository-wide pre-existing Prettier baseline. Do not perform a broad formatter rewrite as handoff work.
+- Phase 4 has started with deterministic PvE target classification; no live
+  combat has been attempted.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 

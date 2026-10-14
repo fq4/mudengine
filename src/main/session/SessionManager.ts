@@ -100,7 +100,7 @@ import {
 } from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
 import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
-import { findSafeNpc } from '../ai/NpcDiscovery';
+import { findSafeCombatNpc, findSafeNpc } from '../ai/NpcDiscovery';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
@@ -3789,17 +3789,23 @@ export class SessionManager {
       const name = typeof action.args?.name === 'string' ? action.args.name : '';
       if (!name || name.startsWith('@'))
         return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
-      this.combat.alsoFight(name);
+      const target = findSafeCombatNpc(this.tracker.current.room.occupants, name);
+      if (!target)
+        return {
+          ok: false,
+          message: 'Refused: no authoritative conservative hostile NPC is visible'
+        };
+      this.combat.alsoFight(target.name);
       this.aiMemory?.upsert({
         category: 'strategy',
-        text: `Engage ordinary NPC ${name} through AutoCombat`,
+        text: `Engage ordinary NPC ${target.name} through AutoCombat`,
         provenance: 'AI capability delegation',
         confidence: 0.6,
         verified: false,
         expiresAt: Date.now() + 86_400_000,
         pinned: false
       });
-      return { ok: true, message: `Combat delegated to AutoCombat for ${name}` };
+      return { ok: true, message: `Combat delegated to AutoCombat for ${target.name}` };
     }
     if (action.name === 'navigate_to') {
       const raw = action.args?.destination;
