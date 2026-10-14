@@ -33,6 +33,10 @@ export function buildObjectivePlan(objective: string): ObjectiveStep[] {
     add('inspect_room', 'Discover visible NPCs');
   if (/\b(npc|non[- ]player|townsperson|villager)\b/.test(lower))
     add('inspect_npc', 'Inspect a visible NPC');
+  if (/\b(fight|combat|attack|engage)\b/.test(lower)) {
+    add('engage_enemy', 'Engage a verified PvE target');
+    add('inspect_combat_result', 'Assess the combat result');
+  }
   if (/\b(recover|health|heal|rest)\b/.test(lower))
     add('recover_health', 'Recover without consuming resources');
   if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(lower))

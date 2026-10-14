@@ -24,6 +24,10 @@ through `CommandQueue`; the canonical policy keeps it approval-gated until a
 specific ordinary item is verified safe for supervised live use. Unknown item
 names never reach the wire.
 
+Combat objectives now decompose into room discovery, NPC inspection, verified
+PvE engagement, combat-result assessment, and recovery steps. The planner
+cannot mark a combat objective complete from inspection alone.
+
 ## Verification
 
 - NPC discovery and action-policy regressions pass.
@@ -31,6 +35,8 @@ names never reach the wire.
   engagement adapter.
 - AI policy, planner, observation, typecheck, production build, and secret
   scan pass after adding the inventory action contract.
+- Planner regressions cover the complete discovery-to-combat-to-recovery
+  sequence without requiring a live server.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape

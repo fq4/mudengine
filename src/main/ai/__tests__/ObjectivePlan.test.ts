@@ -43,4 +43,15 @@ describe('bounded objective planning', () => {
     const plan = buildObjectivePlan('Find a non-player character here and inspect the NPC safely.');
     expect(plan.map((step) => step.action)).toEqual(['inspect_room', 'inspect_npc']);
   });
+
+  it('plans verified target inspection before controlled PvE and result review', () => {
+    const plan = buildObjectivePlan('Find an NPC, engage in combat, then recover health.');
+    expect(plan.map((step) => step.action)).toEqual([
+      'inspect_room',
+      'inspect_npc',
+      'engage_enemy',
+      'inspect_combat_result',
+      'recover_health'
+    ]);
+  });
 });
