@@ -29,6 +29,11 @@ depleted items, and refuses protected items. This keeps organization and use
 decisions grounded in the authoritative carried listing rather than names
 alone.
 
+Combat and item-use execution are now objective-scoped at the executor
+boundary: a valid-looking action is refused unless the current objective
+explicitly requests PvE combat or item use. This protects both provider and
+direct action paths from capability drift.
+
 Combat objectives now decompose into room discovery, NPC inspection, verified
 PvE engagement, combat-result assessment, and recovery steps. The planner
 cannot mark a combat objective complete from inspection alone.
@@ -57,6 +62,8 @@ recovery or stop safely.
 - Combat-outcome regressions cover active, ended, unsafe, and unknown states.
 - Inventory-safety regressions cover exact matching, identity, equipped,
   depleted, and protected-item refusals.
+- Objective-scoped execution remains covered by the existing policy and agent
+  regressions; typechecks pass after the executor guard.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape

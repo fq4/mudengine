@@ -3742,6 +3742,8 @@ export class SessionManager {
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
     if (action.name === 'use_item') {
+      if (!/\b(use|consume|drink|eat|quaff)\b/i.test(this.aiAgent.state.objective))
+        return { ok: false, message: 'Refused: the objective does not request item use' };
       const name = typeof action.args?.name === 'string' ? action.args.name.trim() : '';
       const eligibility = assessItemUse(this.tracker.current.inventory.items, name);
       if (!eligibility.ok) return { ok: false, message: `Refused: ${eligibility.reason}` };
@@ -3809,6 +3811,8 @@ export class SessionManager {
       };
     }
     if (action.name === 'engage_enemy') {
+      if (!/\b(fight|combat|attack|engage|enemy)\b/i.test(this.aiAgent.state.objective))
+        return { ok: false, message: 'Refused: the objective does not request PvE combat' };
       const name = typeof action.args?.name === 'string' ? action.args.name : '';
       if (!name || name.startsWith('@'))
         return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
