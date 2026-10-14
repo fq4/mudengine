@@ -25,6 +25,20 @@ describe('bounded objective planning', () => {
     expect(objectivePlanComplete(plan)).toBe(false);
   });
 
+  it('does not skip an active prerequisite when a later action is proposed', () => {
+    let plan = buildObjectivePlan('Navigate to 1/2 and inspect my inventory.');
+    plan[0]!.status = 'active';
+    plan = advanceObjectivePlan(plan, plan[1]!.action, true);
+    expect(plan.map((step) => step.status)).toEqual(['active', 'pending']);
+  });
+
+  it('does not activate later steps after a failed prerequisite', () => {
+    let plan = buildObjectivePlan('Navigate to 1/2 and inspect my inventory.');
+    plan[0]!.status = 'active';
+    plan = advanceObjectivePlan(plan, plan[0]!.action, false);
+    expect(plan.map((step) => step.status)).toEqual(['blocked', 'pending']);
+  });
+
   it('plans room discovery before inspecting a suitable NPC', () => {
     const plan = buildObjectivePlan('Find a non-player character here and inspect the NPC safely.');
     expect(plan.map((step) => step.action)).toEqual(['inspect_room', 'inspect_npc']);

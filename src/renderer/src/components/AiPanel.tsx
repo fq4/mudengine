@@ -60,7 +60,11 @@ export default function AiPanel({ session }: { session: SessionId }) {
         />
       </div>
       <div className="ai-panel-actions">
-        <button onClick={() => (goal.trim() ? run(api.aiGoal(session, goal.trim())) : run(api.aiEnable(session)))}>
+        <button
+          onClick={() =>
+            goal.trim() ? run(api.aiGoal(session, goal.trim())) : run(api.aiEnable(session))
+          }
+        >
           Start / Resume
         </button>
         <button onClick={() => run(api.aiPause(session))}>Pause</button>
@@ -89,6 +93,21 @@ export default function AiPanel({ session }: { session: SessionId }) {
           <code>{snapshot.state.currentAction.name}</code> · {snapshot.state.currentAction.phase}
           <br />
           <small>{snapshot.state.currentAction.message}</small>
+        </div>
+      )}
+      {(snapshot.state.plan ?? []).length > 0 && (
+        <div className="ai-panel-copy" aria-label="Objective plan">
+          <strong>Objective plan</strong>
+          <ol>
+            {snapshot.state.plan!.map((step) => (
+              <li key={step.id}>
+                <span className={`chip ${step.status === 'completed' ? 'on' : 'off'}`}>
+                  {step.status}
+                </span>{' '}
+                {step.label}
+              </li>
+            ))}
+          </ol>
         </div>
       )}
       {snapshot.state.status === 'budget-paused' && (

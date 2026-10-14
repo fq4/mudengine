@@ -20,11 +20,25 @@ emergency-stop paths remain authoritative.
   inventory, navigation, approval, interruption, budget, and emergency-stop
   checks passed with zero violations.
 
+## Current checkpoint
+
+The planner now enforces ordered prerequisites: a provider cannot complete a
+later pending step while an earlier step is active, and a failed prerequisite
+does not activate subsequent work. Synchronous observation steps trigger one
+bounded reassessment even when the compact wire observation is unchanged. The
+AI panel renders each planned step and its pending, active, completed, or
+blocked state.
+
+Deterministic regressions cover NPC selection, passive recovery classification,
+ordered planning, same-observation reassessment, interruption, budgets, and
+emergency stop. The live harness budget is explicitly aligned to its eight
+request ceiling.
+
 ## Next work
 
 - Add deterministic fixtures for NPC discovery/search and non-destructive NPC
   interaction without requiring a visible live NPC.
 - Add recovery fixtures distinguishing passive rest from resource-consuming
   actions and feed their outcomes into plan progress.
-- Expose plan progress in the AI panel and add bounded return-to-start live
-  coverage using only safe navigation and observation.
+- Add bounded return-to-start live coverage using only safe navigation and
+  observation.

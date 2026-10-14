@@ -88,6 +88,14 @@ const session = new SessionManager(
   profile.config.connection.login
 );
 session.resize({ cols: 100, rows: 30 });
+// Keep the production session budget strict while matching this harness's
+// explicit eight-request ceiling across its bounded scenarios.
+session.aiBudget({
+  requestsPerMinute: 8,
+  requestsPerHour: 60,
+  sessionTokens: 30_000,
+  sessionCostUsd: 0.05
+});
 
 const report = {
   profile: profile.id,

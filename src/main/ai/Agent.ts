@@ -214,7 +214,19 @@ export class AutonomousAgent {
         phase: 'executing',
         message: 'Executing through MudEngine capability'
       };
-      const result = await this.executor.execute(decision.action, 'agent');
+      const planned = this.state.plan?.find((step) => step.status === 'active');
+      const executionAction =
+        planned && planned.action !== decision.action.name
+          ? {
+              ...decision.action,
+              name: planned.action,
+              args:
+                planned.destination === undefined
+                  ? decision.action.args
+                  : { ...decision.action.args, destination: planned.destination }
+            }
+          : decision.action;
+      const result = await this.executor.execute(executionAction, 'agent');
       if (controller.signal.aborted) {
         this.state.usage = this.provider.usage();
         return null;
@@ -222,7 +234,7 @@ export class AutonomousAgent {
       if (result.pendingApproval) {
         this.remember('note', result.message);
         this.state.currentAction = {
-          name: decision.action.name,
+          name: executionAction.name,
           phase: 'requested',
           message: result.message
         };
@@ -232,11 +244,13 @@ export class AutonomousAgent {
         return decision;
       }
       this.remember(result.ok ? 'success' : 'failure', result.message);
+      const planBefore = JSON.stringify(this.state.plan ?? []);
       this.state.plan = advanceObjectivePlan(
         this.state.plan ?? [],
-        decision.action.name,
+        executionAction.name,
         result.ok
       );
+      const planAdvanced = planBefore !== JSON.stringify(this.state.plan);
       const delegated = new Set([
         'navigate_to',
         'engage_enemy',
@@ -244,15 +258,15 @@ export class AutonomousAgent {
         'manage_equipment'
       ]);
       const phase = result.ok
-        ? delegated.has(decision.action.name)
+        ? delegated.has(executionAction.name)
           ? 'accepted'
           : 'completed'
         : 'failed';
-      this.state.currentAction = { name: decision.action.name, phase, message: result.message };
+      this.state.currentAction = { name: executionAction.name, phase, message: result.message };
       this.state.lastActionResult = result.message;
       if (!result.ok) {
         this.state.consecutiveFailures += 1;
-        this.lastFailedAction = JSON.stringify(decision.action);
+        this.lastFailedAction = JSON.stringify(executionAction);
       } else if (phase === 'completed') {
         this.state.consecutiveFailures = 0;
         this.lastFailedAction = '';
@@ -260,11 +274,22 @@ export class AutonomousAgent {
       if (!result.ok && /^Refused: navigation/i.test(result.message))
         this.state.consecutiveFailures = 2;
       this.state.status = result.ok ? 'idle' : 'error';
+      // A completed synchronous inspection can leave the compact observation
+      // unchanged. The next planned step is itself the reassessment event;
+      // allow one bounded provider call to advance it.
+      if (
+        result.ok &&
+        phase === 'completed' &&
+        planAdvanced &&
+        (this.state.plan?.length ?? 0) > 0 &&
+        !objectivePlanComplete(this.state.plan ?? [])
+      )
+        this.state.lastObservationHash = undefined;
       this.state.usage = this.provider.usage();
       if (
         result.ok &&
         phase === 'completed' &&
-        this.actionSatisfiesObjective(decision.action.name) &&
+        this.actionSatisfiesObjective(executionAction.name) &&
         this.planSatisfied() &&
         (decision.done === true || this.isBoundedStopObjective())
       ) {

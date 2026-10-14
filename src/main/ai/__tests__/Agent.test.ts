@@ -299,6 +299,38 @@ describe('AutonomousAgent', () => {
     expect(agent.state.objectiveComplete).toBe(true);
     expect(agent.state.enabled).toBe(false);
   });
+
+  it('reassesses the next synchronous plan step without a wire-state change', async () => {
+    const decide = vi
+      .fn()
+      .mockResolvedValueOnce({
+        objective: 'inspect',
+        explanation: 'Read status',
+        action: { name: 'inspect_character', reason: 'inspect' }
+      })
+      .mockResolvedValueOnce({
+        objective: 'inspect',
+        explanation: 'Read room',
+        action: { name: 'inspect_room', reason: 'inspect' }
+      });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({
+        requests: decide.mock.calls.length,
+        inputTokens: 1,
+        outputTokens: 1,
+        estimatedCostUsd: 0
+      })
+    };
+    const agent = new AutonomousAgent(provider, {
+      execute: vi.fn().mockResolvedValue({ ok: true, message: 'observed' })
+    });
+    agent.enable('Inspect my current character and room, then stop.');
+    await agent.tick(observation);
+    await agent.tick(observation);
+    expect(decide).toHaveBeenCalledTimes(2);
+    expect(agent.state.objectiveComplete).toBe(true);
+  });
   it('uses the delegated combat lifecycle after an NPC engagement settles', async () => {
     const decide = vi
       .fn()

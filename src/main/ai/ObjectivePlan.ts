@@ -68,13 +68,13 @@ export function advanceObjectivePlan(
   succeeded: boolean
 ): ObjectiveStep[] {
   const next = plan.map((step) => ({ ...step }));
-  const active =
-    next.find((step) => step.status === 'active' && step.action === action) ??
-    next.find((step) => step.status === 'pending' && step.action === action);
+  // Do not let a provider skip an active prerequisite by completing a later
+  // pending step first.
+  const active = next.find((step) => step.status === 'active' && step.action === action);
   if (!active) return next;
   active.status = succeeded ? 'completed' : 'blocked';
-  const following = next.find((step) => step.status === 'pending');
-  if (succeeded && following) following.status = 'active';
+  const following = succeeded ? next.find((step) => step.status === 'pending') : undefined;
+  if (following) following.status = 'active';
   return next;
 }
 
