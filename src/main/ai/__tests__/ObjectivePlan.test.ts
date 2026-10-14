@@ -60,6 +60,22 @@ describe('bounded objective planning', () => {
     ]);
   });
 
+  it('keeps a multi-capability objective in prerequisite order', () => {
+    const plan = buildObjectivePlan(
+      'Navigate to 1/2, inspect the room and inventory, engage an NPC, inspect combat, recover health, then manage equipment.'
+    );
+    expect(plan.map((step) => step.action)).toEqual([
+      'navigate_to',
+      'inspect_room',
+      'inspect_inventory',
+      'inspect_npc',
+      'engage_enemy',
+      'inspect_combat_result',
+      'recover_health',
+      'manage_equipment'
+    ]);
+  });
+
   it('replans a blocked step without discarding completed prerequisites', () => {
     let plan = buildObjectivePlan('Navigate to 1/2 and inspect my room.');
     plan[0]!.status = 'completed';

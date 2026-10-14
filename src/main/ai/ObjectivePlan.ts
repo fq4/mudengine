@@ -43,6 +43,18 @@ export function buildObjectivePlan(objective: string): ObjectiveStep[] {
     add('manage_equipment', 'Inspect or manage equipment');
   if (steps.length === 0) return [];
   const order = (step: ObjectiveStep): number => {
+    // Combat must never outrun authoritative target inspection, even when
+    // the prose mentions engagement before the NPC noun.
+    if (step.action === 'inspect_npc' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+      return 100;
+    if (step.action === 'engage_enemy' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+      return 110;
+    if (step.action === 'inspect_combat_result' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+      return 120;
+    if (step.action === 'recover_health' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+      return 130;
+    if (step.action === 'manage_equipment' && /\b(fight|combat|attack|engage)\b/i.test(lower))
+      return 140;
     const terms: Record<AiActionName, RegExp> = {
       inspect_inventory: /inventory|backpack|pack/i,
       use_item: /use|consume|drink|eat|quaff/i,

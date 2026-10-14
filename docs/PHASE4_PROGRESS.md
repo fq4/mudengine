@@ -48,6 +48,11 @@ Combat objectives now decompose into room discovery, NPC inspection, verified
 PvE engagement, combat-result assessment, and recovery steps. The planner
 cannot mark a combat objective complete from inspection alone.
 
+Multi-capability objectives now enforce those prerequisites even when natural
+language places the engagement phrase before the NPC mention. Inventory and
+room inspection remain ahead of target inspection, and recovery/equipment
+steps follow combat-result assessment.
+
 Blocked steps now support a bounded replan: a materially new authoritative
 observation reactivates the failed step while preserving completed prerequisites
 and failure memory. Repeated failures remain subject to the agent's existing
@@ -66,7 +71,8 @@ recovery or stop safely.
 - AI policy, planner, observation, typecheck, production build, and secret
   scan pass after adding the inventory action contract.
 - Planner regressions cover the complete discovery-to-combat-to-recovery
-  sequence without requiring a live server.
+  sequence without requiring a live server, including a navigation,
+  inventory, combat, recovery, and equipment objective.
 - Agent regressions cover reactivation after a changed observation and prevent
   retries on an unchanged state.
 - Combat-outcome regressions cover active, ended, unsafe, and unknown states.
