@@ -20,12 +20,24 @@ Memory, approvals, aggregate budgets, manual-input priority, emergency stop,
 identity cleanup, and objective-scoped action policy remain active. The live
 harness is bounded and redacts credentials.
 
+## Phase 5 implementation
+
+`src/main/ai/ActivitySelector.ts` now provides a deterministic,
+policy-filtered candidate interface. It ranks recovery ahead of risky work,
+requires an explicit goal for combat, and only proposes a classified,
+non-charmed, non-uncertain mob. The selector returns both the chosen candidate
+and the considered candidates so the agent can explain a decision without
+inventing a command. Execution remains delegated to `SessionManager` and the
+production automation owners.
+
+`ActivitySelector.test.ts` covers recovery priority, safe combat target
+selection, and refusal when goal or target evidence is insufficient.
+
 ## Phase 5 findings
 
-- Objective selection currently begins from an explicit user objective. There
-  is no autonomous activity selector that ranks safe activities from state and
-  world knowledge; adding one requires a policy-owned candidate model rather
-  than provider-generated commands.
+- The selector is now available as a pure decision component. It is not yet
+  wired as the default autonomous objective source for a long-lived session;
+  that integration must preserve explicit player goals and approval policy.
 - Replanning exists for materially changed observations and preserves completed
   prerequisites, but long-lived objective queues and durable success criteria
   remain limited.
