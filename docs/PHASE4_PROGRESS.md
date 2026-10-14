@@ -63,6 +63,8 @@ recovery or stop safely.
   route, and hard combat limits can be established from authoritative data.
 - The harness includes a live combat-safety refusal check for an unverified
   target; it must refuse before AutoCombat or the wire is reached.
+- The harness also includes a live inventory-safety refusal check for an absent
+  item; it must refuse before `CommandQueue` or the wire is reached.
 
 ## Remaining Phase 4 work
 

@@ -179,6 +179,16 @@ async function main() {
     'Inspect my current inventory, then stop.',
     (before, after) => before === after
   );
+  const inventorySafety = await session.aiAction({
+    name: 'use_item',
+    args: { name: '__unverified_phase4_item__' },
+    reason: 'phase 4 inventory safety refusal check'
+  });
+  report.scenarios.push({
+    name: 'inventory-safety-refusal',
+    passed: !inventorySafety.ok && /refused/i.test(inventorySafety.message),
+    result: inventorySafety.message
+  });
   const visibleNpc = session.character.room?.occupants?.find(
     (occupant) => occupant.kind !== 'player' && occupant.npc?.name
   );
