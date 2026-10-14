@@ -9,7 +9,12 @@ import {
   type AiState
 } from '../../shared/ai';
 import { AiAggregateBudget, AiBudget } from './Budget';
-import { advanceObjectivePlan, buildObjectivePlan, objectivePlanComplete } from './ObjectivePlan';
+import {
+  advanceObjectivePlan,
+  buildObjectivePlan,
+  objectivePlanComplete,
+  replanObjectivePlan
+} from './ObjectivePlan';
 
 export interface AiExecutor {
   execute(
@@ -112,6 +117,16 @@ export class AutonomousAgent {
       return null;
     if (this.ticking) return null;
     const hash = observationHash(observation);
+    if (
+      this.state.currentAction?.phase === 'failed' &&
+      hash !== this.state.lastObservationHash &&
+      (this.state.plan ?? []).some((step) => step.status === 'blocked')
+    ) {
+      this.state.plan = replanObjectivePlan(this.state.plan ?? []);
+      this.state.currentAction = null;
+      this.state.consecutiveFailures = 0;
+      this.lastFailedAction = '';
+    }
     if (this.state.currentAction?.phase === 'accepted') {
       const delegatedStatus =
         this.delegatedOperationStatus?.(this.state.currentAction.name) ?? null;
@@ -129,6 +144,11 @@ export class AutonomousAgent {
         this.state.lastActionResult = this.state.currentAction.message;
         this.state.consecutiveFailures += 1;
         this.lastFailedAction = this.state.currentAction.name;
+        this.state.plan = advanceObjectivePlan(
+          this.state.plan ?? [],
+          this.state.currentAction.name,
+          false
+        );
       } else {
         this.state.currentAction = {
           ...this.state.currentAction,

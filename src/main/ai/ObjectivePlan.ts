@@ -87,3 +87,12 @@ export function advanceObjectivePlan(
 export function objectivePlanComplete(plan: ObjectiveStep[]): boolean {
   return plan.length > 0 && plan.every((step) => step.status === 'completed');
 }
+
+/** Reactivate one failed step after a new authoritative observation. */
+export function replanObjectivePlan(plan: ObjectiveStep[]): ObjectiveStep[] {
+  const next = plan.map((step) => ({ ...step }));
+  const blocked = next.find((step) => step.status === 'blocked');
+  if (!blocked) return next;
+  blocked.status = 'active';
+  return next;
+}

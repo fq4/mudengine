@@ -331,6 +331,40 @@ describe('AutonomousAgent', () => {
     expect(decide).toHaveBeenCalledTimes(2);
     expect(agent.state.objectiveComplete).toBe(true);
   });
+
+  it('replans a blocked step after a new observation', async () => {
+    const decide = vi
+      .fn()
+      .mockResolvedValueOnce({
+        objective: 'inspect',
+        explanation: 'Read status',
+        action: { name: 'inspect_character', reason: 'inspect' }
+      })
+      .mockResolvedValueOnce({
+        objective: 'inspect',
+        explanation: 'Read status again',
+        action: { name: 'inspect_character', reason: 'retry after state change' }
+      });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({
+        requests: decide.mock.calls.length,
+        inputTokens: 1,
+        outputTokens: 1,
+        estimatedCostUsd: 0
+      })
+    };
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, message: 'temporary observation refusal' })
+      .mockResolvedValueOnce({ ok: true, message: 'observed' });
+    const agent = new AutonomousAgent(provider, { execute });
+    agent.enable('Inspect my current character and room, then stop.');
+    await agent.tick(observation);
+    await agent.tick({ ...observation, room: { id: 2 } });
+    expect(decide).toHaveBeenCalledTimes(2);
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
   it('uses the delegated combat lifecycle after an NPC engagement settles', async () => {
     const decide = vi
       .fn()

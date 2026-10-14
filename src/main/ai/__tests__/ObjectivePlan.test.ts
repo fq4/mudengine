@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { advanceObjectivePlan, buildObjectivePlan, objectivePlanComplete } from '../ObjectivePlan';
+import {
+  advanceObjectivePlan,
+  buildObjectivePlan,
+  objectivePlanComplete,
+  replanObjectivePlan
+} from '../ObjectivePlan';
 
 describe('bounded objective planning', () => {
   it('decomposes a destination and inspection objective in order', () => {
@@ -53,5 +58,13 @@ describe('bounded objective planning', () => {
       'inspect_combat_result',
       'recover_health'
     ]);
+  });
+
+  it('replans a blocked step without discarding completed prerequisites', () => {
+    let plan = buildObjectivePlan('Navigate to 1/2 and inspect my room.');
+    plan[0]!.status = 'completed';
+    plan[1]!.status = 'blocked';
+    plan = replanObjectivePlan(plan);
+    expect(plan.map((step) => step.status)).toEqual(['completed', 'active']);
   });
 });

@@ -28,6 +28,11 @@ Combat objectives now decompose into room discovery, NPC inspection, verified
 PvE engagement, combat-result assessment, and recovery steps. The planner
 cannot mark a combat objective complete from inspection alone.
 
+Blocked steps now support a bounded replan: a materially new authoritative
+observation reactivates the failed step while preserving completed prerequisites
+and failure memory. Repeated failures remain subject to the agent's existing
+loop suppression and budget limits.
+
 ## Verification
 
 - NPC discovery and action-policy regressions pass.
@@ -37,6 +42,8 @@ cannot mark a combat objective complete from inspection alone.
   scan pass after adding the inventory action contract.
 - Planner regressions cover the complete discovery-to-combat-to-recovery
   sequence without requiring a live server.
+- Agent regressions cover reactivation after a changed observation and prevent
+  retries on an unchanged state.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape
