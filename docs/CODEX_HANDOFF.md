@@ -6,7 +6,7 @@ Read it together with this handoff before making changes.
 ## Current state
 
 - Branch: `development`
-- Latest commit: `8490f63` (`Fix scheduler completion regression`)
+- Latest pushed commit: `9e986c6` (`Verify provider-driven autonomous gameplay`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 4 implementation and bounded live verification are complete on
@@ -58,10 +58,13 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 - SessionManager suite: 248 tests passed.
 - Node/web typechecks passed.
 - Production Electron build passed; the existing large-renderer-chunk warning remains.
-- Bounded `kefka` harness passed all ten scenarios with zero violations:
-  multi-step inspection, inventory inspection, conditional NPC inspection,
-  one/two-room navigation, invalid destination, unknown-command approval,
-  manual interruption, budget enforcement, and emergency stop.
+- Bounded `kefka` provider-driven phase passed with one OpenRouter request,
+  `inspect_room` selected from ranked candidates, authoritative completion,
+  and zero safety violations. The broader harness also covers inventory/NPC
+  inspection, navigation, invalid destination, unknown-command approval,
+  manual interruption, budget enforcement, and emergency stop; legacy
+  navigation cases may fail when recovery takes priority or the model omits a
+  resolvable destination.
 - Final full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
@@ -87,6 +90,10 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   candidates and completed through production observation with zero safety
   violations. The harness still contains deterministic regression scenarios;
   low-health Kefka may cause navigation scenarios to prioritize recovery.
+- The harness now contains a separate no-objective scheduler-selection
+  scenario, but that scenario has not yet been live-verified after its latest
+  addition. Deterministic scheduler/session tests pass. Do not claim live
+  scheduler verification until a bounded run reports it explicitly.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 
@@ -158,6 +165,22 @@ npm run dev
 
 `npm run lint` is available but currently reports the documented repository-wide Prettier baseline.
 
+Conservative Phase 5 validation:
+
+```powershell
+npm test -- src/main/ai/__tests__/ActivitySelector.test.ts src/main/ai/__tests__/AutonomousScheduler.test.ts src/main/ai/__tests__/ObjectivePlan.test.ts src/main/ai/__tests__/Agent.test.ts
+npm run typecheck
+npm run build
+npm run check:secrets
+```
+
+Do not increase live budgets without explicit approval. The current bounded
+command is:
+
+```powershell
+npm run test:ai-live -- --live --profile kefka --max-ms 120000 --max-requests 16 --max-tokens 60000 --max-cost 0.05
+```
+
 ## Safe live harness
 
 ```powershell
@@ -172,4 +195,4 @@ The harness withholds credentials from output and enforces bounded runtime, requ
 
 After cloning, tell Codex:
 
-> Read `docs/CODEX_HANDOFF.md`, `docs/ai-technical-spec.md`, `docs/ai-capability-inventory.md`, and `docs/ai-live-test.md`. Do not start Phase 2. Verify the branch, working tree, latest commit, tests, and secret state first. Preserve all live-test safety boundaries and ask before expanding scope.
+> Read `AGENTS.md`, `docs/CODEX_HANDOFF.md`, `docs/PHASE5_PROGRESS.md`, `docs/ai-technical-spec.md`, `docs/ai-capability-inventory.md`, and `docs/ai-live-test.md`. Switch to `development`, verify the latest pushed commit and a clean/recoverable working tree, then run the focused deterministic AI tests, typecheck, build, and secret scan. Continue Phase 5 from `9e986c6`: investigate the remaining scheduler live-verification gap and legacy navigation outcomes. Prefer deterministic fixtures. Do not increase provider budgets or run extended paid live sessions without explicit approval. If live verification is run, use only the bounded kefka command and report provider-driven and deterministic results separately. Update the handoff/progress docs and push verified changes.

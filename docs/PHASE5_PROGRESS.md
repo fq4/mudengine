@@ -126,3 +126,51 @@ Read `docs/CODEX_HANDOFF.md`, `docs/PHASE4_PROGRESS.md`, and this file. Start
 with the policy-filtered activity candidate interface and deterministic tests.
 Do not weaken safety gates, duplicate production automation, expose secrets,
 or expand live combat scope without fresh authoritative state.
+
+## Interruption-safe continuation (latest pushed state)
+
+Latest pushed implementation: `9e986c6` (`Verify provider-driven autonomous
+gameplay`). The provider-driven live phase was verified with one OpenRouter
+request: a broad objective resulted in `inspect_room`, completed through
+production observation, and produced zero safety violations.
+
+The remaining live gap is a clean report for session-level
+`AutonomousScheduler` selection. Its transition tests and session wiring pass
+deterministically; the harness now contains a scheduler scenario, but that
+scenario was added after the last successful provider-driven run and must be
+verified in a future bounded session. Legacy navigation failures remain: one
+adjacent-room objective can receive no resolvable model destination, while a
+two-room objective can correctly prioritize low-health recovery. Do not weaken
+recovery or destination validation to make those scenarios green.
+
+Provider spending remains conservative. Do not expand the current `$0.05`
+harness cost ceiling, 16-request runtime ceiling, or 60,000-token ceiling
+without explicit approval.
+
+## Reproducible commands
+
+```powershell
+git switch development
+git pull --ff-only origin development
+npm ci
+npm test -- src/main/ai/__tests__/ActivitySelector.test.ts src/main/ai/__tests__/AutonomousScheduler.test.ts src/main/ai/__tests__/ObjectivePlan.test.ts src/main/ai/__tests__/Agent.test.ts
+npm run typecheck
+npm run build
+npm run check:secrets
+```
+
+Full deterministic coverage is `npm test`; realm coverage is
+`npm run test:realm`; combined coverage is `npm run test:full`. The known
+intermittent migration cleanup race may report `ENOTEMPTY` under concurrent
+full-suite execution; rerun that migration file in isolation before treating
+it as a product failure.
+
+The only authorized live command is:
+
+```powershell
+npm run test:ai-live -- --live --profile kefka --max-ms 120000 --max-requests 16 --max-tokens 60000 --max-cost 0.05
+```
+
+It requires an untracked `.env` with `OPENROUTER_API_KEY` and a local
+user-scoped `kefka` profile. Never print `.env`, credentials, raw transcripts,
+or provider headers; never run it unattended or raise its limits.

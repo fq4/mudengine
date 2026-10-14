@@ -33,3 +33,18 @@ credential protections, spending ceilings, emergency stop, manual priority,
 and failure/repetition limits. Add focused tests, run typecheck/build and the
 relevant suites, update the handoff/progress docs, and push only verified
 changes to `development` when authorized.
+
+## Interruption-safe continuation
+
+Before substantive work, read `docs/CODEX_HANDOFF.md` and
+`docs/PHASE5_PROGRESS.md`, verify `git status`, and inspect the latest pushed
+commit. Keep changes recoverable and commit documentation at meaningful
+checkpoints. Provider use is opt-in and expensive: prefer deterministic tests,
+fixtures, and mocked provider responses. Do not raise provider request, token,
+or cost limits or start an extended live session without explicit user
+approval. The only authorized live profile is `kefka`, using the bounded
+harness command documented in the handoff.
+
+If interrupted, switch to `development`, pull with `--ff-only`, read the
+handoff, run focused deterministic suites first, and continue from the latest
+pushed commit. Never infer credentials or environment values from conversation.
