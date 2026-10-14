@@ -104,20 +104,22 @@ transitions, interrupted objectives, failed activities, stale observations, and
 recovery after an explicit goal is cleared.
 
 The session integration has focused offline coverage through the existing
-SessionManager suite and activity-selector/scheduler tests. Provider-driven
-long-lived selection for explicit objectives and a supervised live observation
-of scheduler-selected activity remain the next validation steps.
+SessionManager suite, activity-selector tests, and deterministic scheduler
+lifecycle coverage. The deterministic Phase 5 implementation is complete: the
+system demonstrates the full autonomous lifecycle without live provider
+verification claims, and the remaining live-provider work is explicitly deferred.
 
-The bounded kefka harness now includes a provider-driven broad-objective phase.
-It submits one broad observation objective without an action sequence, records
-the ranked candidates and provider-selected action, and verifies completion
-through the production lifecycle. The supervised run completed with one
-OpenRouter request, `inspect_room` selected, authoritative observation
-completion, and zero safety violations. Existing deterministic scenarios still
-cover approvals, manual interruption, budgets, and emergency stop. A later
-navigation scenario correctly prioritized recovery when Kefka was below the
-configured health threshold; this remains an observed gameplay preference, not
-a real-world safety failure.
+The bounded kefka harness continues to provide a provider-driven broad-objective
+phase: it submits one broad observation objective without an action sequence,
+records the ranked candidates and provider-selected action, and verifies
+completion through the production lifecycle. The supervised run completed with
+one OpenRouter request, `inspect_room` selected, authoritative observation
+completion, and zero safety violations. That remains a bounded live result and
+not a blanket claim that all autonomous flow is provider-verified. Existing
+deterministic scenarios still cover approvals, manual interruption, budgets,
+and emergency stop. A later navigation scenario correctly prioritized recovery
+when Kefka was below the configured health threshold; this remains an observed
+gameplay preference, not a real-world safety failure.
 
 ## Credential audit
 

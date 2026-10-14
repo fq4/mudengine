@@ -83,25 +83,25 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   select and delegate safe activities through the same gateway, while explicit
   goals retain provider/planner behavior. See `docs/PHASE5_PROGRESS.md`.
 - Named provider/gameplay budget profiles and `AutonomousScheduler` transition
-  guards have deterministic coverage; supervised live scheduler selection and
-  broader provider-driven long-lived explicit-goal planning remain outstanding.
-  - Deterministic scheduler integration work now verifies the full autonomous
+  guards have deterministic coverage. The Phase 5 deterministic implementation is
+  complete for the bounded scheduler/session path; live provider verification is
+  deferred rather than claimed as passed.
+  - Deterministic scheduler integration now verifies the full autonomous
     lifecycle across multiple transitions, interrupted objectives, failed
     activities, stale observations, and recovery after an explicit goal is
     cleared. Objective-clear, stop, and emergency-stop paths reset stale
     scheduler state so no-objective autonomous mode can recover cleanly without
     reusing old completion markers.
-- The bounded kefka harness now proves one genuine provider-driven broad
-  objective: one OpenRouter request selected `inspect_room` from ranked
-  candidates and completed through production observation with zero safety
-  violations. The harness still contains deterministic regression scenarios;
-  low-health Kefka may cause navigation scenarios to prioritize recovery.
-- The harness now contains a separate no-objective scheduler-selection
-  scenario, but that scenario has not yet been live-verified after its latest
-  addition. Deterministic scheduler/session tests pass. Do not claim live
-  scheduler verification until a bounded run reports it explicitly.
+- The bounded kefka harness still demonstrates the provider-driven broad
+  objective pattern with one OpenRouter request choosing `inspect_room` from
+  ranked candidates and completing through production observation with zero
+  safety violations. That live verification remains a bounded, explicit subset
+  and not a claim of broad autonomous completion.
+- The no-objective scheduler-selection flow is covered deterministically and is
+  not considered live-verified until a future bounded run reports it.
 - The migration suite passes in isolation: 374/374 tests. The `ENOTEMPTY`
-  cleanup issue remains limited to concurrent full-suite execution.
+  cleanup issue remains limited to concurrent full-suite execution and is not a
+  Phase 5 production defect.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 
