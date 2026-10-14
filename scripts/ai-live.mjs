@@ -189,6 +189,15 @@ async function main() {
     passed: !inventorySafety.ok && /refused/i.test(inventorySafety.message),
     result: inventorySafety.message
   });
+  const equipmentSafety = await session.aiAction({
+    name: 'manage_equipment',
+    reason: 'phase 4 equipment safety refusal check'
+  });
+  report.scenarios.push({
+    name: 'equipment-safety-refusal',
+    passed: !equipmentSafety.ok && /refused/i.test(equipmentSafety.message),
+    result: equipmentSafety.message
+  });
   const visibleNpc = session.character.room?.occupants?.find(
     (occupant) => occupant.kind !== 'player' && occupant.npc?.name
   );
@@ -223,12 +232,13 @@ async function main() {
   const current = session.character.room;
   const twoRoomTarget =
     current?.map !== undefined && current.number !== undefined
-      ? [...world.withinSteps(roomId(current.map, current.number), 2).entries()]
-          .find(([target, distance]) => {
+      ? [...world.withinSteps(roomId(current.map, current.number), 2).entries()].find(
+          ([target, distance]) => {
             if (distance !== 2) return false;
             const route = world.route(roomId(current.map, current.number), target);
             return !route.blocked && route.steps.length === 2;
-          })?.[0]
+          }
+        )?.[0]
       : undefined;
   if (twoRoomTarget === undefined)
     throw new Error('Could not find a bounded two-room target from the authoritative room');

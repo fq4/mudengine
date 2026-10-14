@@ -97,6 +97,8 @@ recovery or stop safely.
   target; it must refuse before AutoCombat or the wire is reached.
 - The harness also includes a live inventory-safety refusal check for an absent
   item; it must refuse before `CommandQueue` or the wire is reached.
+- The harness includes a live equipment-safety refusal check when the objective
+  does not authorize equipment work; it must refuse before `EquipmentManager`.
 
 ## Remaining Phase 4 work
 
