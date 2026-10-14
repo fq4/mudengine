@@ -106,6 +106,7 @@ import { combatOutcome } from '../ai/CombatOutcome';
 import { assessItemUse } from '../ai/InventorySafety';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
 import { selectActivity } from '../ai/ActivitySelector';
+import { AutonomousScheduler } from '../ai/AutonomousScheduler';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
   AI_ACTIONS,
@@ -1017,6 +1018,8 @@ export class SessionManager {
 
   readonly queue: CommandQueue;
   private readonly aiAgent: AutonomousAgent;
+  private readonly aiScheduler = new AutonomousScheduler();
+  private aiAutonomousMode = false;
   private readonly aiProvider: OpenRouterProvider;
   private readonly aiPermissionLayers: AiPermissionLayers;
   /** Persistent global/server/profile layers, kept separate from session rules. */
@@ -3465,6 +3468,8 @@ export class SessionManager {
     }
     if (model) this.aiProvider.setModel(model);
     this.aiAgent.state.model = this.aiProvider.modelName();
+    this.aiAutonomousMode = this.aiAgent.state.objective.trim().length === 0;
+    if (this.aiAutonomousMode) this.aiScheduler.reset();
     this.aiAgent.enable();
     return this.aiSnapshot;
   }
@@ -3499,10 +3504,14 @@ export class SessionManager {
   }
   aiStop(): AiSnapshot {
     this.aiAgent.stop();
+    this.aiAutonomousMode = false;
+    this.aiScheduler.interrupt();
     return this.aiSnapshot;
   }
   aiEmergencyStop(): AiSnapshot {
     this.aiAgent.stop();
+    this.aiAutonomousMode = false;
+    this.aiScheduler.interrupt();
     this.queue.cancel(
       (intent) =>
         intent.reason?.startsWith('AI:') === true ||
@@ -3644,6 +3653,8 @@ export class SessionManager {
   }
   aiGoal(goal: string): AiSnapshot {
     this.aiApprovals.resetTransient();
+    this.aiAutonomousMode = false;
+    this.aiScheduler.interrupt();
     this.aiAgent.enable(goal.trim());
     if (goal.trim()) void this.aiTick();
     return this.aiSnapshot;
@@ -3651,6 +3662,8 @@ export class SessionManager {
   aiClearGoal(): AiSnapshot {
     this.aiApprovals.resetTransient();
     this.aiAgent.stop();
+    this.aiAutonomousMode = false;
+    this.aiScheduler.interrupt();
     this.aiAgent.state.objective = '';
     this.aiAgent.state.objectiveComplete = false;
     this.aiAgent.state.currentAction = null;
@@ -3659,7 +3672,82 @@ export class SessionManager {
   }
   async aiTick(event?: string): Promise<void> {
     this.revalidateAiApprovals();
+    if (this.aiAutonomousMode && this.aiAgent.state.enabled) {
+      await this.aiAutonomousTick(event);
+      return;
+    }
     await this.aiAgent.tick(this.aiObservation(event));
+  }
+
+  private async aiAutonomousTick(event?: string): Promise<void> {
+    if (this.aiAgent.state.status === 'paused' || this.aiAgent.state.status === 'budget-paused') return;
+    const observation = this.aiObservation(event);
+    const current = this.aiScheduler.state.current;
+    if (current) {
+      const lifecycle = this.aiAgent.state.currentAction;
+      const delegated = this.delegatedAiStatus(current.name);
+      if (delegated === 'active') return;
+      if (lifecycle?.phase === 'accepted' || lifecycle?.phase === 'executing') {
+        const ok = delegated !== 'failed';
+        this.aiScheduler.finish(ok, JSON.stringify(observation.character));
+        this.aiAgent.state.currentAction = {
+          ...lifecycle,
+          phase: ok ? 'completed' : 'failed',
+          message: ok ? 'Autonomous activity completed' : 'Autonomous activity failed'
+        };
+        this.aiAgent.state.lastActionResult = this.aiAgent.state.currentAction.message;
+        this.aiAgent.state.status = ok ? 'idle' : 'error';
+        return;
+      }
+    }
+    const selection = selectActivity(this.tracker.current, '').considered;
+    const action = this.aiScheduler.choose(selection, JSON.stringify({
+      character: observation.character,
+      room: observation.room,
+      event
+    }));
+    if (!action) {
+      this.aiAgent.state.status = 'idle';
+      this.aiAgent.state.activity = 'autonomous_idle';
+      this.aiAgent.state.explanation = this.aiScheduler.state.status === 'completed'
+        ? 'No further safe autonomous activities are available.'
+        : 'Waiting for a meaningful gameplay event.';
+      return;
+    }
+    this.aiAgent.state.activity = action.name;
+    this.aiAgent.state.explanation = action.reason;
+    this.aiAgent.state.status = 'executing';
+    this.aiAgent.state.currentAction = { name: action.name, phase: 'executing', message: 'Autonomous activity requested' };
+    const result = await this.executeAiAction(action, 'agent');
+    this.aiAgent.state.lastActionResult = result.message;
+    if (result.pendingApproval) {
+      this.aiScheduler.finish(false, result.message);
+      this.aiAgent.state.currentAction = { name: action.name, phase: 'requested', message: result.message };
+      this.aiAgent.state.status = 'paused';
+      return;
+    }
+    if (!result.ok) {
+      this.aiScheduler.finish(false, result.message);
+      this.aiAgent.state.currentAction = { name: action.name, phase: 'failed', message: result.message };
+      this.aiAgent.state.status = 'error';
+      return;
+    }
+    const delegated = this.delegatedAiStatus(action.name);
+    if (delegated === 'active') {
+      this.aiAgent.state.currentAction = { name: action.name, phase: 'accepted', message: result.message };
+      return;
+    }
+    this.aiScheduler.finish(true, result.message);
+    this.aiAgent.state.currentAction = { name: action.name, phase: 'completed', message: result.message };
+    this.aiAgent.state.status = 'idle';
+  }
+
+  private delegatedAiStatus(action: import('../../shared/ai').AiActionName): 'active' | 'completed' | 'failed' | null {
+    if (action === 'navigate_to') return this.walker.walking ? 'active' : 'completed';
+    if (action === 'engage_enemy') return this.combat.willFight ? 'active' : 'completed';
+    if (action === 'recover_health') return this.recovery.recovering || this.recovery.restInFlight ? 'active' : 'completed';
+    if (action === 'manage_equipment') return this.gear.dressing ? 'active' : 'completed';
+    return 'completed';
   }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
     if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };

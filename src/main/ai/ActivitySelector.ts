@@ -37,6 +37,8 @@ export function selectActivity(state: CharacterState, goal = ''): ActivitySelect
     );
   if (/explore|room|surroundings|look/.test(lower))
     candidates.push(observe('inspect_room', 60, 'the player goal requests current surroundings'));
+  if (!goal.trim())
+    candidates.push(observe('inspect_room', 10, 'observe the current room before choosing further work'));
   const mob = state.room.occupants.find(
     (occupant) =>
       occupant.kind === 'mob' && occupant.mob && !occupant.charmed && !occupant.uncertain

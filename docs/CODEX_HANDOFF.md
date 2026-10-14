@@ -71,10 +71,12 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   `SessionManager.aiObservation()` to the provider. The provider still chooses
   strategically within the explicit player goal; execution remains delegated
   to production adapters. The bounded harness remains deterministic for live
-  safety. See `docs/PHASE5_PROGRESS.md`.
+  safety. The no-explicit-goal session mode now uses `AutonomousScheduler` to
+  select and delegate safe activities through the same gateway, while explicit
+  goals retain provider/planner behavior. See `docs/PHASE5_PROGRESS.md`.
 - Named provider/gameplay budget profiles and `AutonomousScheduler` transition
-  guards now have deterministic coverage; session wiring and provider-driven
-  long-lived live selection remain outstanding.
+  guards have deterministic coverage; supervised live scheduler selection and
+  broader provider-driven long-lived explicit-goal planning remain outstanding.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 

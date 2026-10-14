@@ -2,7 +2,7 @@
 
 ## Current state
 
-Phase 5 handoff preparation is in progress on `development`. Phase 4 is
+Phase 5 session integration is in progress on `development`. Phase 4 is
 implemented through `6a95e22`; the bounded kefka arena run reaches Newhaven
 Arena and delegates combat, recovery decisions, inventory inspection, and
 equipment evaluation to production systems.
@@ -87,8 +87,18 @@ session settings path before extended live sessions are allowed.
 `AutonomousScheduler` now provides bounded activity transitions: it selects an
 uncompleted candidate, records completion, blocks after repeated failures,
 ignores unchanged observations, and stops on interruption. It is covered by
-deterministic transition tests. Session-level wiring and live provider-driven
-selection remain the next integration step.
+deterministic transition tests. It is now wired into `SessionManager` for the
+no-explicit-goal mode: fresh policy-filtered candidates are selected, delegated
+through the existing AI action gateway, and monitored through the existing
+Walker/combat/recovery/equipment lifecycle owners. Explicit goals continue to
+use the provider/planner path. Safe observation is the default autonomous
+candidate; the scheduler stops after exhausting candidates or after bounded
+failures and is interrupted by stop, emergency stop, or a new explicit goal.
+
+The session integration has focused offline coverage through the existing
+SessionManager suite and activity-selector/scheduler tests. Provider-driven
+long-lived selection for explicit objectives and a supervised live observation
+of scheduler-selected activity remain the next validation steps.
 
 ## Continuation prompt
 

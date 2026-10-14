@@ -3,6 +3,12 @@ import { EMPTY_CHARACTER } from '../../../shared/character';
 import { selectActivity } from '../ActivitySelector';
 
 describe('policy-filtered activity selection', () => {
+  it('offers a safe observation activity when no explicit goal is set', () => {
+    const result = selectActivity(structuredClone(EMPTY_CHARACTER), '');
+    expect(result.candidate?.action.name).toBe('inspect_room');
+    expect(result.candidate?.rationale).toContain('observe');
+  });
+
   it('prioritizes recovery over a requested activity when HP is hurt', () => {
     const state = {
       ...structuredClone(EMPTY_CHARACTER),

@@ -20,6 +20,13 @@ export class AutonomousScheduler {
     lastObservation: null
   };
   constructor(private readonly maxFailures = 3) {}
+  reset(): void {
+    this.state.status = 'idle';
+    this.state.current = null;
+    this.state.completed = [];
+    this.state.failures = 0;
+    this.state.lastObservation = null;
+  }
   choose(candidates: readonly ActivityCandidate[], observation: string): AiAction | null {
     if (
       this.state.status === 'completed' ||
