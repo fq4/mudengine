@@ -32,6 +32,11 @@ export interface AiObservation {
     authorization: 'autonomous' | 'ask-first' | 'rejected';
     summary: string;
   }>;
+  activityCandidates?: Array<{
+    action: AiAction;
+    priority: number;
+    rationale: string;
+  }>;
   event?: string;
   execution?: { action: AiState['currentAction']; lastResult: string; recent: string[] };
 }

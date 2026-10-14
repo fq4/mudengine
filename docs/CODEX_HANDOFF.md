@@ -67,10 +67,11 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   ended without authoritative victory evidence; the harness reports `ended`
   unless `user-gain-experience` is observed. Recovery was skipped at full HP,
   then inventory inspection and EquipmentManager evaluation completed safely.
-- Phase 5 objective selection is not yet autonomous; the current harness uses
-  deterministic bounded choices. A pure policy-filtered candidate selector is
-  now implemented and covered by deterministic tests; session integration is
-  the next step. See `docs/PHASE5_PROGRESS.md`.
+- Phase 5 now exposes fresh, ranked policy-filtered activity candidates from
+  `SessionManager.aiObservation()` to the provider. The provider still chooses
+  strategically within the explicit player goal; execution remains delegated
+  to production adapters. The bounded harness remains deterministic for live
+  safety. See `docs/PHASE5_PROGRESS.md`.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 

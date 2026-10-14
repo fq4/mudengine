@@ -33,11 +33,18 @@ production automation owners.
 `ActivitySelector.test.ts` covers recovery priority, safe combat target
 selection, and refusal when goal or target evidence is insufficient.
 
+`SessionManager.aiObservation()` now evaluates the selector against the current
+`CharacterTracker` snapshot on every provider decision and exposes the ranked
+candidates beside the existing action policies. This keeps selection fresh and
+leaves execution, permissions, approvals, budgets, and completion feedback in
+the established agent/session adapters.
+
 ## Phase 5 findings
 
-- The selector is now available as a pure decision component. It is not yet
-  wired as the default autonomous objective source for a long-lived session;
-  that integration must preserve explicit player goals and approval policy.
+- The selector is available to the provider as fresh, ranked context, but the
+  provider still owns the strategic choice under the explicit player goal. A
+  future session scheduler can use the same candidates for long-lived goals
+  without creating a second execution engine.
 - Replanning exists for materially changed observations and preserves completed
   prerequisites, but long-lived objective queues and durable success criteria
   remain limited.

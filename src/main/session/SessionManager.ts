@@ -105,6 +105,7 @@ import { assessCombatEligibility } from '../ai/CombatSafety';
 import { combatOutcome } from '../ai/CombatOutcome';
 import { assessItemUse } from '../ai/InventorySafety';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
+import { selectActivity } from '../ai/ActivitySelector';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
   AI_ACTIONS,
@@ -3413,6 +3414,7 @@ export class SessionManager {
       ...(memories.length ? { memories } : {}),
       availableActions: objectiveAvailableActions(this.aiAgent.state.objective),
       actionPolicies: objectiveActionPolicies(this.aiAgent.state.objective),
+      activityCandidates: selectActivity(state, this.aiAgent.state.objective).considered,
       ...(event ? { event } : {})
     };
   }
