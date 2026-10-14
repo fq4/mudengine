@@ -129,8 +129,8 @@ or expand live combat scope without fresh authoritative state.
 
 ## Interruption-safe continuation (latest pushed state)
 
-Latest pushed implementation: `9e986c6` (`Verify provider-driven autonomous
-gameplay`). The provider-driven live phase was verified with one OpenRouter
+Latest pushed implementation: `9b4a7dd` (handoff update; implementation
+baseline `9e986c6`). The provider-driven live phase was verified with one OpenRouter
 request: a broad objective resulted in `inspect_room`, completed through
 production observation, and produced zero safety violations.
 
@@ -164,6 +164,10 @@ Full deterministic coverage is `npm test`; realm coverage is
 intermittent migration cleanup race may report `ENOTEMPTY` under concurrent
 full-suite execution; rerun that migration file in isolation before treating
 it as a product failure.
+
+The isolated migration investigation passed: `Migration.test.ts` completed
+374/374 tests with no `ENOTEMPTY` cleanup failure. The race remains a
+concurrency-only full-suite issue.
 
 The only authorized live command is:
 

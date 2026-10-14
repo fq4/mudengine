@@ -6,7 +6,7 @@ Read it together with this handoff before making changes.
 ## Current state
 
 - Branch: `development`
-- Latest pushed commit: `9e986c6` (`Verify provider-driven autonomous gameplay`)
+- Latest pushed commit: `9b4a7dd` (`Make Phase 5 handoff interruption safe`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 4 implementation and bounded live verification are complete on
@@ -94,6 +94,8 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   scenario, but that scenario has not yet been live-verified after its latest
   addition. Deterministic scheduler/session tests pass. Do not claim live
   scheduler verification until a bounded run reports it explicitly.
+- The migration suite passes in isolation: 374/374 tests. The `ENOTEMPTY`
+  cleanup issue remains limited to concurrent full-suite execution.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 
