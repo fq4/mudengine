@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `6a95e22` (`Refresh Phase 4 handoff state`)
+- Latest commit: `4a58159` (`Add policy filtered activity selection`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 4 implementation and bounded live verification are complete on
@@ -68,7 +68,9 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   unless `user-gain-experience` is observed. Recovery was skipped at full HP,
   then inventory inspection and EquipmentManager evaluation completed safely.
 - Phase 5 objective selection is not yet autonomous; the current harness uses
-  deterministic bounded choices. See `docs/PHASE5_PROGRESS.md`.
+  deterministic bounded choices. A pure policy-filtered candidate selector is
+  now implemented and covered by deterministic tests; session integration is
+  the next step. See `docs/PHASE5_PROGRESS.md`.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 
