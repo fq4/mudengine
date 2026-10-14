@@ -3854,7 +3854,11 @@ export class SessionManager {
       const eligibility = assessCombatEligibility(
         this.tracker.current.room.occupants,
         this.tracker.current.vitals,
-        name
+        name,
+        0.6,
+        this.tracker.current.room.exits.some(
+          (exit) => exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
+        )
       );
       const target = eligibility.target;
       if (!eligibility.ok || !target)

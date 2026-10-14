@@ -13,7 +13,8 @@ export function assessCombatEligibility(
   occupants: readonly RoomOccupant[],
   vitals: Pick<Vitals, 'hp' | 'hpMax'>,
   preferred?: string,
-  minimumFraction = 0.6
+  minimumFraction = 0.6,
+  escapeAvailable = true
 ): CombatEligibility {
   const target = findSafeCombatNpc(occupants, preferred);
   if (!target)
@@ -24,6 +25,12 @@ export function assessCombatEligibility(
     return {
       ok: false,
       reason: 'character health is below the conservative combat threshold',
+      target
+    };
+  if (!escapeAvailable)
+    return {
+      ok: false,
+      reason: 'no authoritative escape route is available from the room',
       target
     };
   return {

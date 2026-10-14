@@ -18,6 +18,10 @@ above 60% before delegation. Unknown or low health refuses the action rather
 than assuming the character is ready; AutoCombat remains responsible for
 ongoing retreat and recovery decisions after a verified start.
 
+Combat preflight now also requires at least one authoritative open exit with a
+known destination. Rooms with no verified escape route refuse engagement before
+AutoCombat is started.
+
 Inventory work now has a dedicated `use_item` action. It accepts only an exact
 name present in the authoritative carried-item listing and routes the command
 through `CommandQueue`; the canonical policy keeps it approval-gated until a
@@ -76,6 +80,8 @@ recovery or stop safely.
 - Agent regressions cover reactivation after a changed observation and prevent
   retries on an unchanged state.
 - Combat-outcome regressions cover active, ended, unsafe, and unknown states.
+- Combat-safety regressions cover the conservative health threshold and refusal
+  when no authoritative escape route is available.
 - Inventory-safety regressions cover exact matching, identity, equipped,
   depleted, and protected-item refusals.
 - Objective-scoped execution remains covered by the existing policy and agent

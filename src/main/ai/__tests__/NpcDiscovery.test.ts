@@ -59,6 +59,12 @@ describe('safe NPC discovery', () => {
     expect(assessCombatEligibility([rat], { hp: null, hpMax: 100 }).ok).toBe(false);
     expect(assessCombatEligibility([rat], { hp: 50, hpMax: 100 }).ok).toBe(false);
     expect(assessCombatEligibility([rat], { hp: 60, hpMax: 100 }).ok).toBe(true);
+    expect(
+      assessCombatEligibility([rat], { hp: 100, hpMax: 100 }, undefined, 0.6, false)
+    ).toMatchObject({
+      ok: false,
+      reason: 'no authoritative escape route is available from the room'
+    });
   });
 
   it('classifies combat only from authoritative engagement and vitals', () => {
