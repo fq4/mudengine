@@ -3515,6 +3515,10 @@ export class SessionManager {
   async aiProviderTest(): Promise<import('../../shared/ai').AiProviderDiagnostic> {
     return this.aiProvider.testConnection();
   }
+  /** Ask the production routine/queue path for current and maximum HP. */
+  aiRequestHealth(): boolean {
+    return this.routines.askHealth('AI: authoritative health preflight');
+  }
   aiApprove(id: string): AiSnapshot {
     const context = () =>
       JSON.stringify({

@@ -905,6 +905,13 @@ describe('owning the status line', () => {
     off.routines.askProfile();
     expect(sent(off.queue)).toEqual([]);
   });
+
+  it('uses the production probe queue for an authoritative health refresh', () => {
+    const { routines, queue } = make();
+    expect(routines.askHealth()).toBe(true);
+    expect(sent(queue)).toEqual(['health']);
+    expect(make({ enabled: false }).routines.askHealth()).toBe(false);
+  });
 });
 
 /*

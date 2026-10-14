@@ -263,6 +263,18 @@ async function main() {
     name: 'inspect_character',
     reason: 'authoritative arena health inspection'
   });
+  const healthProbeQueued = session.aiRequestHealth();
+  const healthKnown = await waitFor(
+    () => session.character.vitals.hp !== null && session.character.vitals.hpMax !== null,
+    5_000
+  );
+  report.scenarios.push({
+    name: 'newhaven-arena-health-probe',
+    passed: healthProbeQueued && healthKnown,
+    result: healthKnown
+      ? 'Production Routines → CommandQueue → CharacterTracker reported authoritative health'
+      : 'Production health probe completed without an authoritative current/max HP pair'
+  });
   const arenaInspection = arenaNavigation && arenaRoomInspection.ok && arenaHealthInspection.ok;
   report.scenarios.push({
     name: 'newhaven-arena-inspection',

@@ -317,6 +317,17 @@ export class Routines {
     });
   }
 
+  /** Request the realm's authoritative current/max health pair. */
+  askHealth(reason = 'authoritative health probe'): boolean {
+    if (!this.config.enabled) return false;
+    return this.queue.enqueue({
+      command: 'health',
+      priority: 'probe',
+      coalesceKey: 'probe:health',
+      reason
+    });
+  }
+
   /**
    * The party changed, so ask what it is now.
    *

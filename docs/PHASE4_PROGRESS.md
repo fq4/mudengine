@@ -22,6 +22,11 @@ Combat preflight now also requires at least one authoritative open exit with a
 known destination. Rooms with no verified escape route refuse engagement before
 AutoCombat is started.
 
+The live harness uses the production health path rather than parsing health
+itself: `Routines.askHealth()` queues the realm's read-only `health` command,
+`CharacterTracker` parses `Health: current/max [%]`, and the existing
+`AutoCombat`, `Recovery`, and `Walker` systems consume the resulting state.
+
 Inventory work now has a dedicated `use_item` action. It accepts only an exact
 name present in the authoritative carried-item listing and routes the command
 through `CommandQueue`; the canonical policy keeps it approval-gated until a
@@ -103,15 +108,13 @@ recovery or stop safely.
   `1/2150`, using bounded deterministic Walker legs, then inspects the room,
   target occupants, health, and retreat exits before considering combat.
 - The latest arena run reached `1/2150` and observed two authoritative mob
-  occupants. Combat was safely refused because kefka's health was not
-  authoritative; no attack command was sent.
+  occupants. The production health probe then established authoritative HP,
+  the conservative preflight selected `small filthbug`, and one bounded
+  `AutoCombat` encounter ended safely with zero harness violations.
 
 ## Remaining Phase 4 work
 
-- Run a bounded live multi-capability objective only when kefka provides an
-  authoritative hostile NPC, health at or above the threshold, and an open
-  escape route. The latest live session did not expose such a target, so no
-  combat or mutating inventory/equipment action was attempted.
-- Observe and record a safe live combat completion or retreat, followed by
-  recovery and ordinary inventory/equipment inspection, under the existing
-  runtime and approval budgets.
+- Run a bounded live multi-capability objective that continues through recovery
+  and ordinary inventory/equipment inspection under the existing budgets.
+- Repeat the arena path only when the live room and character state justify it;
+  never infer health or target safety from stale observations.
