@@ -56,4 +56,64 @@ describe('AutonomousScheduler', () => {
     expect(scheduler.choose(candidates, 'fresh-observation')).toBeNull();
     expect(scheduler.state.status).toBe('completed');
   });
+
+  describe('long-horizon journal', () => {
+    it('abandons an activity that keeps producing the same result across cycles', () => {
+      const scheduler = new AutonomousScheduler(3, 2);
+      for (let cycle = 0; cycle < 3; cycle++) {
+        const action = scheduler.choose(candidates, 'room-' + cycle);
+        if (!action) break;
+        scheduler.finish(true, 'same-result');
+        scheduler.interrupt();
+        scheduler.reset();
+      }
+      expect(scheduler.journal.avoided).toContain('inspect_room');
+      expect(scheduler.journal.strategyChanges).toBe(1);
+      expect(scheduler.choose(candidates, 'fresh')?.name).toBe('inspect_inventory');
+    });
+    it('never avoids recovery', () => {
+      const recover = [
+        { action: { name: 'recover_health' as const, reason: 'hp' }, priority: 100, rationale: 'hp' }
+      ];
+      const scheduler = new AutonomousScheduler(3, 1);
+      for (let i = 0; i < 3; i++) {
+        expect(scheduler.choose(recover, 'low-' + i)?.name).toBe('recover_health');
+        scheduler.finish(true, 'same');
+        scheduler.reset();
+      }
+      expect(scheduler.journal.avoided).toEqual([]);
+    });
+    it('keeps the journal through interrupt and reset but drops it on forget', () => {
+      const scheduler = new AutonomousScheduler();
+      scheduler.choose(candidates, 'a');
+      scheduler.finish(false, 'x');
+      scheduler.interrupt();
+      scheduler.reset();
+      expect(scheduler.journal.activities.inspect_room?.failures).toBe(1);
+      scheduler.forget();
+      expect(scheduler.journal.activities).toEqual({});
+    });
+    it('resumes an interrupted campaign without losing completed work', () => {
+      const scheduler = new AutonomousScheduler();
+      scheduler.choose(candidates, 'a');
+      scheduler.finish(true, 'x');
+      scheduler.interrupt();
+      expect(scheduler.choose(candidates, 'b')).toBeNull();
+      scheduler.resume();
+      expect(scheduler.choose(candidates, 'b')?.name).toBe('inspect_inventory');
+      expect(scheduler.state.completed).toEqual(['inspect_room']);
+    });
+    it('round-trips a snapshot', () => {
+      const a = new AutonomousScheduler(3, 1);
+      a.choose(candidates, 'a');
+      a.finish(true, 's');
+      a.reset();
+      a.choose(candidates, 'b');
+      a.finish(true, 's');
+      const b = new AutonomousScheduler();
+      b.restore(JSON.parse(JSON.stringify(a.snapshot())));
+      expect(b.journal.avoided).toEqual(['inspect_room']);
+      expect(b.snapshot()).toEqual(a.snapshot());
+    });
+  });
 });

@@ -3663,7 +3663,7 @@ export class SessionManager {
     this.aiApprovals.resetTransient();
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
-    this.aiScheduler.reset();
+    this.aiScheduler.forget();
     this.aiAgent.state.objective = '';
     this.aiAgent.state.objectiveComplete = false;
     this.aiAgent.state.currentAction = null;
@@ -3689,7 +3689,7 @@ export class SessionManager {
       if (delegated === 'active') return;
       if (lifecycle?.phase === 'accepted' || lifecycle?.phase === 'executing') {
         const ok = delegated !== 'failed';
-        this.aiScheduler.finish(ok, JSON.stringify(observation.character));
+        this.finishAutonomous(ok, JSON.stringify(observation.character));
         this.aiAgent.state.currentAction = {
           ...lifecycle,
           phase: ok ? 'completed' : 'failed',
@@ -3737,9 +3737,28 @@ export class SessionManager {
       this.aiAgent.state.currentAction = { name: action.name, phase: 'accepted', message: result.message };
       return;
     }
-    this.aiScheduler.finish(true, result.message);
+    this.finishAutonomous(true, result.message);
     this.aiAgent.state.currentAction = { name: action.name, phase: 'completed', message: result.message };
     this.aiAgent.state.status = 'idle';
+  }
+
+  /** Finishes a scheduled activity and records any strategy change it caused. */
+  private finishAutonomous(ok: boolean, observation: string): void {
+    const before = this.aiScheduler.journal.strategyChanges;
+    this.aiScheduler.finish(ok, observation);
+    const journal = this.aiScheduler.journal;
+    if (journal.strategyChanges > before && journal.lastStrategyChange) {
+      this.aiAgent.state.explanation = `Strategy changed: ${journal.lastStrategyChange}`;
+      this.aiMemory?.upsert({
+        category: 'strategy',
+        text: `Autonomous strategy changed: ${journal.lastStrategyChange}`,
+        provenance: 'AutonomousScheduler stall detection',
+        confidence: 0.7,
+        verified: false,
+        expiresAt: Date.now() + 86_400_000,
+        pinned: false
+      });
+    }
   }
 
   private delegatedAiStatus(action: import('../../shared/ai').AiActionName): 'active' | 'completed' | 'failed' | null {

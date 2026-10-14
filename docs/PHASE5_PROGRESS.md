@@ -188,3 +188,5 @@ npm run test:ai-live -- --live --profile kefka --max-ms 120000 --max-requests 16
 It requires an untracked `.env` with `OPENROUTER_API_KEY` and a local
 user-scoped `kefka` profile. Never print `.env`, credentials, raw transcripts,
 or provider headers; never run it unattended or raise its limits.
+
+Phase 5's deterministic work is complete. Continue from `docs/PHASE6_PROGRESS.md` and `docs/PHASE6_CONTINUATION_PROMPT.md`.

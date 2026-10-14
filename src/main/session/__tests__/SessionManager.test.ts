@@ -313,6 +313,23 @@ describe('AI reconnect lifecycle', () => {
     expect(scheduler.state.status).toBe('idle');
     expect(scheduler.state.completed).toEqual([]);
     expect(scheduler.state.lastObservation).toBeNull();
+    expect(scheduler.journal.activities).toEqual({});
+    isolated.dispose();
+  });
+
+  it('keeps the campaign journal across stop but not across a cleared goal', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const scheduler = (isolated as any).aiScheduler;
+    scheduler.choose(
+      [{ action: { name: 'inspect_room', reason: 'observe' }, priority: 10, rationale: 'room' }],
+      'a'
+    );
+    scheduler.finish(true, 'x');
+    isolated.aiStop();
+    expect(scheduler.journal.activities.inspect_room?.successes).toBe(1);
+    isolated.aiClearGoal();
+    expect(scheduler.journal.activities).toEqual({});
     isolated.dispose();
   });
 

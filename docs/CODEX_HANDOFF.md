@@ -6,7 +6,7 @@ Read it together with this handoff before making changes.
 ## Current state
 
 - Branch: `development`
-- Latest pushed commit: `9b4a7dd` (`Make Phase 5 handoff interruption safe`)
+- Latest pushed commit: run `git log -1 --oneline` (Phase 6 work is in `docs/PHASE6_PROGRESS.md`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 4 implementation and bounded live verification are complete on
@@ -201,6 +201,11 @@ The harness withholds credentials from output and enforces bounded runtime, requ
 
 ## Next Codex session instruction
 
-After cloning, tell Codex:
+After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6 status is in `docs/PHASE6_PROGRESS.md`.
 
-> Read `AGENTS.md`, `docs/CODEX_HANDOFF.md`, `docs/PHASE5_PROGRESS.md`, `docs/ai-technical-spec.md`, `docs/ai-capability-inventory.md`, and `docs/ai-live-test.md`. Switch to `development`, verify the latest pushed commit and a clean/recoverable working tree, then run the focused deterministic AI tests, typecheck, build, and secret scan. Continue Phase 5 from `9e986c6`: investigate the remaining scheduler live-verification gap and legacy navigation outcomes. Prefer deterministic fixtures. Do not increase provider budgets or run extended paid live sessions without explicit approval. If live verification is run, use only the bounded kefka command and report provider-driven and deterministic results separately. Update the handoff/progress docs and push verified changes.
+## Phase 6 checkpoint
+
+- Phase 6 added a long-horizon scheduler journal (stall detection, strategy
+  change, resume, snapshot/restore); see `docs/PHASE6_PROGRESS.md`.
+- Run `git log -1 --oneline` on `development` for the latest commit.
+- Live provider verification is still deferred; no paid tests were run.
