@@ -17,7 +17,7 @@ describe('AutonomousScheduler', () => {
     scheduler.finish(true, 'room-a-observed');
     expect(scheduler.choose(candidates, 'inventory-needed')?.name).toBe('inspect_inventory');
     scheduler.finish(true, 'inventory-observed');
-    expect(scheduler.choose(candidates, 'inventory-observed')).toBeNull();
+    expect(scheduler.choose(candidates, 'fresh-complete-observation')).toBeNull();
     expect(scheduler.state.status).toBe('completed');
   });
   it('blocks after repeated failures and supports interruption', () => {
