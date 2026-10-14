@@ -137,6 +137,14 @@ export interface AiProviderDiagnostic {
   message: string;
   at: number;
 }
+export interface AiDecisionTrace {
+  at: number;
+  objective: string;
+  candidate: string;
+  reason: string;
+  summary: string;
+}
+
 export interface AiState {
   enabled: boolean;
   status: AiStatus;
@@ -150,6 +158,7 @@ export interface AiState {
   usage: AiUsage;
   model: string;
   lastObservationHash?: string;
+  decisionTrace?: AiDecisionTrace | null;
   consecutiveFailures: number;
   budgetResetAt?: number;
   budgetLimits?: AiBudgetLimits;

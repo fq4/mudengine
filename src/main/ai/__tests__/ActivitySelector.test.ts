@@ -19,6 +19,24 @@ describe('policy-filtered activity selection', () => {
     expect(result.considered.map(({ action }) => action.name)).toContain('inspect_room');
   });
 
+  it('bases exploration on valid room exits and current world-state context', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    state.vitals = { ...state.vitals, hp: 90, hpMax: 100 };
+    state.room.exits = [
+      {
+        direction: 'north',
+        note: null,
+        targetMap: 1,
+        targetRoom: 2,
+        targetName: null,
+        requirement: null
+      }
+    ] as typeof state.room.exits;
+    const result = selectActivity(state, 'explore the area');
+    expect(result.candidate?.action.name).toBe('navigate_to');
+    expect(result.candidate?.rationale).toContain('valid exits');
+  });
+
   it('selects only a classified mob for a combat goal', () => {
     const state = structuredClone(EMPTY_CHARACTER);
     state.room.occupants = [

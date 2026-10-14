@@ -220,6 +220,18 @@ export class AutonomousAgent {
         this.state.usage = this.provider.usage();
         return null;
       }
+      const selectedContext =
+        observation.activityCandidates?.find(({ action }) => action.name === decision.action.name) ??
+        observation.activityCandidates?.[0];
+      this.state.decisionTrace = {
+        at: Date.now(),
+        objective: this.state.objective,
+        candidate: decision.action.name,
+        reason: selectedContext?.rationale ?? decision.action.reason,
+        summary:
+          selectedContext?.rationale ??
+          `${this.state.objective || 'no explicit objective'} -> ${decision.action.name}`
+      };
       const rankedCandidates = observation.activityCandidates ?? [];
       const rankedNames = new Set(rankedCandidates.map(({ action }) => action.name));
       const selectedAction =

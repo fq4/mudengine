@@ -12,6 +12,25 @@ export interface ActivitySelection {
   considered: ActivityCandidate[];
 }
 
+export function summarizeWorldState(state: CharacterState, goal = ''): string {
+  const hp = state.vitals.hp;
+  const hpMax = state.vitals.hpMax;
+  const exits = state.room.exits.filter(
+    ({ targetMap, targetRoom, requirement }) =>
+      targetMap !== null && targetRoom !== null && requirement === null
+  );
+  const hostile = state.room.occupants.filter(
+    (occupant) => occupant.kind === 'mob' && occupant.mob && !occupant.charmed && !occupant.uncertain
+  );
+  const parts = [
+    hp !== null && hpMax !== null ? `HP ${hp}/${hpMax}` : 'HP unknown',
+    exits.length > 0 ? `${exits.length} valid exits` : 'no valid exits',
+    hostile.length > 0 ? `${hostile.length} hostile target${hostile.length === 1 ? '' : 's'}` : 'no hostile target',
+    goal.trim() ? `goal: ${goal.trim()}` : 'no explicit goal'
+  ];
+  return parts.join(' | ');
+}
+
 /**
  * Selects from already-authorized activities using authoritative state. This
  * is deliberately a small decision layer: execution remains owned by the
@@ -20,23 +39,33 @@ export interface ActivitySelection {
 export function selectActivity(state: CharacterState, goal = ''): ActivitySelection {
   const candidates: ActivityCandidate[] = [];
   const lower = goal.toLowerCase();
+  const summary = summarizeWorldState(state, goal);
   const hp = state.vitals.hp;
   const hpMax = state.vitals.hpMax;
-  if (hp !== null && hpMax !== null && hp < hpMax) {
+  const healthRatio = hp !== null && hpMax !== null && hpMax > 0 ? hp / hpMax : null;
+  if (healthRatio !== null && healthRatio < 0.5) {
     candidates.push({
-      action: { name: 'recover_health', reason: 'Authoritative HP is below maximum' },
+      action: { name: 'recover_health', reason: 'Authoritative HP is below the recovery threshold' },
       priority: 100,
-      rationale: 'recovery is required before other risky activities'
+      rationale: `recovery is required before other risky activities (${summary})`
     });
   }
   if (/inventory|pack|backpack/.test(lower))
-    candidates.push(observe('inspect_inventory', 80, 'the player goal requests inventory state'));
+    candidates.push(
+      observe('inspect_inventory', 80, `the player goal requests inventory state (${summary})`)
+    );
   if (/equipment|gear|armor|armour|weapon/.test(lower))
     candidates.push(
-      observe('manage_equipment', 70, 'the player goal requests equipment evaluation')
+      observe(
+        'manage_equipment',
+        70,
+        `the player goal requests equipment evaluation (${summary})`
+      )
     );
   if (/explore|room|area|surroundings|look|observe|assess/.test(lower))
-    candidates.push(observe('inspect_room', 60, 'the player goal requests current surroundings'));
+    candidates.push(
+      observe('inspect_room', 60, `the player goal requests current surroundings (${summary})`)
+    );
   if (/\bexplore\b/.test(lower)) {
     const exit = state.room.exits.find(
       ({ targetMap, targetRoom, requirement }) =>
@@ -55,11 +84,13 @@ export function selectActivity(state: CharacterState, goal = ''): ActivitySelect
           reason: 'An authoritative available exit supports bounded exploration'
         },
         priority: 70,
-        rationale: 'exploration can safely delegate one available exit to Walker'
+        rationale: `exploration can safely delegate one valid exit to Walker (${summary})`
       });
   }
   if (!goal.trim())
-    candidates.push(observe('inspect_room', 10, 'observe the current room before choosing further work'));
+    candidates.push(
+      observe('inspect_room', 10, `observe the current room before choosing further work (${summary})`)
+    );
   const mob = state.room.occupants.find(
     (occupant) =>
       occupant.kind === 'mob' && occupant.mob && !occupant.charmed && !occupant.uncertain
@@ -75,7 +106,7 @@ export function selectActivity(state: CharacterState, goal = ''): ActivitySelect
         reason: 'Verified mob matches the player goal'
       },
       priority: 50,
-      rationale: 'a classified mob is available; combat safety is enforced by the executor'
+      rationale: `a classified mob is available and the world-state summary supports combat (${summary})`
     });
   candidates.sort((a, b) => b.priority - a.priority);
   return { candidate: candidates[0] ?? null, considered: candidates };

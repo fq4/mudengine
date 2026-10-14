@@ -1163,8 +1163,9 @@ function statedTheRestNextDoor(home: Home, note: (message: string) => void): voi
       // ceiling and keeps that place — and before the mana and the potions.
       const after = ['restBeforeTraps', 'restTo', 'restBelow']
         .map((key) => block.items.findIndex((item) => keyText(item) === key))
-        .find((index) => index !== -1);
-      if (after === undefined) block.items.push(pair);
+        .filter((index) => index !== -1)
+        .reduce((latest, index) => Math.max(latest, index), -1);
+      if (after === -1) block.items.push(pair);
       else block.items.splice(after + 1, 0, pair);
       stated.push(file);
       return true;

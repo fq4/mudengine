@@ -62,8 +62,21 @@ beforeEach(() => {
   fs.mkdirSync(old, { recursive: true });
 });
 
-afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+async function retryRmSync(target: string): Promise<void> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      fs.rmSync(target, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOTEMPTY' || attempt === 5) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
+}
+
+afterEach(async () => {
+  await retryRmSync(dir);
 });
 
 describe('bringing an older layout across', () => {
@@ -307,7 +320,9 @@ describe('the combat and potion settings that went', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   /*
    * `joinFights: false` was *be polite*, so it becomes `politeAttacks: true`
@@ -2998,7 +3013,9 @@ describe('the party remotes list is stated in the options file', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the shipped list into a block that has everything else', () => {
     fs.writeFileSync(
@@ -5376,7 +5393,9 @@ describe('the room remote follows where', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('adds it to the gang, the party and each player’s allow list', () => {
     fs.writeFileSync(
@@ -5443,7 +5462,9 @@ describe('the asking line is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes it off, with its paragraph, into a party block that predates it', () => {
     fs.writeFileSync(home.options, 'automation:\n  party:\n    assistLeader: false\n', 'utf8');
@@ -5520,7 +5541,9 @@ describe('choosing the spell is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the switch off at the head of a spells block that predates it, once', () => {
     fs.writeFileSync(home.options, 'automation:\n  spells:\n    attack: mmis\n', 'utf8');
@@ -5560,7 +5583,9 @@ describe('resting next door to a lair is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the switch on into a health block that predates it, beside the ceiling', () => {
     fs.writeFileSync(
@@ -5606,7 +5631,9 @@ describe('fetching the kit after a death is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the switch off into a movement block that predates it, and is safe to run again', () => {
     fs.writeFileSync(home.options, 'automation:\n  movement:\n    openDoors: true\n', 'utf8');
@@ -5646,7 +5673,9 @@ describe('alert rows name events rather than channels', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('carries a channel row to the happening a player most likely meant', () => {
     fs.writeFileSync(
@@ -5718,7 +5747,9 @@ describe('the mob rules list is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the empty list into a block that predates it', () => {
     fs.writeFileSync(
@@ -5796,7 +5827,9 @@ describe('the two monster lists became one', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('turns an avoided monster into a row set to never attack', () => {
     fs.writeFileSync(
@@ -5906,7 +5939,9 @@ describe('the monster rules became monster rows', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('lays each rule over the row for its monster, and keeps a Flee', () => {
     fs.writeFileSync(
@@ -5982,7 +6017,9 @@ describe('hiding for the opener is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the switch off into a block that predates it, after the opener', () => {
     fs.writeFileSync(
@@ -6037,7 +6074,9 @@ describe('the coins can be shed', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the empty list into a block that predates it, beside the collect list', () => {
     fs.writeFileSync(
@@ -6094,7 +6133,9 @@ describe('the quest run is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the block off into the options file alone, once, and leaves a stated one alone', () => {
     fs.writeFileSync(home.options, 'automation:\n  movement:\n    openDoors: true\n', 'utf8');
@@ -6136,7 +6177,9 @@ describe('training is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the whole block off and wanting nothing, after movement, into the options file alone, once', () => {
     fs.writeFileSync(
@@ -6479,7 +6522,9 @@ describe('joining when invited is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the switch off after gangpath in a remotes block that predates it, once', () => {
     fs.writeFileSync(
@@ -6525,7 +6570,9 @@ describe('the heal choice is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('gives the heal its own switch, on where the spell choice was on, after healParty', () => {
     fs.writeFileSync(
@@ -6578,7 +6625,9 @@ describe('the regen spells are stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes the block in blank after cures, once', () => {
     fs.writeFileSync(
@@ -6630,7 +6679,9 @@ describe('the party rank is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes both after restWithLeader, once', () => {
     fs.writeFileSync(
@@ -6681,7 +6732,9 @@ describe('the survival floor is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes it off after maxMonsterExperience, once', () => {
     fs.writeFileSync(
@@ -6725,7 +6778,9 @@ describe('walking while losing hit points is stated', () => {
     fs.mkdirSync(path.dirname(home.options), { recursive: true });
   });
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(async () => {
+    await retryRmSync(dir);
+  });
 
   it('writes it off after walkWhileConfused, once', () => {
     fs.writeFileSync(

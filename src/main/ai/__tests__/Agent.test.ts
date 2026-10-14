@@ -62,6 +62,30 @@ describe('AutonomousAgent', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     expect(agent.state.status).toBe('idle');
   });
+  it('records the selected decision in the agent trace for review', async () => {
+    const provider: AiProvider = {
+      decide: vi.fn().mockResolvedValue({
+        objective: 'explore',
+        explanation: 'Choose a valid exit',
+        action: { name: 'navigate_to', reason: 'safe exploration' }
+      }),
+      usage: () => ({ requests: 1, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
+    };
+    const agent = new AutonomousAgent(provider, {
+      execute: vi.fn().mockResolvedValue({ ok: true, message: 'moved' })
+    });
+    agent.enable('explore');
+    await agent.tick({
+      ...observation,
+      room: { id: 1, exits: [{ direction: 'north', targetMap: 1, targetRoom: 2, requirement: null }] },
+      availableActions: ['navigate_to']
+    });
+    expect(agent.state.decisionTrace).toMatchObject({
+      objective: 'explore',
+      candidate: 'navigate_to',
+      reason: expect.stringContaining('safe exploration')
+    });
+  });
   it('reassesses after an explicit resume even when the observation is unchanged', async () => {
     const decide = vi.fn().mockResolvedValue({
       objective: 'observe',
