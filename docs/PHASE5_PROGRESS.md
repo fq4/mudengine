@@ -84,6 +84,12 @@ Profiles are opt-in data; no session automatically raises its configured
 limits. Selection and interface exposure still need to be wired through the
 session settings path before extended live sessions are allowed.
 
+`AutonomousScheduler` now provides bounded activity transitions: it selects an
+uncompleted candidate, records completion, blocks after repeated failures,
+ignores unchanged observations, and stops on interruption. It is covered by
+deterministic transition tests. Session-level wiring and live provider-driven
+selection remain the next integration step.
+
 ## Continuation prompt
 
 Read `docs/CODEX_HANDOFF.md`, `docs/PHASE4_PROGRESS.md`, and this file. Start
