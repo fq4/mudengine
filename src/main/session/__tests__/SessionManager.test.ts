@@ -296,6 +296,26 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('clears stale autonomous scheduler state when the objective is cleared', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const scheduler = (isolated as any).aiScheduler;
+    scheduler.choose(
+      [
+        { action: { name: 'inspect_room', reason: 'observe the room' }, priority: 10, rationale: 'room' },
+        { action: { name: 'inspect_inventory', reason: 'check supplies' }, priority: 5, rationale: 'inventory' }
+      ],
+      'room-a'
+    );
+    scheduler.finish(true, 'room-a-observed');
+    expect(scheduler.state.completed).toContain('inspect_room');
+    isolated.aiClearGoal();
+    expect(scheduler.state.status).toBe('idle');
+    expect(scheduler.state.completed).toEqual([]);
+    expect(scheduler.state.lastObservation).toBeNull();
+    isolated.dispose();
+  });
+
   it('delegates recovery and equipment actions to existing automation adapters', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);

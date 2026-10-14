@@ -3505,13 +3505,13 @@ export class SessionManager {
   aiStop(): AiSnapshot {
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
-    this.aiScheduler.interrupt();
+    this.aiScheduler.reset();
     return this.aiSnapshot;
   }
   aiEmergencyStop(): AiSnapshot {
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
-    this.aiScheduler.interrupt();
+    this.aiScheduler.reset();
     this.queue.cancel(
       (intent) =>
         intent.reason?.startsWith('AI:') === true ||
@@ -3654,7 +3654,7 @@ export class SessionManager {
   aiGoal(goal: string): AiSnapshot {
     this.aiApprovals.resetTransient();
     this.aiAutonomousMode = false;
-    this.aiScheduler.interrupt();
+    this.aiScheduler.reset();
     this.aiAgent.enable(goal.trim());
     if (goal.trim()) void this.aiTick();
     return this.aiSnapshot;
@@ -3663,7 +3663,7 @@ export class SessionManager {
     this.aiApprovals.resetTransient();
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
-    this.aiScheduler.interrupt();
+    this.aiScheduler.reset();
     this.aiAgent.state.objective = '';
     this.aiAgent.state.objectiveComplete = false;
     this.aiAgent.state.currentAction = null;

@@ -62,5 +62,6 @@ export class AutonomousScheduler {
   interrupt(): void {
     this.state.current = null;
     this.state.status = 'interrupted';
+    this.state.lastObservation = null;
   }
 }

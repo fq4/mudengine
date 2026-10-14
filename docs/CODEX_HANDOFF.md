@@ -85,6 +85,9 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 - Named provider/gameplay budget profiles and `AutonomousScheduler` transition
   guards have deterministic coverage; supervised live scheduler selection and
   broader provider-driven long-lived explicit-goal planning remain outstanding.
+  - Deterministic scheduler integration work now verifies that objective-clear,
+    stop, and emergency-stop paths reset stale scheduler state so no-objective
+    autonomous mode can recover cleanly without reusing old completion markers.
 - The bounded kefka harness now proves one genuine provider-driven broad
   objective: one OpenRouter request selected `inspect_room` from ranked
   candidates and completed through production observation with zero safety

@@ -29,5 +29,17 @@ describe('AutonomousScheduler', () => {
     expect(scheduler.state.status).toBe('blocked');
     scheduler.interrupt();
     expect(scheduler.state.status).toBe('interrupted');
+    expect(scheduler.state.lastObservation).toBeNull();
+  });
+  it('resets stale observation state when restarting autonomous work', () => {
+    const scheduler = new AutonomousScheduler();
+    scheduler.choose(candidates, 'room-a');
+    scheduler.finish(true, 'room-a-observed');
+    expect(scheduler.state.completed).toContain('inspect_room');
+    scheduler.interrupt();
+    scheduler.reset();
+    expect(scheduler.state.status).toBe('idle');
+    expect(scheduler.state.completed).toEqual([]);
+    expect(scheduler.state.lastObservation).toBeNull();
   });
 });

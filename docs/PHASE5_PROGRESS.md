@@ -95,6 +95,11 @@ use the provider/planner path. Safe observation is the default autonomous
 candidate; the scheduler stops after exhausting candidates or after bounded
 failures and is interrupted by stop, emergency stop, or a new explicit goal.
 
+Recent deterministic integration work tightened the scheduler restart path: the
+session objective-clear/stop/emergency-stop paths now reset scheduler state so
+empty objective mode can resume cleanly without carrying stale completion or
+last-observation markers into the next autonomous cycle.
+
 The session integration has focused offline coverage through the existing
 SessionManager suite and activity-selector/scheduler tests. Provider-driven
 long-lived selection for explicit objectives and a supervised live observation
