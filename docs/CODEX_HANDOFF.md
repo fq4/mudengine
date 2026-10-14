@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `9d8f35f` (`Document final Phase 3 validation`)
+- Latest commit: `f0d1bac` (`Verify live inventory safety refusal`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 3 bounded autonomous gameplay work is implemented and verified on
@@ -37,6 +37,8 @@ MudEngine is a cross-platform Electron/Vite client, terminal, parser, world mode
 - Phase 4 PvE target safety gate: engagement requires authoritative hostile mob
   evidence and rejects players, unknowns, charmed mobs, passive targets, and
   always-costly alignment targets before AutoCombat.
+- Phase 4 inventory safety gate: item use requires an exact identified carried
+  item and rejects equipped, depleted, protected, absent, or unknown items.
 - General-command safeguards: unknown commands require approval; known safe commands queue directly; empty, oversized, multiline, NUL-containing, and prohibited commands are refused.
 
 ## Safety boundaries
@@ -61,7 +63,8 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
 - `npm run lint` currently fails the repository-wide pre-existing Prettier baseline. Do not perform a broad formatter rewrite as handoff work.
 - Phase 4 has started with deterministic PvE target classification; no live
-  combat has been attempted.
+  combat or item consumption has been attempted. The bounded kefka harness has
+  passed 12 scenarios with zero violations, including both refusal gates.
 
 Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md` for capability mapping, and `docs/ai-technical-spec.md` for architecture and decisions.
 
