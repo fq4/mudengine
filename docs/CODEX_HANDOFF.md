@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `4a58159` (`Add policy filtered activity selection`)
+- Latest commit: `279523f` (`Expose fresh activity candidates to AI planning`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 4 implementation and bounded live verification are complete on

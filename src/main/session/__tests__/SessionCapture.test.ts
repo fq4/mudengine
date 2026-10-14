@@ -53,8 +53,19 @@ beforeEach(() => {
   problems = [];
 });
 
-afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+afterEach(async () => {
+  // Windows can briefly retain the completed WriteStream handle after its end
+  // callback. Retry cleanup so the full-suite scheduler does not turn that
+  // harmless close timing into an ENOTEMPTY failure.
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOTEMPTY' || attempt === 7) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
 });
 
 /*
