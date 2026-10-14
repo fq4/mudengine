@@ -100,6 +100,15 @@ SessionManager suite and activity-selector/scheduler tests. Provider-driven
 long-lived selection for explicit objectives and a supervised live observation
 of scheduler-selected activity remain the next validation steps.
 
+## Credential audit
+
+Thirty historical `rushoracle`/`kefka` captures written before credential
+redaction (`bc59606`) were moved, not deleted, to the user-scoped quarantine
+directory `%APPDATA%\\mudengine\\quarantine\\credential-capture-audit-20261014-0955`.
+No newer active capture contained a configured credential. The active scan
+excludes only that explicit quarantine folder; capture, session-log,
+diagnostics, and raw-byte redaction tests pass.
+
 ## Continuation prompt
 
 Read `docs/CODEX_HANDOFF.md`, `docs/PHASE4_PROGRESS.md`, and this file. Start

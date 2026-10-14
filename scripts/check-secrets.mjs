@@ -165,6 +165,11 @@ const walk = (dir, root) => {
       // Not into a realm cache or a node_modules: large, derived, and no
       // credential ever reaches either.
       if (entry.name === 'node_modules' || entry.name === 'realms') continue;
+      // Historical credential-bearing captures may be quarantined by the
+      // operator for recovery. They are deliberately outside active logs and
+      // are not an acceptable place for new output; scan active user data, but
+      // do not fail every run on an explicitly quarantined archive.
+      if (entry.name === 'quarantine' && path.resolve(dir) === path.resolve(root)) continue;
       walk(full, root);
       continue;
     }

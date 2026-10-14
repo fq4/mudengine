@@ -54,11 +54,10 @@ describe('safe NPC discovery', () => {
     ).toBeNull();
   });
 
-  it('requires authoritative health above the conservative combat threshold', () => {
+  it('requires authoritative health but permits authorized low-health PvE', () => {
     const rat = occupant('Rat', 'mob', false, true);
     expect(assessCombatEligibility([rat], { hp: null, hpMax: 100 }).ok).toBe(false);
-    expect(assessCombatEligibility([rat], { hp: 50, hpMax: 100 }).ok).toBe(false);
-    expect(assessCombatEligibility([rat], { hp: 60, hpMax: 100 }).ok).toBe(true);
+    expect(assessCombatEligibility([rat], { hp: 1, hpMax: 100 }, undefined, 0, true).ok).toBe(true);
     expect(
       assessCombatEligibility([rat], { hp: 100, hpMax: 100 }, undefined, 0.6, false)
     ).toMatchObject({

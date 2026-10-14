@@ -1,5 +1,8 @@
 # MudEngine Codex Handoff
 
+Persistent coding-agent principles are in the repository-root `AGENTS.md`.
+Read it together with this handoff before making changes.
+
 ## Current state
 
 - Branch: `development`
@@ -63,6 +66,8 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
 - `npm run lint` currently fails the repository-wide pre-existing Prettier baseline. Do not perform a broad formatter rewrite as handoff work.
+- Active secret scanning passes. Thirty historical credential-bearing captures
+  were quarantined under the user-scoped `%APPDATA%\\mudengine\\quarantine\\credential-capture-audit-20261014-0955`; only that explicit quarantine directory is excluded. Capture, logging, diagnostics, and raw-byte redaction tests pass.
 - Phase 4 arena combat integration has been live-verified. The latest encounter
   ended without authoritative victory evidence; the harness reports `ended`
   unless `user-gain-experience` is observed. Recovery was skipped at full HP,

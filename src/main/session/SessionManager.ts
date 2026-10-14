@@ -3949,10 +3949,12 @@ export class SessionManager {
         this.tracker.current.room.occupants,
         this.tracker.current.vitals,
         name,
-        0.6,
-        this.tracker.current.room.exits.some(
-          (exit) => exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
-        )
+        // Kefka is an explicitly disposable test character. Once an
+        // authoritative hostile NPC is identified, authorized PvE objectives
+        // may test low-health outcomes; unknown health and
+        // player/PvP targets remain hard refusals in CombatSafety.
+        0,
+        true
       );
       const target = eligibility.target;
       if (!eligibility.ok || !target)
