@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `c723488` (`Refresh live harness handoff`)
+- Latest commit: `a1cd25d` (`Route live combat harness through Newhaven Arena`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 3 bounded autonomous gameplay work is implemented and verified on
