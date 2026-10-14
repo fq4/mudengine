@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `28fa8b6` (`Persist bounded gameplay outcomes`)
+- Latest commit: `a46246c` (`Order multi-capability objective prerequisites`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 3 bounded autonomous gameplay work is implemented and verified on
