@@ -102,11 +102,10 @@ recovery or stop safely.
 
 ## Remaining Phase 4 work
 
-- Add explicit threat and health eligibility evaluation around AutoCombat's
-  existing deterministic survival decisions.
-- Add bounded ordinary inventory inspection/use and equipment evaluation behind
-  canonical policies, with approvals for costly or irreversible actions.
-- Extend objective planning and persistent memory for combat, recovery, and
-  inventory outcomes.
-- Add deterministic fixtures for combat retreat, target loss, reconnect, and
-  multi-capability objectives before any live PvE scenario.
+- Run a bounded live multi-capability objective only when kefka provides an
+  authoritative hostile NPC, health at or above the threshold, and an open
+  escape route. The latest live session did not expose such a target, so no
+  combat or mutating inventory/equipment action was attempted.
+- Observe and record a safe live combat completion or retreat, followed by
+  recovery and ordinary inventory/equipment inspection, under the existing
+  runtime and approval budgets.
