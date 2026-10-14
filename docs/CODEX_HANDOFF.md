@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `a46246c` (`Order multi-capability objective prerequisites`)
+- Latest commit: `a093438` (`Require an escape route before PvE engagement`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 3 bounded autonomous gameplay work is implemented and verified on
