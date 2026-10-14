@@ -195,6 +195,16 @@ async function main() {
       result: 'Skipped safely: no authoritative visible NPC in the current room'
     });
   }
+  const combatSafety = await session.aiAction({
+    name: 'engage_enemy',
+    args: { name: '__unverified_phase4_target__' },
+    reason: 'phase 4 safety refusal check'
+  });
+  report.scenarios.push({
+    name: 'combat-safety-refusal',
+    passed: !combatSafety.ok && /refused/i.test(combatSafety.message),
+    result: combatSafety.message
+  });
   const navigation = await runScenario(
     'one-room-navigation',
     'Explore one adjacent room using an available exit, then stop.',

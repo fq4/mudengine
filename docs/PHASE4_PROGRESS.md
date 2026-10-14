@@ -48,6 +48,8 @@ loop suppression and budget limits.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape
   route, and hard combat limits can be established from authoritative data.
+- The harness includes a live combat-safety refusal check for an unverified
+  target; it must refuse before AutoCombat or the wire is reached.
 
 ## Remaining Phase 4 work
 
