@@ -95,9 +95,11 @@ recovery or stop safely.
 - Scoped memory regression coverage and SessionManager execution coverage pass
   with the new combat, inventory, and equipment outcome category.
 - Node and renderer typechecks pass.
-- No live combat has been attempted. The `kefka` harness remains restricted to
-  observation and safe navigation until a live target, health state, escape
-  route, and hard combat limits can be established from authoritative data.
+- The bounded `kefka` live test now reaches Newhaven Arena, probes health through
+  Routines → CommandQueue → CharacterTracker, verifies an authoritative mob and
+  escape route, and delegates one encounter to AutoCombat. A result is labelled
+  `victory` only when the server emits `user-gain-experience`; otherwise it is
+  reported honestly as `ended`/`active`/`unsafe`/`unknown`.
 - The harness includes a live combat-safety refusal check for an unverified
   target; it must refuse before AutoCombat or the wire is reached.
 - The harness also includes a live inventory-safety refusal check for an absent
@@ -108,13 +110,16 @@ recovery or stop safely.
   `1/2150`, using bounded deterministic Walker legs, then inspects the room,
   target occupants, health, and retreat exits before considering combat.
 - The latest arena run reached `1/2150` and observed two authoritative mob
-  occupants. The production health probe then established authoritative HP,
-  the conservative preflight selected `small filthbug`, and one bounded
-  `AutoCombat` encounter ended safely with zero harness violations.
+  occupants. The conservative preflight selected `small filthbug`; the bounded
+  AutoCombat encounter ended safely without victory evidence, so it was reported
+  as `ended`. Authoritative HP was already full afterward, so recovery was
+  correctly skipped. Inventory inspection and EquipmentManager evaluation then
+  completed with zero harness violations.
 
 ## Remaining Phase 4 work
 
-- Run a bounded live multi-capability objective that continues through recovery
-  and ordinary inventory/equipment inspection under the existing budgets.
+- Repeat the bounded objective when a hurt post-combat state permits observing
+  the production recovery path; do not issue `rest` when authoritative HP is
+  already full.
 - Repeat the arena path only when the live room and character state justify it;
   never infer health or target safety from stale observations.

@@ -49,6 +49,20 @@ describe('LiveHarnessMonitor', () => {
     expect(monitor.violations.map(({ code }) => code)).toEqual(['unsafe-command']);
   });
 
+  it('requires explicit phase authorization for recovery and equipment commands', () => {
+    const monitor = new LiveHarnessMonitor(limits);
+    monitor.command('rest');
+    monitor.command('wear rusty helm');
+    monitor.authorizeRecovery();
+    monitor.authorizeEquipmentChanges();
+    monitor.command('rest');
+    monitor.command('wear rusty helm');
+    expect(monitor.violations.map(({ code }) => code)).toEqual([
+      'unsafe-command',
+      'unsafe-command'
+    ]);
+  });
+
   it('rejects channel prefixes and emote aliases', () => {
     const monitor = new LiveHarnessMonitor(limits);
     monitor.command('.hello');

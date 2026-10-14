@@ -41,6 +41,8 @@ export class LiveHarnessMonitor {
   private recentRooms: string[] = [];
   private lastUsage: string | null = null;
   private readonly authorizedCombatTargets = new Set<string>();
+  private recoveryAuthorized = false;
+  private equipmentAuthorized = false;
 
   constructor(readonly limits: LiveHarnessLimits) {}
 
@@ -53,6 +55,14 @@ export class LiveHarnessMonitor {
     if (value) this.authorizedCombatTargets.add(value);
   }
 
+  authorizeRecovery(): void {
+    this.recoveryAuthorized = true;
+  }
+
+  authorizeEquipmentChanges(): void {
+    this.equipmentAuthorized = true;
+  }
+
   command(command: string): void {
     const value = command.trim().replace(/\s+/g, ' ');
     if (!value) return;
@@ -61,7 +71,10 @@ export class LiveHarnessMonitor {
     const authorizedCombat =
       combatCommand !== null &&
       this.authorizedCombatTargets.has(combatCommand[1]?.trim().toLowerCase() ?? '');
-    if (unsafe.test(value) && !authorizedCombat)
+    const authorizedRecovery = this.recoveryAuthorized && /^rest$/i.test(value);
+    const authorizedEquipment =
+      this.equipmentAuthorized && /^(?:wear|remove|wield|equip)\b/i.test(value);
+    if (unsafe.test(value) && !authorizedCombat && !authorizedRecovery && !authorizedEquipment)
       this.fail('unsafe-command', `Unsafe live-test command: ${value}`);
     if (movement.test(value)) {
       this.moves += 1;

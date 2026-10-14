@@ -60,11 +60,14 @@ const monitor = new LiveHarnessMonitor({
   maxRepeatedAction: 2
 });
 const lines = [];
+let combatVictoryEvidence = false;
 let currentRoom = null;
 let multiRoomTarget = null;
 const sink = {
   data: () => {},
-  block: () => {},
+  block: (block) => {
+    if (block.type === 'user-gain-experience') combatVictoryEvidence = true;
+  },
   state: () => {},
   telnet: () => {},
   notice: () => {},
@@ -315,6 +318,7 @@ async function main() {
       : `Safely refused before combat: ${arenaEligibility.reason}`
   });
   if (arenaEligibility.ok && arenaEligibility.target) {
+    combatVictoryEvidence = false;
     monitor.authorizeCombatTarget(arenaEligibility.target.name);
     // The harness supplies the explicit authorized objective; the executor's
     // target, health, classification, and escape checks remain authoritative.
@@ -331,10 +335,65 @@ async function main() {
       outcome = combatOutcome(session.character.combat, session.character.vitals);
     }
     if (outcome === 'active') session.aiEmergencyStop();
+    const combatResult = combatVictoryEvidence ? 'victory' : outcome;
     report.scenarios.push({
       name: 'newhaven-arena-bounded-combat',
       passed: combatDispatch.ok && outcome !== 'unsafe' && !monitor.failed,
-      result: `${combatDispatch.message}; outcome=${outcome}`
+      result: `${combatDispatch.message}; outcome=${combatResult}`
+    });
+
+    const hp = session.character.vitals.hp;
+    const hpMax = session.character.vitals.hpMax;
+    if (hp !== null && hpMax !== null && hp < hpMax) {
+      monitor.authorizeRecovery();
+      const recovery = await session.aiAction({
+        name: 'recover_health',
+        reason: 'bounded post-combat recovery'
+      });
+      const recoveryDeadline = Date.now() + 8_000;
+      while (
+        Date.now() < recoveryDeadline &&
+        session.character.vitals.hp !== null &&
+        session.character.vitals.hpMax !== null &&
+        session.character.vitals.hp < session.character.vitals.hpMax &&
+        !monitor.failed
+      )
+        await wait(500);
+      const recovered =
+        session.character.vitals.hp !== null &&
+        session.character.vitals.hpMax !== null &&
+        session.character.vitals.hp >= session.character.vitals.hpMax;
+      report.scenarios.push({
+        name: 'newhaven-arena-post-combat-recovery',
+        passed: recovery.ok && recovered && !monitor.failed,
+        result: `${recovery.message}; recovered=${recovered}`
+      });
+    } else {
+      report.scenarios.push({
+        name: 'newhaven-arena-post-combat-recovery',
+        passed: hp !== null && hpMax !== null,
+        result: 'Recovery not required; authoritative HP is already at maximum'
+      });
+    }
+    const inventory = await session.aiAction({
+      name: 'inspect_inventory',
+      reason: 'bounded post-combat inventory verification'
+    });
+    report.scenarios.push({
+      name: 'newhaven-arena-post-combat-inventory',
+      passed: inventory.ok && !monitor.failed,
+      result: `${inventory.message}; items=${session.character.inventory.items.length}`
+    });
+    monitor.authorizeEquipmentChanges();
+    session.aiAgent.state.objective = 'Evaluate ordinary equipment after combat';
+    const equipment = await session.aiAction({
+      name: 'manage_equipment',
+      reason: 'bounded post-combat equipment evaluation'
+    });
+    report.scenarios.push({
+      name: 'newhaven-arena-post-combat-equipment',
+      passed: equipment.ok && !monitor.failed,
+      result: equipment.message
     });
   }
   const navigation = await runScenario(
