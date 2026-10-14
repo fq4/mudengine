@@ -39,6 +39,11 @@ changes are refused unless the current objective explicitly requests gear,
 armor, weapons, or wearing equipment, while the existing EquipmentManager
 continues to perform the deterministic adapter work after the guard passes.
 
+Authoritative combat-result inspection, queued item use, and equipment
+delegation now persist scoped `outcome` records in the AI memory store. Unknown
+combat outcomes remain unverified; queueing or delegation is recorded as an
+attempt until later authoritative state confirms the result.
+
 Combat objectives now decompose into room discovery, NPC inspection, verified
 PvE engagement, combat-result assessment, and recovery steps. The planner
 cannot mark a combat objective complete from inspection alone.
@@ -70,6 +75,8 @@ recovery or stop safely.
 - Objective-scoped execution remains covered by the existing policy and agent
   regressions; connected SessionManager coverage includes the equipment guard
   path; typechecks pass after the executor guard.
+- Scoped memory regression coverage and SessionManager execution coverage pass
+  with the new combat, inventory, and equipment outcome category.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape

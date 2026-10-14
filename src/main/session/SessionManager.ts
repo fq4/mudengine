@@ -3718,6 +3718,15 @@ export class SessionManager {
           : { ok: false, message: 'Refused: no authoritative non-player NPC is visible' };
       } else if (action.name === 'inspect_combat_result') {
         const outcome = combatOutcome(this.tracker.current.combat, this.tracker.current.vitals);
+        this.aiMemory?.upsert({
+          category: 'outcome',
+          text: `Combat outcome observed: ${outcome}`,
+          provenance: 'authoritative combat and vitals state',
+          confidence: outcome === 'unknown' ? 0.4 : 1,
+          verified: outcome !== 'unknown',
+          expiresAt: Date.now() + 86_400_000,
+          pinned: false
+        });
         return { ok: true, message: `Combat outcome: ${outcome}` };
       } else return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
     if (action.name === 'recover_health')
@@ -3746,6 +3755,15 @@ export class SessionManager {
         this.walker.walking || this.loops.progress.status === 'running',
         this.recovery.recovering
       );
+      this.aiMemory?.upsert({
+        category: 'outcome',
+        text: 'Equipment evaluation delegated to EquipmentManager',
+        provenance: 'deterministic equipment adapter',
+        confidence: 0.8,
+        verified: false,
+        expiresAt: Date.now() + 86_400_000,
+        pinned: false
+      });
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
     if (action.name === 'use_item') {
@@ -3760,6 +3778,16 @@ export class SessionManager {
         priority: 'user',
         reason: `AI: ${action.reason}`
       });
+      if (queued)
+        this.aiMemory?.upsert({
+          category: 'outcome',
+          text: `Item use queued for ${item.name}`,
+          provenance: 'authoritative inventory preflight and CommandQueue',
+          confidence: 0.8,
+          verified: false,
+          expiresAt: Date.now() + 86_400_000,
+          pinned: false
+        });
       return {
         ok: queued,
         message: queued

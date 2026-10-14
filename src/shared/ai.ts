@@ -58,7 +58,7 @@ export interface AiMemoryRecord {
   id: string;
   server: string;
   character: string;
-  category: 'fact' | 'hypothesis' | 'strategy' | 'social' | 'preference' | 'objective';
+  category: 'fact' | 'hypothesis' | 'strategy' | 'social' | 'preference' | 'objective' | 'outcome';
   text: string;
   provenance: string;
   confidence: number;
