@@ -102,6 +102,7 @@ import { isMeaningfulAiEvent } from '../ai/events';
 import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
 import { findSafeNpc } from '../ai/NpcDiscovery';
 import { assessCombatEligibility } from '../ai/CombatSafety';
+import { combatOutcome } from '../ai/CombatOutcome';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
@@ -3714,6 +3715,9 @@ export class SessionManager {
         return npc
           ? { ok: true, message: `Observed NPC ${npc.name}` }
           : { ok: false, message: 'Refused: no authoritative non-player NPC is visible' };
+      } else if (action.name === 'inspect_combat_result') {
+        const outcome = combatOutcome(this.tracker.current.combat, this.tracker.current.vitals);
+        return { ok: true, message: `Combat outcome: ${outcome}` };
       } else return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
     if (action.name === 'recover_health')
       if (!isPassiveRecovery('rest'))

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RoomOccupant } from '../../../shared/character';
 import { findSafeCombatNpc, findSafeNpc } from '../NpcDiscovery';
 import { assessCombatEligibility } from '../CombatSafety';
+import { combatOutcome } from '../CombatOutcome';
 
 const occupant = (
   name: string,
@@ -57,5 +58,14 @@ describe('safe NPC discovery', () => {
     expect(assessCombatEligibility([rat], { hp: null, hpMax: 100 }).ok).toBe(false);
     expect(assessCombatEligibility([rat], { hp: 50, hpMax: 100 }).ok).toBe(false);
     expect(assessCombatEligibility([rat], { hp: 60, hpMax: 100 }).ok).toBe(true);
+  });
+
+  it('classifies combat only from authoritative engagement and vitals', () => {
+    expect(combatOutcome({ engaged: true, target: 'rat' }, { hp: 80, hpMax: 100 })).toBe('active');
+    expect(combatOutcome({ engaged: false, target: null }, { hp: 80, hpMax: 100 })).toBe('ended');
+    expect(combatOutcome({ engaged: true, target: 'rat' }, { hp: 20, hpMax: 100 })).toBe('unsafe');
+    expect(combatOutcome({ engaged: true, target: null }, { hp: null, hpMax: null })).toBe(
+      'unknown'
+    );
   });
 });

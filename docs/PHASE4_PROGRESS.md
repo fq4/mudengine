@@ -33,6 +33,11 @@ observation reactivates the failed step while preserving completed prerequisites
 and failure memory. Repeated failures remain subject to the agent's existing
 loop suppression and budget limits.
 
+Combat-result inspection now reports `active`, `ended`, `unsafe`, or `unknown`
+from authoritative engagement and vitals. Low health and missing facts are
+never presented as a successful combat result, so the planner can choose
+recovery or stop safely.
+
 ## Verification
 
 - NPC discovery and action-policy regressions pass.
@@ -44,6 +49,7 @@ loop suppression and budget limits.
   sequence without requiring a live server.
 - Agent regressions cover reactivation after a changed observation and prevent
   retries on an unchanged state.
+- Combat-outcome regressions cover active, ended, unsafe, and unknown states.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape
