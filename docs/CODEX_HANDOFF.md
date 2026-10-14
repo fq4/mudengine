@@ -3,7 +3,7 @@
 ## Current state
 
 - Branch: `development`
-- Latest commit: `6441af5` (`Use production health probes for arena combat`)
+- Latest commit: `26def05` (`Extend bounded live verification through recovery and equipment`)
 - Working tree: clean for tracked files; local untracked `.npm-cache/` remains
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 3 bounded autonomous gameplay work is implemented and verified on
