@@ -34,6 +34,21 @@ ordered planning, same-observation reassessment, interruption, budgets, and
 emergency stop. The live harness budget is explicitly aligned to its eight
 request ceiling.
 
+The final bounded `kefka` run passed all ten approved scenarios with zero
+violations: multi-step character/room inspection, inventory inspection, safe
+one-room and exact two-room navigation, conditional NPC inspection, invalid
+destination refusal, unknown-command approval, manual interruption, budget
+enforcement, and emergency stop. No combat, PvP, purchases, spending,
+consumption, equipment changes, or destructive commands were issued. The trace
+masked login credentials.
+
+Validation after this checkpoint: 250 test files passed (6,920 tests passed,
+2 skipped), realm tests passed (18 tests), both TypeScript typechecks passed,
+the production build passed, and `check:secrets` found no configured password
+in generated or user-scoped client files. The repository-wide `npm run lint`
+command still reports 612 pre-existing Prettier failures in untouched files;
+all files changed by this checkpoint pass Prettier's check.
+
 ## Next work
 
 - Add deterministic fixtures for NPC discovery/search and non-destructive NPC
