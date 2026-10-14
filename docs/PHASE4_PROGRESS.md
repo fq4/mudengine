@@ -99,6 +99,12 @@ recovery or stop safely.
   item; it must refuse before `CommandQueue` or the wire is reached.
 - The harness includes a live equipment-safety refusal check when the objective
   does not authorize equipment work; it must refuse before `EquipmentManager`.
+- The harness now routes through the authoritative Newhaven Arena room
+  `1/2150`, using bounded deterministic Walker legs, then inspects the room,
+  target occupants, health, and retreat exits before considering combat.
+- The latest arena run reached `1/2150` and observed two authoritative mob
+  occupants. Combat was safely refused because kefka's health was not
+  authoritative; no attack command was sent.
 
 ## Remaining Phase 4 work
 

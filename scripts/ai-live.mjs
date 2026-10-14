@@ -17,6 +17,9 @@ import fs from 'node:fs';
 import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
 import { roomId } from '../src/shared/world.ts';
+import { assessCombatEligibility } from '../src/main/ai/CombatSafety.ts';
+import { combatOutcome } from '../src/main/ai/CombatOutcome.ts';
+import { findSafeCombatNpc } from '../src/main/ai/NpcDiscovery.ts';
 
 const args = process.argv.slice(2);
 const has = (flag) => args.includes(flag);
@@ -46,9 +49,11 @@ if (!profile.config.connection.login.username || !profile.config.connection.logi
 if (!process.env.OPENROUTER_API_KEY)
   throw new Error('OPENROUTER_API_KEY is not present in the environment');
 
+const NEWHAVEN_ARENA = '1/2150';
+
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: Number(valueOf('--max-ms') ?? 120_000),
-  maxMoves: Number(valueOf('--max-moves') ?? 4),
+  maxMoves: Number(valueOf('--max-moves') ?? 12),
   maxRequests: Number(valueOf('--max-requests') ?? 8),
   maxTokens: Number(valueOf('--max-tokens') ?? 30_000),
   maxCostUsd: Number(valueOf('--max-cost') ?? 0.05),
@@ -224,6 +229,102 @@ async function main() {
     passed: !combatSafety.ok && /refused/i.test(combatSafety.message),
     result: combatSafety.message
   });
+  const arenaBefore = roomKey();
+  let arenaDispatchMessage = 'No arena route dispatched';
+  let arenaArrived = roomKey() === NEWHAVEN_ARENA;
+  for (let attempt = 0; attempt < 6 && !arenaArrived; attempt += 1) {
+    const legBefore = roomKey();
+    const arenaDispatch = await session.aiAction({
+      name: 'navigate_to',
+      args: { destination: NEWHAVEN_ARENA },
+      reason: 'bounded Newhaven Arena route'
+    });
+    arenaDispatchMessage = arenaDispatch.message;
+    if (!arenaDispatch.ok) break;
+    await waitFor(() => roomKey() !== legBefore || snapshot().state.status === 'error', 8_000);
+    arenaArrived = roomKey() === NEWHAVEN_ARENA;
+  }
+  const arenaAfter = roomKey();
+  monitor.room(arenaAfter);
+  const arenaNavigation = arenaArrived && arenaAfter === NEWHAVEN_ARENA && !monitor.failed;
+  report.scenarios.push({
+    name: 'newhaven-arena-navigation',
+    passed: arenaNavigation,
+    before: arenaBefore,
+    after: arenaAfter,
+    status: snapshot().state.status,
+    result: arenaDispatchMessage
+  });
+  const arenaRoomInspection = await session.aiAction({
+    name: 'inspect_room',
+    reason: 'authoritative arena room inspection'
+  });
+  const arenaHealthInspection = await session.aiAction({
+    name: 'inspect_character',
+    reason: 'authoritative arena health inspection'
+  });
+  const arenaInspection = arenaNavigation && arenaRoomInspection.ok && arenaHealthInspection.ok;
+  report.scenarios.push({
+    name: 'newhaven-arena-inspection',
+    passed: arenaInspection,
+    before: arenaAfter,
+    after: roomKey(),
+    status: snapshot().state.status,
+    result: `${arenaRoomInspection.message}; ${arenaHealthInspection.message}`
+  });
+  const arenaRoom = session.character.room;
+  const arenaTargets = arenaRoom?.occupants?.filter(
+    (occupant) => occupant.kind === 'mob' && occupant.mob?.name
+  );
+  report.scenarios.push({
+    name: 'newhaven-arena-target-discovery',
+    passed: arenaNavigation && arenaInspection,
+    result: arenaTargets?.length
+      ? `Observed ${arenaTargets.length} authoritative mob target(s); combat remains policy-gated`
+      : 'No authoritative mob target visible in the arena'
+  });
+  const arenaTarget = findSafeCombatNpc(arenaRoom?.occupants ?? []);
+  const arenaEscapeAvailable =
+    arenaRoom?.exits?.some(
+      (exit) => exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
+    ) ?? false;
+  const arenaEligibility = assessCombatEligibility(
+    arenaRoom?.occupants ?? [],
+    session.character.vitals,
+    arenaTarget?.name,
+    0.6,
+    arenaEscapeAvailable
+  );
+  report.scenarios.push({
+    name: 'newhaven-arena-combat-preflight',
+    passed: arenaNavigation && arenaInspection,
+    result: arenaEligibility.ok
+      ? `Eligible target ${arenaEligibility.target?.name}; health and escape route verified`
+      : `Safely refused before combat: ${arenaEligibility.reason}`
+  });
+  if (arenaEligibility.ok && arenaEligibility.target) {
+    monitor.authorizeCombatTarget(arenaEligibility.target.name);
+    // The harness supplies the explicit authorized objective; the executor's
+    // target, health, classification, and escape checks remain authoritative.
+    session.aiAgent.state.objective = `Engage the verified PvE enemy ${arenaEligibility.target.name}`;
+    const combatDispatch = await session.aiAction({
+      name: 'engage_enemy',
+      args: { name: arenaEligibility.target.name },
+      reason: 'bounded authorized Newhaven Arena PvE test'
+    });
+    const combatDeadline = Date.now() + 15_000;
+    let outcome = combatOutcome(session.character.combat, session.character.vitals);
+    while (Date.now() < combatDeadline && outcome === 'active' && !monitor.failed) {
+      await wait(500);
+      outcome = combatOutcome(session.character.combat, session.character.vitals);
+    }
+    if (outcome === 'active') session.aiEmergencyStop();
+    report.scenarios.push({
+      name: 'newhaven-arena-bounded-combat',
+      passed: combatDispatch.ok && outcome !== 'unsafe' && !monitor.failed,
+      result: `${combatDispatch.message}; outcome=${outcome}`
+    });
+  }
   const navigation = await runScenario(
     'one-room-navigation',
     'Explore one adjacent room using an available exit, then stop.',

@@ -34,8 +34,19 @@ describe('LiveHarnessMonitor', () => {
     monitor.command('st');
     monitor.command('stand');
     monitor.command('rest');
-    expect(monitor.violations.map(({ code }) => code)).toEqual(['unsafe-command', 'unsafe-command']);
+    expect(monitor.violations.map(({ code }) => code)).toEqual([
+      'unsafe-command',
+      'unsafe-command'
+    ]);
     expect(monitor.moveCount).toBe(1);
+  });
+
+  it('allows combat commands only for an explicitly authorized target', () => {
+    const monitor = new LiveHarnessMonitor(limits);
+    monitor.command('kill goblin');
+    monitor.authorizeCombatTarget('Goblin');
+    monitor.command('kill goblin');
+    expect(monitor.violations.map(({ code }) => code)).toEqual(['unsafe-command']);
   });
 
   it('rejects channel prefixes and emote aliases', () => {
