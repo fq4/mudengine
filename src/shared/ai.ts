@@ -108,6 +108,17 @@ export interface AiBudgetLimits {
   sessionCostUsd: number;
   sessionTokens?: number;
 }
+export interface AiGameplayLimits {
+  commands: number;
+  movements: number;
+  runtimeMs: number;
+}
+export type AiBudgetProfileName = 'smoke' | 'exploration' | 'adventure' | 'extended';
+export interface AiBudgetProfile {
+  name: AiBudgetProfileName;
+  provider: AiBudgetLimits;
+  gameplay: AiGameplayLimits;
+}
 export interface AiAggregateBudgetSnapshot {
   limits: AiBudgetLimits;
   requests: number;
@@ -142,6 +153,7 @@ export interface AiState {
   consecutiveFailures: number;
   budgetResetAt?: number;
   budgetLimits?: AiBudgetLimits;
+  budgetProfile?: AiBudgetProfileName;
   currentAction?: {
     name: AiActionName;
     phase: 'requested' | 'accepted' | 'executing' | 'completed' | 'failed' | 'interrupted';

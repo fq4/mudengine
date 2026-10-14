@@ -77,6 +77,13 @@ the established agent/session adapters.
 4. Investigate the server transcript/state needed for authoritative victory
    evidence; never infer victory from combat ending.
 
+Named budget profiles are now defined in `src/main/ai/Budget.ts`: `smoke`,
+`exploration`, `adventure`, and `extended`. Each separates provider request,
+token, and cost ceilings from gameplay command, movement, and runtime limits.
+Profiles are opt-in data; no session automatically raises its configured
+limits. Selection and interface exposure still need to be wired through the
+session settings path before extended live sessions are allowed.
+
 ## Continuation prompt
 
 Read `docs/CODEX_HANDOFF.md`, `docs/PHASE4_PROGRESS.md`, and this file. Start
