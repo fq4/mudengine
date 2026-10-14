@@ -18,11 +18,19 @@ above 60% before delegation. Unknown or low health refuses the action rather
 than assuming the character is ready; AutoCombat remains responsible for
 ongoing retreat and recovery decisions after a verified start.
 
+Inventory work now has a dedicated `use_item` action. It accepts only an exact
+name present in the authoritative carried-item listing and routes the command
+through `CommandQueue`; the canonical policy keeps it approval-gated until a
+specific ordinary item is verified safe for supervised live use. Unknown item
+names never reach the wire.
+
 ## Verification
 
 - NPC discovery and action-policy regressions pass.
 - Connected SessionManager coverage passes (248 tests), including the guarded
   engagement adapter.
+- AI policy, planner, observation, typecheck, production build, and secret
+  scan pass after adding the inventory action contract.
 - Node and renderer typechecks pass.
 - No live combat has been attempted. The `kefka` harness remains restricted to
   observation and safe navigation until a live target, health state, escape

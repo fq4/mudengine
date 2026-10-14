@@ -3736,6 +3736,28 @@ export class SessionManager {
       );
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
+    if (action.name === 'use_item') {
+      const name = typeof action.args?.name === 'string' ? action.args.name.trim() : '';
+      const item = this.tracker.current.inventory.items.find(
+        (carried) => carried.name.toLowerCase() === name.toLowerCase()
+      );
+      if (!item)
+        return {
+          ok: false,
+          message: 'Refused: item is not present in the authoritative inventory'
+        };
+      const queued = this.queue.enqueue({
+        command: `use ${item.name}`,
+        priority: 'user',
+        reason: `AI: ${action.reason}`
+      });
+      return {
+        ok: queued,
+        message: queued
+          ? `Item use accepted by CommandQueue for ${item.name}`
+          : 'Item use was refused by CommandQueue'
+      };
+    }
     if (action.name === 'send_message') {
       const objective = this.aiAgent.state.objective.toLowerCase();
       const communicationRequested =

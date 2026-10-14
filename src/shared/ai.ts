@@ -5,6 +5,7 @@ export type AiActionName =
   | 'inspect_character'
   | 'inspect_room'
   | 'inspect_inventory'
+  | 'use_item'
   | 'inspect_map'
   | 'inspect_npc'
   | 'navigate_to'
@@ -168,6 +169,7 @@ export const AI_ACTIONS: readonly AiActionName[] = [
   'inspect_character',
   'inspect_room',
   'inspect_inventory',
+  'use_item',
   'inspect_map',
   'inspect_npc',
   'navigate_to',

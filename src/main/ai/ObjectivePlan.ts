@@ -20,6 +20,7 @@ export function buildObjectivePlan(objective: string): ObjectiveStep[] {
   const add = (action: AiActionName, label: string, extra: Partial<ObjectiveStep> = {}) =>
     steps.push({ id: `${steps.length + 1}:${action}`, action, label, status: 'pending', ...extra });
   if (/\b(inventory|backpack|pack)\b/.test(lower)) add('inspect_inventory', 'Inspect inventory');
+  if (/\b(use|consume|drink|eat|quaff)\b/.test(lower)) add('use_item', 'Use an identified item');
   if (!/\bnon[- ]player\b/.test(lower) && /\b(character|status|stats?)\b/.test(lower))
     add('inspect_character', 'Inspect character');
   const target = destination(value);
@@ -40,6 +41,7 @@ export function buildObjectivePlan(objective: string): ObjectiveStep[] {
   const order = (step: ObjectiveStep): number => {
     const terms: Record<AiActionName, RegExp> = {
       inspect_inventory: /inventory|backpack|pack/i,
+      use_item: /use|consume|drink|eat|quaff/i,
       inspect_character: /character|status|stats?/i,
       navigate_to: /navigate|travel|go to|walk to|explore|destination\s+\d+\/\d+/i,
       inspect_room: /room|location|area|surroundings?/i,

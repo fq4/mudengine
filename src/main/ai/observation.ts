@@ -27,6 +27,7 @@ export function objectiveAvailableActions(objective: string): AiActionName[] {
     actions.push('inspect_npc');
   if (/\b(navigate|travel|go to|walk to|explore)\b/.test(value)) actions.push('navigate_to');
   if (/\b(recover|health|heal|rest)\b/.test(value)) actions.push('recover_health');
+  if (/\b(use|consume|drink|eat|quaff)\b/.test(value)) actions.push('use_item');
   if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(value))
     actions.push('manage_equipment');
   if (/\b(fight|combat|attack|engage|enemy|npc)\b/.test(value)) {
@@ -38,8 +39,7 @@ export function objectiveAvailableActions(objective: string): AiActionName[] {
     )
   )
     actions.push('send_message');
-  if (/\b(command|use|execute|run|unknown)\b/.test(value))
-    actions.push('execute_supported_command');
+  if (/\b(command|execute|run|unknown)\b/.test(value)) actions.push('execute_supported_command');
   return actions;
 }
 

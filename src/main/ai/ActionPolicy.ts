@@ -38,6 +38,17 @@ export const AI_ACTION_POLICIES: Readonly<Record<AiActionName, ActionPolicy>> = 
   inspect_character: immediate('inspect_character', 'Read the authoritative character state'),
   inspect_room: immediate('inspect_room', 'Read the authoritative room state'),
   inspect_inventory: immediate('inspect_inventory', 'Read the authoritative inventory state'),
+  use_item: {
+    name: 'use_item',
+    risk: 'high',
+    authorization: 'ask-first',
+    summary: 'Use one exactly identified carried item through CommandQueue',
+    failure: 'Require approval and refuse items absent from the authoritative inventory.',
+    audit: 'ai.use_item.submitted',
+    completion: 'approval',
+    validate: (action) =>
+      nonEmpty(action.args?.name) ? null : 'Item use requires an exact item name'
+  },
   inspect_map: immediate('inspect_map', 'Read the known world route/map state'),
   inspect_npc: {
     name: 'inspect_npc',

@@ -362,6 +362,7 @@ export class AutonomousAgent {
     if (/\b(npc|non[- ]player|townsperson|villager)\b/.test(objective))
       return action === 'inspect_npc' || action === 'engage_enemy';
     if (/\b(inventory|backpack|pack)\b/.test(objective)) return action === 'inspect_inventory';
+    if (/\b(use|consume|drink|eat|quaff)\b/.test(objective)) return action === 'use_item';
     if (/\b(character|status|stats?)\b/.test(objective)) return action === 'inspect_character';
     if (/\b(room|location|area)\b/.test(objective)) return action === 'inspect_room';
     if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(objective))
