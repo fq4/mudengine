@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomOccupant } from '../../../shared/character';
 import { findSafeCombatNpc, findSafeNpc } from '../NpcDiscovery';
+import { assessCombatEligibility } from '../CombatSafety';
 
 const occupant = (
   name: string,
@@ -49,5 +50,12 @@ describe('safe NPC discovery', () => {
         occupant('Good guardian', 'mob', false, true, { costly: 'always' })
       ])
     ).toBeNull();
+  });
+
+  it('requires authoritative health above the conservative combat threshold', () => {
+    const rat = occupant('Rat', 'mob', false, true);
+    expect(assessCombatEligibility([rat], { hp: null, hpMax: 100 }).ok).toBe(false);
+    expect(assessCombatEligibility([rat], { hp: 50, hpMax: 100 }).ok).toBe(false);
+    expect(assessCombatEligibility([rat], { hp: 60, hpMax: 100 }).ok).toBe(true);
   });
 });

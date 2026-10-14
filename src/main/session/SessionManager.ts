@@ -100,7 +100,8 @@ import {
 } from '../ai/observation';
 import { isMeaningfulAiEvent } from '../ai/events';
 import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
-import { findSafeCombatNpc, findSafeNpc } from '../ai/NpcDiscovery';
+import { findSafeNpc } from '../ai/NpcDiscovery';
+import { assessCombatEligibility } from '../ai/CombatSafety';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
@@ -3789,11 +3790,16 @@ export class SessionManager {
       const name = typeof action.args?.name === 'string' ? action.args.name : '';
       if (!name || name.startsWith('@'))
         return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };
-      const target = findSafeCombatNpc(this.tracker.current.room.occupants, name);
-      if (!target)
+      const eligibility = assessCombatEligibility(
+        this.tracker.current.room.occupants,
+        this.tracker.current.vitals,
+        name
+      );
+      const target = eligibility.target;
+      if (!eligibility.ok || !target)
         return {
           ok: false,
-          message: 'Refused: no authoritative conservative hostile NPC is visible'
+          message: `Refused: ${eligibility.reason}`
         };
       this.combat.alsoFight(target.name);
       this.aiMemory?.upsert({
