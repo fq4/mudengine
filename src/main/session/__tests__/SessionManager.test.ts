@@ -271,7 +271,20 @@ describe('AI reconnect lifecycle', () => {
   it('refuses a gossip reply without a recent inbound gossip event', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
-    (isolated as any).aiAgent.state.objective = 'Respond to people in the gossip channel';
+    (isolated as any).aiAgent.state.objective =
+      'Reply briefly and politely to each new incoming gossip message from another player. Use send_message with channel gossip, and base each reply only on the message received. Keep listening for more gossip. Do not initiate messages, use another channel, or reply to my own messages.';
+    const accidentalItemUse = await (isolated as any).executeAiAction(
+      {
+        name: 'use_item',
+        args: { name: 'healing potion' },
+        reason: 'Use send_message with channel gossip'
+      },
+      'approved'
+    );
+    expect(accidentalItemUse).toEqual({
+      ok: false,
+      message: 'Refused: the objective does not request item use'
+    });
     const result = await (isolated as any).executeAiAction(
       {
         name: 'send_message',
@@ -286,7 +299,9 @@ describe('AI reconnect lifecycle', () => {
     });
     expect(isolated.aiSnapshot.state.pendingApprovals).toHaveLength(0);
 
-    const candidatesBeforeGossip = (isolated as any).aiObservation().activityCandidates as Array<{
+    const beforeGossip = (isolated as any).aiObservation();
+    expect(beforeGossip.availableActions).not.toContain('use_item');
+    const candidatesBeforeGossip = beforeGossip.activityCandidates as Array<{
       action: { name: string };
     }>;
     expect(candidatesBeforeGossip.map(({ action }) => action.name)).not.toContain('send_message');

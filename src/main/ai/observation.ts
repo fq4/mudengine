@@ -8,6 +8,7 @@ export function compactCharacterObservation<T extends { room: unknown; inventory
 
 import type { AiActionName } from '../../shared/ai';
 import { actionPolicy } from './ActionPolicy';
+import { objectiveRequestsItemUse } from './objectiveIntents';
 
 /**
  * Advertise only capabilities relevant to the current objective. This is a
@@ -27,7 +28,7 @@ export function objectiveAvailableActions(objective: string): AiActionName[] {
     actions.push('inspect_npc');
   if (/\b(navigate|travel|go to|walk to|explore)\b/.test(value)) actions.push('navigate_to');
   if (/\b(recover|health|heal|rest)\b/.test(value)) actions.push('recover_health');
-  if (/\b(use|consume|drink|eat|quaff)\b/.test(value)) actions.push('use_item');
+  if (objectiveRequestsItemUse(objective)) actions.push('use_item');
   if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(value))
     actions.push('manage_equipment');
   if (/\b(fight|combat|attack|engage|enemy|npc)\b/.test(value)) {

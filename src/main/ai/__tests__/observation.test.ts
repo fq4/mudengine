@@ -38,7 +38,7 @@ describe('objective capability advertisement', () => {
 
   it('advertises gossip replies without unrelated item-use capability', () => {
     const actions = objectiveAvailableActions(
-      'Reply briefly only to incoming gossip messages. Choose the send_message action for gossip.'
+      'Reply briefly and politely to each new incoming gossip message from another player. Use send_message with channel gossip, and base each reply only on the message received. Keep listening for more gossip. Do not initiate messages, use another channel, or reply to my own messages.'
     );
     expect(actions).toContain('send_message');
     expect(actions).not.toContain('use_item');

@@ -13,6 +13,14 @@ describe('bounded objective planning', () => {
     expect(plan[0]).toMatchObject({ destination: '1/2141', status: 'pending' });
   });
 
+  it('does not mistake send_message instructions for item use', () => {
+    const replyGoal =
+      'Reply to incoming gossip. Use send_message with channel gossip; do not use another channel.';
+    expect(buildObjectivePlan(replyGoal)).toEqual([]);
+    expect(buildObjectivePlan('Use the healing potion when HP is low.').map(({ action }) => action))
+      .toEqual(['use_item']);
+  });
+
   it('advances only the matching step and exposes the next step', () => {
     let plan = buildObjectivePlan('Navigate to 1/2 and inspect my inventory.');
     plan[0]!.status = 'active';

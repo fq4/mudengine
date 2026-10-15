@@ -109,7 +109,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   while a recent inbound event authorizes it. Conversation blocks wake the
   session agent even when tracker state is unchanged; waiting remains a no-op
   until a meaningful event. Deterministic tests cover candidate visibility,
-  reply gating, and the monitor bounds.
+  reply gating, and the monitor bounds. Item-use intent requires item or
+  consumption language, so "Use send_message" and "use another channel" do
+  not create an inventory-use objective.
 - Bounded Kefka gossip run (2026-10-15): five minutes, 2 provider requests,
   4,475 tokens, estimated cost ~$0.00074, zero monitor violations. No inbound
   gossip arrived, so no reply was sent; this run is inconclusive for live

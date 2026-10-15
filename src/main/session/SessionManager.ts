@@ -98,6 +98,7 @@ import {
   objectiveActionPolicies,
   objectiveAvailableActions
 } from '../ai/observation';
+import { objectiveRequestsItemUse } from '../ai/objectiveIntents';
 import { isMeaningfulAiEvent } from '../ai/events';
 import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
 import { findSafeNpc } from '../ai/NpcDiscovery';
@@ -4261,7 +4262,7 @@ export class SessionManager {
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
     if (action.name === 'use_item') {
-      if (!/\b(use|consume|drink|eat|quaff)\b/i.test(this.aiAgent.state.objective))
+      if (!objectiveRequestsItemUse(this.aiAgent.state.objective))
         return { ok: false, message: 'Refused: the objective does not request item use' };
       const name = typeof action.args?.name === 'string' ? action.args.name.trim() : '';
       const eligibility = assessItemUse(this.tracker.current.inventory.items, name);
