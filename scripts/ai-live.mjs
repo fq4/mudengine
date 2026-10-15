@@ -89,6 +89,7 @@ const sink = {
     }
   },
   state: () => {},
+  character: () => {},
   telnet: () => {},
   notice: () => {},
   line: () => {},
@@ -108,6 +109,8 @@ const session = new SessionManager(
   world,
   {
     ...profile.config.automation,
+    // Entry probes can overlap with room exits (notably "st"); keep the social run motionless.
+    onEnterRealm: gossipReplyTest ? [] : profile.config.automation.onEnterRealm,
     idle: { ...profile.config.automation.idle, enabled: false },
     rules: []
   },

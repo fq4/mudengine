@@ -351,3 +351,24 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   approval request. This complements the existing unknown-command approval
   coverage.
 - The focused regression passed and both typechecks passed.
+
+### 2026-10-15 - bounded gossip-reply attempt
+
+- The supervised `kefka` gossip harness ran for 282 seconds with 7 provider
+  requests, 16,554 tokens, and approximately $0.00275 in estimated usage.
+- It received no inbound gossip and sent no replies, so live `gos` acceptance
+  remains unverified. Earlier messages from a separate session are not replayed
+  on connection; only a fresh inbound event can authorize a reply.
+- The monitor continues to count `st` as possible movement because it is a
+  server-specific room-exit alias. The gossip harness disables profile
+  `onEnterRealm` probes so entry commands cannot accidentally trigger the
+  zero-movement guard.
+
+### 2026-10-15 - first live gossip reply observed
+
+- A configured sender session sent one test gossip through `CommandQueue`.
+  The sender received a gossip reply from Kefka, confirming that an inbound
+  server event can wake the agent and produce a live reply.
+- The responder harness crashed after the reply because its test sink lacked
+  the required `character` callback. Added the callback; the crashed run did
+  not emit final request/token/cost totals. No message text was retained.

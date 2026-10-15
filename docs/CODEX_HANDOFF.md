@@ -218,6 +218,19 @@ Conversation events wake the session agent even when the character tracker has
 no other state change. Reply objectives remain active while waiting for further
 events. The `wait` action is an event-driven no-op.
 
+An earlier bounded gossip run (2026-10-15) lasted 282 seconds and used 7
+provider requests, 16,554 tokens, and about $0.00275. It received no inbound
+gossip and sent no replies, so that run was inconclusive. A fresh message from
+another player is required because prior chat is not replayed.
+The social harness disables profile `onEnterRealm` probes but still counts
+`st` as possible movement because it can be a room-exit alias.
+
+A later supervised test sent one public test message from a configured sender
+session through `CommandQueue`; the sender received a gossip reply from Kefka.
+This demonstrates live communication. The responder harness then crashed
+afterward because its sink lacked the required `character` callback; that
+callback is now present. The run's final usage report was not captured.
+
 ```powershell
 npm run test:ai-live -- --live --profile kefka --gossip-reply-test --max-ms 300000 --max-requests 16 --max-tokens 60000 --max-cost 0.05
 ```

@@ -116,6 +116,20 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   4,475 tokens, estimated cost ~$0.00074, zero monitor violations. No inbound
   gossip arrived, so no reply was sent; this run is inconclusive for live
   server acceptance of `gos`.
+- Follow-up supervised gossip run (2026-10-15): 282 seconds, 7 provider
+  requests, 16,554 tokens, estimated cost ~$0.00275, no inbound gossip, and
+  zero replies. No server reply path was exercised. Messages received before
+  the harness connected were not replayed to it. The social harness suppresses
+  profile `onEnterRealm` probes
+  while retaining conservative movement detection (`st` remains counted as a
+  possible room-exit alias); this avoids entry-probe ambiguity without
+  weakening the zero-movement limit.
+- First live gossip reply observed (2026-10-15): a configured sender session
+  sent one test message through `CommandQueue`, and the sender received a
+  `conversation-gossip` reply from Kefka. The AI reply path reached the live
+  server. The harness then exited with a missing `sink.character` callback
+  before writing its final report; the callback has been added, but this run's
+  request/token/cost totals were not captured. Message text was not retained.
 
 ## Next recommended task
 

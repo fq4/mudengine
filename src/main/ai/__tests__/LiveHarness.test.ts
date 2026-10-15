@@ -29,7 +29,7 @@ describe('LiveHarnessMonitor', () => {
     expect(monitor.violations.map(({ code }) => code)).toEqual(['unsafe-command', 'repeat']);
   });
 
-  it('allows the server-specific st navigation alias but rejects recovery commands', () => {
+  it('counts the server-specific st navigation alias and rejects recovery commands', () => {
     const monitor = new LiveHarnessMonitor(limits);
     monitor.command('st');
     monitor.command('stand');
