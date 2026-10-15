@@ -381,6 +381,14 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   0 inbound messages, 0 replies, 4 requests, 9,276 tokens, and approximately
   $0.00152 estimated usage. The new `dropped` callback reported the failure.
 - The configured responder and sender profiles share the same login and
-  server. Concurrent use likely caused the disconnect; do not test with both
-  profiles at once. A clean live verification needs fresh gossip from another
-  login while Kefka stays connected.
+  server. Concurrent use may have caused the disconnect, but this is
+  unconfirmed; do not test with both profiles at once.
+
+### 2026-10-15 - sender retained through reply window
+
+- A sender-side monitor reported that one fresh test gossip was sent, a reply
+  was received, the sender did not disconnect, and it was retained through the
+  responder window. This confirms live communication while the sender stayed
+  connected.
+- The result did not include the responder harness's request, token, cost, or
+  monitor totals. No message text was retained.

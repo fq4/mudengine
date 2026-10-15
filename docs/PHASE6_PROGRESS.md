@@ -134,9 +134,14 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 - Clean-report retry (2026-10-15): the responder disconnected after 24 seconds,
   before receiving gossip; 4 requests, 9,276 tokens, about $0.00152, 0 replies.
   The responder and configured sender profiles share the same login and server,
-  so concurrent use likely caused the drop. Do not use them simultaneously.
-  Final live verification requires a fresh message from a different login while
-  Kefka remains connected. No message text was retained.
+  so concurrent use may have caused the drop, but this is unconfirmed. Do not
+  use them simultaneously.
+- Sender-side follow-up (2026-10-15): one fresh test gossip was sent, a reply
+  was received, the sender did not disconnect, and it was retained through the
+  responder window. This confirms live communication and that the sender
+  remained connected while the reply arrived. The sender-side check did not
+  provide a complete responder harness report with request, token, cost, and
+  monitor totals. No message text was retained.
 
 ## Next recommended task
 
