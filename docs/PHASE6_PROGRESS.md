@@ -88,7 +88,7 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Verification (this checkpoint)
 
-- Focused exploration and SessionManager tests: 280 passed.
+- Focused exploration and SessionManager tests: 281 passed.
 - Node and renderer typechecks: passed.
 - Production build: passed; the existing large-renderer-chunk warning remains.
 - Secret scan: passed against the configured user-scoped profile data.
@@ -104,9 +104,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Next recommended task
 
-Add a deterministic autonomous-session lifecycle test that completes a
-Walker-owned frontier trip, records the newly observed room, and chooses the
-next frontier without resuming stale navigation after interruption.
+Connect the frontier lifecycle fixture to Walker's actual end callback instead
+of simulating its completion signal; verify a fresh destination is selected
+after an AI stop and no stale navigation resumes.
 
 ## Environment on a new computer
 ```powershell

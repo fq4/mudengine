@@ -197,7 +197,7 @@ Copy-Item .env.example .env
 npm run test:ai-live -- --live --profile kefka
 ```
 
-The harness withholds credentials from output and enforces bounded runtime, requests, tokens, cost, movement, and command safety. It performs only inspection, safe navigation, approval-path, interruption, budget, and emergency-stop scenarios. Never run it unattended or expand its allowed commands without explicit authorization.
+The harness withholds credentials from output and enforces bounded runtime, requests, tokens, cost, movement, and command safety. It performs inspection, safety-refusal checks, bounded PvE when a verified safe NPC is present, safe navigation, approval-path, interruption, budget, and emergency-stop scenarios. Never run it unattended or expand its allowed commands without explicit authorization.
 
 ## Next Codex session instruction
 
@@ -214,8 +214,11 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   server-listed exits. Exploration uses `WorldGraph` to rank reachable,
   unvisited frontiers and delegates movement to Walker; old version-one
   snapshots remain readable.
-- Focused exploration and session validation passed: 280 tests across
+- Focused exploration and session validation passed: 281 tests across
   `ActivitySelector`, `AutonomousScheduler`, and `SessionManager`.
+- A lifecycle test verifies that a completed frontier observation is recorded
+  and a fresh destination is selected after an AI stop. It simulates the
+  Walker completion signal; exercising the actual Walker callback remains open.
 - Typechecks, production build and secret scan passed. The full suite reports
   one unrelated intermittent failure (`ConfigStore.test.ts` file-watch timeout,
   `no change event`); `SessionLog.test.ts` passed in this run.

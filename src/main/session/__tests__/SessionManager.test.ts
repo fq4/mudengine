@@ -380,6 +380,108 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('reobserves a simulated Walker arrival and selects a fresh frontier after an AI stop', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 9;
+    state.room.exits = [
+      {
+        direction: 'west',
+        note: null,
+        targetMap: 1,
+        targetRoom: 2,
+        targetName: null,
+        requirement: null
+      }
+    ];
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    const route = vi.fn((_from: string, to: string) => ({
+      blocked: false,
+      steps: to === '1/4' ? [{}, {}] : [{}]
+    }));
+    (isolated as any).world = { route };
+    (isolated as any).preferred = new Set<string>();
+    const scheduler = (isolated as any).aiScheduler;
+    scheduler.recordRoomObservation('1/1', [{ direction: 'north', to: '1/4' }], false);
+    scheduler.recordRoomObservation('1/2', [], false);
+    const execute = vi
+      .spyOn(isolated as any, 'executeAiAction')
+      .mockResolvedValue({ ok: true, message: 'Navigation delegated to Walker' });
+    let delegated: 'active' | 'completed' = 'active';
+    vi.spyOn(isolated as any, 'delegatedAiStatus').mockImplementation(() => delegated);
+
+    isolated.aiEnable();
+    (isolated as any).aiAgent.state.objective = 'Explore the world';
+    (isolated as any).aiAgent.state.plan = [
+      { id: 'explore', action: 'navigate_to', label: 'Explore a frontier', status: 'active' },
+      { id: 'observe', action: 'inspect_room', label: 'Observe the frontier', status: 'pending' }
+    ];
+    await (isolated as any).aiAutonomousTick();
+    expect(scheduler.state.current).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/4' }
+    });
+
+    state.room.number = 4;
+    state.room.exits = [
+      {
+        direction: 'east',
+        note: null,
+        targetMap: 1,
+        targetRoom: 5,
+        targetName: null,
+        requirement: null
+      },
+      {
+        direction: 'south',
+        note: null,
+        targetMap: 1,
+        targetRoom: 6,
+        targetName: null,
+        requirement: null
+      }
+    ];
+    (isolated as any).aiNavigationWalkOutcome = 'arrived';
+    delegated = 'completed';
+    await (isolated as any).aiAutonomousTick();
+    expect(scheduler.journal.routeOutcomes).toEqual([
+      { from: '1/9', to: '1/4', attempts: 1, arrivals: 1, failures: 0 }
+    ]);
+    isolated.aiStop();
+    expect(scheduler.state.current).toBeNull();
+    expect(scheduler.journal.observedExits).not.toContainEqual({
+      room: '1/4',
+      exits: expect.any(Array)
+    });
+
+    (isolated as any).aiAgent.state.objective = '';
+    isolated.aiEnable();
+    (isolated as any).aiAgent.state.objective = 'Explore the world';
+    (isolated as any).aiAgent.state.plan = [
+      { id: 'explore', action: 'navigate_to', label: 'Explore a frontier', status: 'active' },
+      { id: 'observe', action: 'inspect_room', label: 'Observe the frontier', status: 'pending' }
+    ];
+    delegated = 'active';
+    await (isolated as any).aiAutonomousTick();
+
+    expect(scheduler.journal.observedExits).toContainEqual({
+      room: '1/4',
+      exits: [
+        { direction: 'east', to: '1/5' },
+        { direction: 'south', to: '1/6' }
+      ]
+    });
+    expect(scheduler.state.current).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/5' }
+    });
+    expect(execute).toHaveBeenCalledTimes(2);
+    isolated.dispose();
+  });
+
   it('records navigation outcomes from the requested destination and tracker room', () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
