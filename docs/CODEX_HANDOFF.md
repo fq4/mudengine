@@ -203,6 +203,9 @@ npm run test:ai-live -- --live --profile kefka
 
 The harness withholds credentials from output and enforces bounded runtime, requests, tokens, cost, movement, and command safety. It performs inspection, safety-refusal checks, bounded PvE when a verified safe NPC is present, safe navigation, approval-path, interruption, budget, and emergency-stop scenarios. Never run it unattended or expand its allowed commands without explicit authorization.
 
+The live harness intentionally rejects public-chat commands such as `gos` and
+`gossip`; social-message routing is covered by deterministic tests instead.
+
 ## Next Codex session instruction
 
 After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6 status is in `docs/PHASE6_PROGRESS.md`.

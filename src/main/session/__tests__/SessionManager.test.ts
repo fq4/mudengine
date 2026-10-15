@@ -292,6 +292,32 @@ describe('AI reconnect lifecycle', () => {
     expect(manager.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
   });
 
+  it('queues an approved gossip reply using the realm gossip alias', async () => {
+    const { sink } = collect();
+    manager = new SessionManager(sink);
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const socket = await client();
+    let wire = '';
+    socket.on('data', (chunk) => { wire += chunk.toString('latin1'); });
+    (manager as any).aiAgent.state.objective = 'Respond to people in the gossip channel';
+
+    const pending = await (manager as any).executeAiAction({
+      name: 'send_message',
+      args: { channel: 'gossip', message: 'A bounded test reply' },
+      reason: 'reply to an incoming gossip message'
+    }, 'agent');
+    expect(pending).toMatchObject({ ok: false, pendingApproval: true });
+    const approval = manager.aiSnapshot.state.pendingApprovals[0];
+    expect(approval?.action).toMatchObject({ name: 'send_message', args: { channel: 'gossip' } });
+    expect(wire).not.toContain('gos A bounded test reply');
+
+    manager.aiApprove(approval!.id);
+    socket.write('[HP=30]:\r\n');
+    await until(() => wire.includes('gos A bounded test reply\r\n'));
+    expect(wire).not.toContain('gossip A bounded test reply');
+    expect(manager.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
+  });
+
   it('queues a known safe command immediately without creating approval', async () => {
     const { sink } = collect();
     manager = new SessionManager(sink);
