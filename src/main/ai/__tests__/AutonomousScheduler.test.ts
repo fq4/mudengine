@@ -162,15 +162,40 @@ describe('AutonomousScheduler', () => {
       expect(restored.journal.deadEnds).toEqual([]);
     });
 
+    it('stores bounded authoritative room exits and marks observed rooms visited', () => {
+      const scheduler = new AutonomousScheduler();
+      const exits = [
+        { direction: 'north', to: '1/2' },
+        { direction: 'east', to: '1/3' }
+      ];
+      expect(scheduler.recordRoomObservation('1/1', exits, false)).toBe(true);
+      expect(scheduler.recordRoomObservation('1/1', exits, false)).toBe(false);
+      expect(scheduler.journal.visitedRooms).toEqual(['1/1']);
+      expect(scheduler.journal.observedExits).toEqual([{ room: '1/1', exits }]);
+      const restored = new AutonomousScheduler();
+      expect(restored.restore(scheduler.snapshot())).toBe(true);
+      expect(restored.journal.observedExits).toEqual([{ room: '1/1', exits }]);
+    });
+
     it('restores version-one snapshots created before exploration memory', () => {
       const scheduler = new AutonomousScheduler();
       const legacySnapshot = scheduler.snapshot();
       delete (legacySnapshot.journal as Partial<typeof legacySnapshot.journal>).deadEnds;
       delete (legacySnapshot.journal as Partial<typeof legacySnapshot.journal>).routeOutcomes;
+      delete (legacySnapshot.journal as Partial<typeof legacySnapshot.journal>).observedExits;
       const restored = new AutonomousScheduler();
       expect(restored.restore(legacySnapshot)).toBe(true);
       expect(restored.journal.deadEnds).toEqual([]);
       expect(restored.journal.routeOutcomes).toEqual([]);
+      expect(restored.journal.observedExits).toEqual([]);
+    });
+
+    it('rejects malformed remembered exit graphs without changing scheduler state', () => {
+      const scheduler = new AutonomousScheduler();
+      const invalid = scheduler.snapshot();
+      invalid.journal.observedExits = [{ room: '1/1', exits: [{ direction: 'north', to: 'wrong' }] }];
+      expect(scheduler.restore(invalid)).toBe(false);
+      expect(scheduler.journal.observedExits).toEqual([]);
     });
   });
 });

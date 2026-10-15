@@ -105,7 +105,11 @@ import { assessCombatEligibility } from '../ai/CombatSafety';
 import { combatOutcome } from '../ai/CombatOutcome';
 import { assessItemUse } from '../ai/InventorySafety';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
-import { selectActivity, type ExplorationContext } from '../ai/ActivitySelector';
+import {
+  reachableExplorationFrontiers,
+  selectActivity,
+  type ExplorationContext
+} from '../ai/ActivitySelector';
 import {
   AutonomousScheduler,
   type SchedulerProgress,
@@ -3416,7 +3420,10 @@ export class SessionManager {
     return this.tracker.current;
   }
 
-  private aiObservation(event?: string): AiObservation {
+  private aiObservation(
+    event?: string,
+    exploration: ExplorationContext = this.aiExplorationContext()
+  ): AiObservation {
     const state = this.tracker.current;
     // Room and inventory are already provided as dedicated authoritative
     // observation fields. Do not serialize those large structures a second
@@ -3454,7 +3461,7 @@ export class SessionManager {
       activityCandidates: selectActivity(
         state,
         this.aiAgent.state.objective,
-        this.aiExplorationContext()
+        exploration
       ).considered,
       ...(event ? { event } : {})
     };
@@ -3744,7 +3751,7 @@ export class SessionManager {
       await this.aiAutonomousTick(event);
       return;
     }
-    await this.aiAgent.tick(this.aiObservation(event));
+    await this.aiAgent.tick(this.aiObservation(event, this.aiExplorationContext(true)));
   }
 
   private async aiAutonomousTick(event?: string): Promise<void> {
@@ -3755,14 +3762,8 @@ export class SessionManager {
       this.aiAgent.state.explanation = 'Waiting for an active in-game session.';
       return;
     }
-    const observation = this.aiObservation(event);
     const broadObjective = this.aiAgent.state.objective.trim().length > 0;
     const progress = this.schedulerProgress();
-    if (
-      progress.room !== null &&
-      this.aiScheduler.rememberDeadEnd(progress.room, this.tracker.current.room.exits.length === 0)
-    )
-      this.persistAiScheduler();
     if (
       broadObjective &&
       this.aiAgent.state.plan?.some((step) => step.status === 'blocked') &&
@@ -3789,6 +3790,22 @@ export class SessionManager {
         return;
       }
     }
+    const state = this.tracker.current;
+    const room = state.room;
+    if (room.map !== null && room.number !== null) {
+      const changed = this.aiScheduler.recordRoomObservation(
+        roomId(room.map, room.number),
+        room.exits.flatMap((exit) =>
+          exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
+            ? [{ direction: exit.direction, to: roomId(exit.targetMap, exit.targetRoom) }]
+            : []
+        ),
+        room.exits.length === 0
+      );
+      if (changed) this.persistAiScheduler();
+    }
+    const exploration = this.aiExplorationContext(true);
+    const observation = this.aiObservation(event, exploration);
     const planStep = broadObjective
       ? this.aiAgent.state.plan?.find((step) => step.status === 'active')
       : undefined;
@@ -3809,7 +3826,7 @@ export class SessionManager {
     const ranked = selectActivity(
       this.tracker.current,
       this.aiAgent.state.objective,
-      this.aiExplorationContext()
+      exploration
     ).considered;
     const selection = planStep ? this.candidatesForObjectiveStep(planStep, ranked) : ranked;
     if (broadObjective && selection.length === 0) {
@@ -4001,9 +4018,35 @@ export class SessionManager {
     };
   }
 
-  private aiExplorationContext(): ExplorationContext {
-    const { visitedRooms, deadEnds, routeOutcomes } = this.aiScheduler.journal;
-    return { visitedRooms, deadEnds, routeOutcomes };
+  private aiExplorationContext(includeReachable = false): ExplorationContext {
+    const { visitedRooms, deadEnds, routeOutcomes, observedExits } = this.aiScheduler.journal;
+    const state = this.tracker.current;
+    const { map, number } = state.room;
+    const currentRoom = map !== null && number !== null ? roomId(map, number) : null;
+    const world = this.world;
+    const resolveFrontiers =
+      includeReachable &&
+      /\bexplore\b/i.test(this.aiAgent.state.objective) &&
+      currentRoom !== null &&
+      world !== undefined;
+    const traveller = resolveFrontiers ? this.travellerNow(state) : null;
+    const frontiers =
+      resolveFrontiers &&
+      world !== undefined &&
+      currentRoom !== null &&
+      traveller !== null
+        ? reachableExplorationFrontiers(
+            currentRoom,
+            observedExits,
+            visitedRooms,
+            deadEnds,
+            (destination) => {
+              const route = world.route(currentRoom, destination, traveller);
+              return route.blocked ? null : route.steps.length;
+            }
+          )
+        : [];
+    return { visitedRooms, deadEnds, routeOutcomes, frontiers };
   }
 
   private schedulerObservationFingerprint(): string {

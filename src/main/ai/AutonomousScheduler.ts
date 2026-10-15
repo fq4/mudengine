@@ -14,6 +14,14 @@ export interface ExplorationRouteOutcome {
   arrivals: number;
   failures: number;
 }
+export interface ObservedExplorationExit {
+  direction: string;
+  to: string;
+}
+export interface ObservedExplorationRoom {
+  room: string;
+  exits: ObservedExplorationExit[];
+}
 export interface SchedulerProgress {
   room: string | null;
   experience: number | null;
@@ -28,6 +36,7 @@ export interface SchedulerJournal {
   visitedRooms: string[];
   deadEnds: string[];
   routeOutcomes: ExplorationRouteOutcome[];
+  observedExits: ObservedExplorationRoom[];
   highestExperience: number | null;
   bestHpRatio: number | null;
 }
@@ -48,12 +57,14 @@ const blankJournal = (): SchedulerJournal => ({
   visitedRooms: [],
   deadEnds: [],
   routeOutcomes: [],
+  observedExits: [],
   highestExperience: null,
   bestHpRatio: null
 });
 /** Recovery is never abandoned by strategy: it is the safety priority. */
 const NEVER_AVOID: readonly AiActionName[] = ['recover_health'];
 const MAX_EXPLORATION_RECORDS = 256;
+const MAX_OBSERVED_EXITS_PER_ROOM = 64;
 
 export interface SchedulerState {
   status: SchedulerStatus;
@@ -98,7 +109,8 @@ export class AutonomousScheduler {
       ...blankJournal(),
       ...structuredClone(value.journal),
       deadEnds: value.journal.deadEnds ?? [],
-      routeOutcomes: value.journal.routeOutcomes ?? []
+      routeOutcomes: value.journal.routeOutcomes ?? [],
+      observedExits: value.journal.observedExits ?? []
     };
     this.visitedRooms.clear();
     for (const room of this.journal.visitedRooms) this.visitedRooms.add(room);
@@ -149,6 +161,37 @@ export class AutonomousScheduler {
     outcome.attempts += 1;
     if (arrived) outcome.arrivals += 1;
     else outcome.failures += 1;
+  }
+  recordRoomObservation(
+    room: string,
+    exits: readonly ObservedExplorationExit[],
+    deadEnd: boolean
+  ): boolean {
+    let changed = false;
+    if (!this.visitedRooms.has(room)) {
+      this.visitedRooms.add(room);
+      this.journal.visitedRooms.push(room);
+      changed = true;
+    }
+    const observation: ObservedExplorationRoom = {
+      room,
+      exits: exits
+        .slice(0, MAX_OBSERVED_EXITS_PER_ROOM)
+        .map(({ direction, to }) => ({ direction: direction.slice(0, 64), to }))
+    };
+    const existing = this.journal.observedExits.findIndex((known) => known.room === room);
+    if (existing >= 0) {
+      const previous = this.journal.observedExits[existing];
+      if (JSON.stringify(previous) !== JSON.stringify(observation)) {
+        changed = true;
+        this.journal.observedExits.splice(existing, 1);
+        this.journal.observedExits.push(observation);
+      }
+    } else changed = true;
+    if (existing < 0) this.journal.observedExits.push(observation);
+    if (this.journal.observedExits.length > MAX_EXPLORATION_RECORDS)
+      this.journal.observedExits.shift();
+    return this.rememberDeadEnd(room, deadEnd) || changed;
   }
   choose(candidates: readonly ActivityCandidate[], observation: string): AiAction | null {
     if (
@@ -269,6 +312,27 @@ export function isSchedulerSnapshot(value: unknown): value is SchedulerSnapshot 
             Number.isInteger(route.failures) &&
             route.failures >= 0 &&
             route.arrivals + route.failures === route.attempts
+        ))) ||
+    (journal.observedExits !== undefined &&
+      (!Array.isArray(journal.observedExits) ||
+        journal.observedExits.length > MAX_EXPLORATION_RECORDS ||
+        !journal.observedExits.every(
+          (observation) =>
+            observation !== null &&
+            typeof observation === 'object' &&
+            typeof observation.room === 'string' &&
+            /^\d{1,3}\/\d{1,6}$/.test(observation.room) &&
+            Array.isArray(observation.exits) &&
+            observation.exits.length <= MAX_OBSERVED_EXITS_PER_ROOM &&
+            observation.exits.every(
+              (exit) =>
+                exit !== null &&
+                typeof exit === 'object' &&
+                typeof exit.direction === 'string' &&
+                exit.direction.length <= 64 &&
+                typeof exit.to === 'string' &&
+                /^\d{1,3}\/\d{1,6}$/.test(exit.to)
+            )
         ))) ||
     typeof journal.activities !== 'object' ||
     journal.activities === null ||

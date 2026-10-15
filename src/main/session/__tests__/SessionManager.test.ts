@@ -356,6 +356,30 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('routes persisted exploration frontiers through the current WorldGraph context', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.room.map = 1;
+    state.room.number = 9;
+    const route = vi.fn((_from: string, to: string) => ({
+      blocked: to !== '1/4',
+      steps: to === '1/4' ? [{}, {}, {}] : []
+    }));
+    (isolated as any).world = { route };
+    (isolated as any).preferred = new Set<string>();
+    const scheduler = (isolated as any).aiScheduler;
+    scheduler.recordRoomObservation('1/1', [{ direction: 'north', to: '1/4' }], false);
+    scheduler.recordRoomObservation('1/2', [{ direction: 'east', to: '1/5' }], false);
+
+    (isolated as any).aiAgent.state.objective = 'explore the world';
+    const exploration = (isolated as any).aiExplorationContext(true);
+    expect(route).toHaveBeenCalledWith('1/9', '1/4', expect.any(Object));
+    expect(route).toHaveBeenCalledWith('1/9', '1/5', expect.any(Object));
+    expect(exploration.frontiers).toEqual([{ destination: '1/4', steps: 3 }]);
+    isolated.dispose();
+  });
+
   it('records navigation outcomes from the requested destination and tracker room', () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);

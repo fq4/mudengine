@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_CHARACTER } from '../../../shared/character';
-import { selectActivity } from '../ActivitySelector';
+import { reachableExplorationFrontiers, selectActivity } from '../ActivitySelector';
 
 describe('policy-filtered activity selection', () => {
   it('offers a safe observation activity when no explicit goal is set', () => {
@@ -70,13 +70,78 @@ describe('policy-filtered activity selection', () => {
     const result = selectActivity(state, 'explore', {
       visitedRooms: ['1/2'],
       deadEnds: [],
-      routeOutcomes: [{ from: '1/1', to: '1/3', failures: 2 }]
+      routeOutcomes: [{ from: '1/1', to: '1/3', failures: 2 }],
+      frontiers: []
     });
     expect(result.candidate?.action).toMatchObject({
       name: 'navigate_to',
       args: { destination: '1/4' }
     });
     expect(result.considered.find(({ action }) => action.name === 'navigate_to')?.priority).toBe(70);
+  });
+
+  it('finds nearest reachable frontiers from recent authoritative exit observations', () => {
+    const routeCosts = new Map([
+      ['1/4', 5],
+      ['1/5', null],
+      ['1/6', 2]
+    ]);
+    const frontiers = reachableExplorationFrontiers(
+      '1/9',
+      [
+        {
+          room: '1/1',
+          exits: [{ to: '1/2' }, { to: '1/3' }, { to: '1/4' }, { to: '1/5' }]
+        },
+        { room: '1/8', exits: [{ to: '1/6' }, { to: '1/9' }] }
+      ],
+      ['1/1', '1/2', '1/8'],
+      ['1/3'],
+      (destination) => routeCosts.get(destination) ?? null
+    );
+    expect(frontiers).toEqual([
+      { destination: '1/6', steps: 2 },
+      { destination: '1/4', steps: 5 }
+    ]);
+  });
+
+  it('caps route checks to the most recently observed frontier destinations', () => {
+    const observedExits = Array.from({ length: 40 }, (_, index) => ({
+      room: `1/${index + 1}`,
+      exits: [{ to: `2/${index + 1}` }]
+    }));
+    const routeSteps = vi.fn((_destination: string) => 1);
+    const frontiers = reachableExplorationFrontiers(
+      '1/999',
+      observedExits,
+      [],
+      [],
+      routeSteps
+    );
+    expect(routeSteps).toHaveBeenCalledTimes(32);
+    expect(routeSteps.mock.calls[0]?.[0]).toBe('2/40');
+    expect(frontiers.map(({ destination }) => destination)).toContain('2/9');
+    expect(frontiers.map(({ destination }) => destination)).toContain('2/40');
+    expect(frontiers.map(({ destination }) => destination)).not.toContain('2/8');
+  });
+
+  it('delegates travel to the nearest frontier outside the current room', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    state.room.map = 1;
+    state.room.number = 9;
+    const result = selectActivity(state, 'explore the area', {
+      visitedRooms: ['1/9', '1/2'],
+      deadEnds: ['1/3'],
+      routeOutcomes: [],
+      frontiers: [
+        { destination: '1/4', steps: 5 },
+        { destination: '1/5', steps: 2 }
+      ]
+    });
+    expect(result.candidate?.action).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/5' }
+    });
   });
 
   it('does not offer revisited destinations or exits marked as dead ends', () => {
@@ -95,14 +160,16 @@ describe('policy-filtered activity selection', () => {
       selectActivity(state, 'explore', {
         visitedRooms: ['1/2'],
         deadEnds: [],
-        routeOutcomes: []
+        routeOutcomes: [],
+        frontiers: []
       }).candidate?.action.name
     ).toBe('inspect_room');
     expect(
       selectActivity(state, 'explore', {
         visitedRooms: [],
         deadEnds: ['1/2'],
-        routeOutcomes: []
+        routeOutcomes: [],
+        frontiers: []
       }).candidate?.action.name
     ).toBe('inspect_room');
   });

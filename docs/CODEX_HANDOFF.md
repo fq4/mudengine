@@ -209,15 +209,15 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   XP and HP progress from `CharacterTracker`, and drives supported explicit
   multi-step objectives through `ObjectivePlan` + `AutonomousScheduler`.
   Active actions are not resumed blindly. See `docs/PHASE6_PROGRESS.md`.
-- The scheduler journal now also stores bounded route outcomes and revisable
-  dead-end observations. Exploration ranks only fresh authoritative exits for
-  the current room and delegates movement to Walker; old version-one snapshots
-  remain readable.
-- Focused exploration and session validation passed: 274 tests across
+- The scheduler journal now also stores bounded route outcomes, revisable
+  dead-end observations, and up to 256 room observations containing
+  server-listed exits. Exploration uses `WorldGraph` to rank reachable,
+  unvisited frontiers and delegates movement to Walker; old version-one
+  snapshots remain readable.
+- Focused exploration and session validation passed: 280 tests across
   `ActivitySelector`, `AutonomousScheduler`, and `SessionManager`.
 - Typechecks, production build and secret scan passed. The full suite reports
-  two intermittent unrelated failures (`ConfigStore.test.ts` file-watch
-  timeout and `SessionLog.test.ts` temporary-directory cleanup); both files
-  pass when run alone.
+  one unrelated intermittent failure (`ConfigStore.test.ts` file-watch timeout,
+  `no change event`); `SessionLog.test.ts` passed in this run.
 - Run `git log -1 --oneline` on `development` for the latest commit.
 - Live provider verification is still deferred; no paid tests were run.

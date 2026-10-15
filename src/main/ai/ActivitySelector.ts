@@ -20,6 +20,35 @@ export interface ExplorationContext {
     to: string;
     failures: number;
   }>;
+  frontiers: ReadonlyArray<{ destination: string; steps: number }>;
+}
+
+export function reachableExplorationFrontiers(
+  currentRoom: string,
+  observedExits: ReadonlyArray<{ room: string; exits: ReadonlyArray<{ to: string }> }>,
+  visitedRooms: readonly string[],
+  deadEnds: readonly string[],
+  routeSteps: (destination: string) => number | null
+): Array<{ destination: string; steps: number }> {
+  const maxRouteChecks = 32;
+  const visited = new Set(visitedRooms);
+  const dead = new Set(deadEnds);
+  const destinations = new Set<string>();
+  for (const observation of [...observedExits].reverse()) {
+    for (const exit of observation.exits) {
+      if (exit.to !== currentRoom && !visited.has(exit.to) && !dead.has(exit.to))
+        destinations.add(exit.to);
+    }
+  }
+  const reachable: Array<{ destination: string; steps: number }> = [];
+  for (const destination of [...destinations].slice(0, maxRouteChecks)) {
+    const steps = routeSteps(destination);
+    if (steps !== null && Number.isInteger(steps) && steps > 0)
+      reachable.push({ destination, steps });
+  }
+  return reachable.sort(
+    (a, b) => a.steps - b.steps || a.destination.localeCompare(b.destination)
+  );
 }
 
 export function summarizeWorldState(state: CharacterState, goal = ''): string {
@@ -90,26 +119,10 @@ export function selectActivity(
       ({ targetMap, targetRoom, requirement }) =>
         targetMap !== null && targetRoom !== null && requirement === null
     );
-    const exit = exits
-      .filter(
-        ({ targetMap, targetRoom }) =>
-          !visited.has(`${targetMap}/${targetRoom}`) &&
-          !exploration?.deadEnds.includes(`${targetMap}/${targetRoom}`)
-      )
-      .sort((a, b) => {
-        const failures = (targetMap: number | null, targetRoom: number | null): number =>
-          currentRoom === null || targetMap === null || targetRoom === null
-            ? 0
-            : exploration?.routeOutcomes.find(
-                ({ from, to }) => from === currentRoom && to === `${targetMap}/${targetRoom}`
-              )?.failures ?? 0;
-        return (
-          failures(a.targetMap, a.targetRoom) - failures(b.targetMap, b.targetRoom) ||
-          a.direction.localeCompare(b.direction)
-        );
-      })[0];
-    if (exit) {
-      const destination = `${exit.targetMap}/${exit.targetRoom}`;
+    const destinations = new Set<string>();
+    const addNavigation = (destination: string, steps: number): void => {
+      if (destinations.has(destination)) return;
+      destinations.add(destination);
       const failures =
         currentRoom === null
           ? 0
@@ -120,11 +133,21 @@ export function selectActivity(
         action: {
           name: 'navigate_to',
           args: { destination },
-          reason: 'An authoritative available exit supports bounded exploration'
+          reason: 'Authoritative room exits support Walker-owned frontier navigation'
         },
-        priority: Math.max(70 - failures * 5, 20),
-        rationale: `exploration can safely delegate one valid exit to Walker (${summary})`
+        priority: Math.max(25, 70 - Math.min(40, Math.max(0, steps - 1) * 2) - failures * 5),
+        rationale: `exploration can delegate a reachable unvisited frontier to Walker (${summary})`
       });
+    };
+    for (const exit of exits) {
+      if (exit.targetMap === null || exit.targetRoom === null) continue;
+      const destination = `${exit.targetMap}/${exit.targetRoom}`;
+      if (!visited.has(destination) && !exploration?.deadEnds.includes(destination))
+        addNavigation(destination, 1);
+    }
+    for (const frontier of exploration?.frontiers.slice(0, 5) ?? []) {
+      if (!visited.has(frontier.destination) && !exploration?.deadEnds.includes(frontier.destination))
+        addNavigation(frontier.destination, frontier.steps);
     }
   }
   if (!goal.trim())

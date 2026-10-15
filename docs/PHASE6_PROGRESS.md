@@ -41,12 +41,16 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
     arrivals and failures. Dead-end observations are removed if a later
     authoritative room state reports exits; route history is capped at 256
     route pairs.
+  - Up to 256 room observations persist server-listed, mapped exits that need
+    no requirement. From each current room, the existing `WorldGraph` ranks
+    reachable unvisited destinations; only bounded candidates are exposed.
+    `Walker` still performs and verifies the route.
   - Exploration ranks only currently printed, mapped exits without
     requirements, excludes already visited or remembered dead-end destinations,
-    and prefers routes with fewer failures. Navigation remains delegated to
-    Walker; arrivals are confirmed by its end callback, while failures require
-    an explicit Walker exit-refusal signal. Unattempted or interrupted walks
-    are not recorded as failed routes.
+    and prefers nearer destinations and routes with fewer failures. Arrivals
+    are confirmed by Walker's end callback, while failures require an explicit
+    Walker exit-refusal signal. Unattempted or interrupted walks are not
+    recorded as failed routes.
   - Version-one scheduler snapshots created before these fields are accepted
     and restored with empty exploration memory.
 - Tests: `AutonomousScheduler.test.ts`, `AutonomousSchedulerStore.test.ts`,
@@ -62,9 +66,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 2. Scheduler-backed explicit goals are limited to supported
    `ObjectivePlan` steps; unsupported or broader plans continue on the
    provider/planner path.
-3. Exploration is currently bounded to fresh exits printed for the active room.
-   Route history is not yet used for graph-wide frontier discovery or routing
-   back to previously observed rooms with unexplored exits.
+3. Frontier exploration only considers exits previously listed by the server
+   and reachable through the current `WorldGraph` route. Routes dependent on
+   unobserved exits or unknown destinations remain unavailable.
 4. Candidate selection remains deliberately small (`inspect_*`, recovery,
    equipment, navigation, engage). Add other activities only when delegated
    to production owners and policy-gated.
@@ -82,21 +86,20 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Verification (this checkpoint)
 
-- Focused exploration and SessionManager tests: 274 passed.
+- Focused exploration and SessionManager tests: 280 passed.
 - Node and renderer typechecks: passed.
 - Production build: passed; the existing large-renderer-chunk warning remains.
 - Secret scan: passed against the configured user-scoped profile data.
-- Full suite: 6,960 passed, 2 skipped, and 2 unrelated concurrent-test failures:
-  `ConfigStore.test.ts` watcher timeout and `SessionLog.test.ts` temporary
-  directory cleanup. Both complete test files pass in isolation (12/12 and
-  14/14).
+- Full suite: 6,967 passed, 2 skipped, and 1 unrelated
+  `ConfigStore.test.ts` watcher failure (`no change event`). The same watcher
+  test has failed in isolation before; `SessionLog.test.ts` passed in this run.
 - No provider or live-server tests were run.
 
 ## Next recommended task
 
-Extend deterministic exploration to choose reachable frontier rooms from
-authoritative remembered exits, including Walker-owned backtracking. Keep route
-evidence scoped to the session journal and use deterministic tests only.
+Add a deterministic autonomous-session lifecycle test that completes a
+Walker-owned frontier trip, records the newly observed room, and chooses the
+next frontier without resuming stale navigation after interruption.
 
 ## Environment on a new computer
 ```powershell
