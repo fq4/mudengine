@@ -3462,10 +3462,23 @@ export class SessionManager {
       activityCandidates: selectActivity(
         state,
         this.aiAgent.state.objective,
-        exploration
+        exploration,
+        this.isGossipReplyObjective() && this.hasRecentGossipReplyAuthorization()
       ).considered,
       ...(event ? { event } : {})
     };
+  }
+
+  private isGossipReplyObjective(): boolean {
+    const objective = this.aiAgent.state.objective.toLowerCase();
+    return /\b(reply|respond)\b/.test(objective) && /\bgossip\b/.test(objective);
+  }
+
+  private hasRecentGossipReplyAuthorization(now = Date.now()): boolean {
+    const receivedAt = this.aiPendingGossipReplyAt;
+    if (receivedAt === null) return false;
+    const age = now - receivedAt;
+    return age >= 0 && age <= 90_000;
   }
 
   private revalidateAiApprovals(): void {
@@ -4147,21 +4160,15 @@ export class SessionManager {
     action: AiAction,
     source: 'agent' | 'approved' | undefined = undefined
   ): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }> {
-    const objective = this.aiAgent.state.objective.toLowerCase();
-    const gossipReplyRequested =
-      action.name === 'send_message' &&
-      /\b(reply|respond)\b/.test(objective) &&
-      /\bgossip\b/.test(objective);
+    const gossipReplyRequested = action.name === 'send_message' && this.isGossipReplyObjective();
     if (gossipReplyRequested) {
-      const inboundAt = this.aiPendingGossipReplyAt;
       if (action.args?.channel !== 'gossip') {
         return {
           ok: false,
           message: 'Refused: this reply objective is limited to the gossip channel'
         };
       }
-      const age = inboundAt === null ? null : Date.now() - inboundAt;
-      if (age === null || age < 0 || age > 90_000)
+      if (!this.hasRecentGossipReplyAuthorization())
         return {
           ok: false,
           message: 'Refused: a recent inbound gossip message is required to reply'

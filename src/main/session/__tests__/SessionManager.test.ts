@@ -286,10 +286,21 @@ describe('AI reconnect lifecycle', () => {
     });
     expect(isolated.aiSnapshot.state.pendingApprovals).toHaveLength(0);
 
+    const candidatesBeforeGossip = (isolated as any).aiObservation().activityCandidates as Array<{
+      action: { name: string };
+    }>;
+    expect(candidatesBeforeGossip.map(({ action }) => action.name)).not.toContain('send_message');
     (isolated as any).aiEventForBlock({
       type: 'conversation-gossip',
       groups: { player: 'OtherPlayer', message: 'Hello' }
     });
+    const candidatesAfterGossip = (isolated as any).aiObservation(
+      'conversation-gossip from OtherPlayer: Hello'
+    ).activityCandidates as Array<{ action: { name: string } }>;
+    expect(candidatesAfterGossip.map(({ action }) => action.name)).toContain('send_message');
+    expect(
+      candidatesAfterGossip.find(({ action }) => action.name === 'send_message')
+    ).toMatchObject({ action: { args: { channel: 'gossip' } } });
     const wrongChannel = await (isolated as any).executeAiAction(
       {
         name: 'send_message',

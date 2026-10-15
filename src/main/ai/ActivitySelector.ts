@@ -78,7 +78,8 @@ export function summarizeWorldState(state: CharacterState, goal = ''): string {
 export function selectActivity(
   state: CharacterState,
   goal = '',
-  exploration?: ExplorationContext
+  exploration?: ExplorationContext,
+  gossipReplyAvailable = false
 ): ActivitySelection {
   const candidates: ActivityCandidate[] = [];
   const lower = goal.toLowerCase();
@@ -105,6 +106,17 @@ export function selectActivity(
         `the player goal requests equipment evaluation (${summary})`
       )
     );
+  if (gossipReplyAvailable && /\b(reply|respond)\b/.test(lower) && /\bgossip\b/.test(lower)) {
+    candidates.push({
+      action: {
+        name: 'send_message',
+        args: { channel: 'gossip' },
+        reason: 'Reply briefly to the inbound gossip event using only its content'
+      },
+      priority: 85,
+      rationale: `a recent inbound gossip message matches the requested reply objective (${summary})`
+    });
+  }
   if (/explore|room|area|surroundings|look|observe|assess/.test(lower))
     candidates.push(
       observe('inspect_room', 60, `the player goal requests current surroundings (${summary})`)

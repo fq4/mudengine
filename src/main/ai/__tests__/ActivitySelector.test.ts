@@ -19,6 +19,27 @@ describe('policy-filtered activity selection', () => {
     expect(result.considered.map(({ action }) => action.name)).toContain('inspect_room');
   });
 
+  it('offers a gossip reply only when a recent inbound reply authorization exists', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    const goal = 'Respond to anyone on the gossip channel';
+
+    expect(
+      selectActivity(state, goal).considered.some(({ action }) => action.name === 'send_message')
+    ).toBe(false);
+    expect(
+      selectActivity(state, 'Explore the gossip channel', undefined, true).considered.some(
+        ({ action }) => action.name === 'send_message'
+      )
+    ).toBe(false);
+
+    const result = selectActivity(state, goal, undefined, true);
+    expect(result.candidate?.action).toMatchObject({
+      name: 'send_message',
+      args: { channel: 'gossip' }
+    });
+    expect(result.candidate?.rationale).toContain('recent inbound gossip message');
+  });
+
   it('bases exploration on valid room exits and current world-state context', () => {
     const state = structuredClone(EMPTY_CHARACTER);
     state.vitals = { ...state.vitals, hp: 90, hpMax: 100 };

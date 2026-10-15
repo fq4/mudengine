@@ -97,8 +97,10 @@ An emergency stop is session-wide for AI only: cancel pending decisions/approval
 The AI must be prohibited from PvP, irreversible/destructive actions, real-money spending, credential handling, private-data exfiltration, and other policy-defined hazards unless a future explicit safety design allows a narrowly scoped exception. Unknown commands are never safe by syntax alone.
 
 Reply-oriented public communication is event-driven: a gossip reply requires a
-recent inbound gossip block, must use the matching gossip channel, and consumes
-that session-scoped reply authorization once queued. A standing reply objective
+recent inbound gossip block, exposes a ranked `send_message` candidate only
+while that authorization is fresh, must use the matching gossip channel, and
+consumes the session-scoped authorization once queued. Conversation events wake
+the agent even when tracker state is unchanged. A standing reply objective
 remains active while waiting for later conversation events.
 
 ## 7. Memory and persistence model

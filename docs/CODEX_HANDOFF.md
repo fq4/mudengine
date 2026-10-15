@@ -213,9 +213,10 @@ tokens, and $0.05. Message text is redacted from the harness trace. If no
 inbound gossip arrives, the run is inconclusive rather than a pass.
 
 Production reply objectives also require a recent inbound gossip event before
-`send_message` can enter approval, and remain active while waiting for further
-events. The `wait` action is an event-driven no-op; incoming gossip wakes the
-existing session agent.
+the ranked activity selector exposes `send_message` or it can enter approval.
+Conversation events wake the session agent even when the character tracker has
+no other state change. Reply objectives remain active while waiting for further
+events. The `wait` action is an event-driven no-op.
 
 ```powershell
 npm run test:ai-live -- --live --profile kefka --gossip-reply-test --max-ms 300000 --max-requests 16 --max-tokens 60000 --max-cost 0.05

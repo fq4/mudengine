@@ -11,10 +11,11 @@ describe('OpenRouterProvider', () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'x', explanation: 'look', action: { name: 'inspect_room', reason: 'safe' } }) } }] }), { status: 200 }));
     const memories = [{ category: 'fact' as const, text: 'The north exit is blocked', provenance: 'Observed direction refusal', confidence: 0.9, verified: true }];
     await new OpenRouterProvider({ apiKey: 'test' }).decide({ character: {}, room: {}, availableActions: ['inspect_room'], memories }, 'x');
-    const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
+    const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as { messages: Array<{ role: string; content: string }> };
     expect(request.messages[0]?.content).toContain('verified records');
-    expect(request.messages[1]?.content).toContain('Observed direction refusal');
-    expect(request.messages[1]?.content).toContain('"confidence":0.9');
+    const userMessage = request.messages.find(({ role }) => role === 'user')?.content ?? '';
+    expect(userMessage).toContain('Observed direction refusal');
+    expect(userMessage).toContain('"confidence":0.9');
   });
   it('instructs the model not to communicate for informational objectives', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'inspect', explanation: 'look', action: { name: 'inspect_room', reason: 'safe' } }) } }] }), { status: 200 }));
@@ -22,6 +23,52 @@ describe('OpenRouterProvider', () => {
     const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as { messages: Array<{ content: string }> };
     expect(request.messages[0]?.content).toContain('For an informational objective, inspect or observe first');
     expect(request.messages[0]?.content).toContain('Use send_message only when the objective explicitly requests communication');
+  });
+  it('composes a gossip reply from a fresh inbound event candidate', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                objective: 'reply',
+                explanation: 'respond',
+                action: {
+                  name: 'send_message',
+                  args: { channel: 'gossip', message: 'Welcome!' },
+                  reason: 'reply to Jumanji'
+                }
+              })
+            }
+          }]
+        }),
+        { status: 200 }
+      )
+    );
+    await new OpenRouterProvider({ apiKey: 'test' }).decide({
+      character: {},
+      room: {},
+      availableActions: ['send_message'],
+      activityCandidates: [
+        {
+          action: {
+            name: 'send_message',
+            args: { channel: 'gossip' },
+            reason: 'reply briefly to inbound gossip'
+          },
+          priority: 85,
+          rationale: 'a recent inbound gossip message is available'
+        }
+      ],
+      event: 'conversation-gossip from Jumanji: Welcome, Kefka!'
+    }, 'Respond to anyone on the gossip channel');
+    const request = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const replyInstruction = request.messages.find(({ content }) =>
+      content.includes('Generate the reply message text from the event')
+    );
+    expect(replyInstruction?.role).toBe('system');
   });
   it('requires an exact destination when the objective names one', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ objective: 'travel', explanation: 'route', action: { name: 'navigate_to', args: { destination: '1/2' }, reason: 'exact target' } }) } }] }), { status: 200 }));
