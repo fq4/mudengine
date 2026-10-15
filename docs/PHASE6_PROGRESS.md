@@ -101,6 +101,17 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   `inspect_room`; the harness also verified inspection, safety refusals,
   bounded combat, navigation, manual interruption, budget enforcement, and
   emergency stop. It did not exercise persisted frontier selection.
+- Public-chat testing remains opt-in and isolated from the default harness. A
+  five-minute Kefka mode only approves up to five `send_message(gossip)`
+  actions matched to recent inbound gossip, retains the production social
+  pacing and provider ceilings, and redacts message text from its trace.
+  Production reply objectives also require a recent inbound gossip event;
+  waiting is supported as a no-op until the session agent wakes on new gossip.
+  Deterministic tests cover the monitor bounds and the reply lifecycle.
+- Bounded Kefka gossip run (2026-10-15): five minutes, 2 provider requests,
+  4,475 tokens, estimated cost ~$0.00074, zero monitor violations. No inbound
+  gossip arrived, so no reply was sent; this run is inconclusive for live
+  server acceptance of `gos`.
 
 ## Next recommended task
 

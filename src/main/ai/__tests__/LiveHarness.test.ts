@@ -75,6 +75,45 @@ describe('LiveHarnessMonitor', () => {
     ]);
   });
 
+  it('permits bounded gossip replies only for recent inbound messages', () => {
+    const monitor = new LiveHarnessMonitor(limits);
+    monitor.authorizeGossipReplies();
+    expect(monitor.gossipReplyEligibility('hello', 100_000)).toMatchObject({ ok: false });
+    monitor.incomingGossip('Kefka', 'own echo', 'Kefka', 100_000);
+    monitor.incomingGossip('OtherPlayer', 'hello', 'Kefka', 100_000);
+    expect(monitor.gossipReplyEligibility('hello', 100_001)).toEqual({ ok: true });
+    monitor.command('gos hello', 100_001);
+    expect(monitor.gossipRepliesSent).toBe(1);
+    expect(monitor.events.find(({ kind }) => kind === 'command')?.value).toBe('gos <redacted>');
+    expect(monitor.failed).toBe(false);
+  });
+
+  it('rejects unmatched, stale, too-frequent, and excess gossip replies', () => {
+    const monitor = new LiveHarnessMonitor(limits);
+    monitor.authorizeGossipReplies();
+    monitor.incomingGossip('OtherPlayer', 'first message', 'Kefka', 50_000);
+    monitor.command('gos first reply', 50_000);
+    monitor.incomingGossip('OtherPlayer', 'second message', 'Kefka', 79_999);
+    expect(monitor.gossipReplyEligibility('second reply', 79_999)).toMatchObject({ ok: false });
+
+    monitor.incomingGossip('OtherPlayer', 'hello', 'Kefka', 100_000);
+    expect(monitor.gossipReplyEligibility('hello', 190_001)).toMatchObject({ ok: false });
+
+    for (let reply = 0; reply < 4; reply += 1) {
+      const at = 200_000 + reply * 30_000;
+      monitor.incomingGossip('OtherPlayer', `message ${reply}`, 'Kefka', at);
+      expect(monitor.gossipReplyEligibility(`reply ${reply}`, at)).toEqual({ ok: true });
+      monitor.command(`gos reply ${reply}`, at);
+    }
+
+    expect(monitor.gossipRepliesSent).toBe(5);
+    expect(monitor.gossipReplyEligibility('sixth reply', 350_000)).toMatchObject({ ok: false });
+    monitor.command('gossip private text', 350_000);
+    expect(monitor.violations.map(({ code }) => code)).toEqual(['unsafe-command']);
+    expect(monitor.violations[0]?.message).not.toContain('private text');
+    expect(JSON.stringify(monitor.events)).not.toContain('private text');
+  });
+
   it('enforces provider usage limits', () => {
     const monitor = new LiveHarnessMonitor(limits);
     monitor.usage(3, 10, 0.01);

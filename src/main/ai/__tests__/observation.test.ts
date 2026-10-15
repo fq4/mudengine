@@ -36,6 +36,14 @@ describe('objective capability advertisement', () => {
     expect(actions).not.toContain('manage_equipment');
   });
 
+  it('advertises gossip replies without unrelated item-use capability', () => {
+    const actions = objectiveAvailableActions(
+      'Reply briefly only to incoming gossip messages. Choose the send_message action for gossip.'
+    );
+    expect(actions).toContain('send_message');
+    expect(actions).not.toContain('use_item');
+  });
+
   it('exposes policy metadata alongside advertised capabilities', () => {
     const policies = objectiveActionPolicies('Navigate safely to 1/2.');
     const navigation = policies.find((policy) => policy.name === 'navigate_to');

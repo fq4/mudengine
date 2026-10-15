@@ -36,6 +36,10 @@ if (!has('--live')) {
 const profileId = valueOf('--profile') ?? 'kefka';
 if (profileId !== 'kefka')
   throw new Error('The live harness is restricted to the authorized kefka profile');
+const gossipReplyTest = has('--gossip-reply-test');
+const requestedRuntimeMs = Number(valueOf('--max-ms') ?? 120_000);
+if (gossipReplyTest && requestedRuntimeMs > 300_000)
+  throw new Error('The bounded gossip-reply test cannot run longer than five minutes');
 const configuredHome = homePaths();
 const profileFile = configuredHome.profile(profileId).file;
 if (!fs.existsSync(profileFile))
@@ -52,14 +56,19 @@ if (!process.env.OPENROUTER_API_KEY)
 const NEWHAVEN_ARENA = '1/2150';
 
 const monitor = new LiveHarnessMonitor({
-  maxRuntimeMs: Number(valueOf('--max-ms') ?? 120_000),
-  maxMoves: Number(valueOf('--max-moves') ?? 12),
-  maxRequests: Number(valueOf('--max-requests') ?? 16),
-  maxTokens: Number(valueOf('--max-tokens') ?? 60_000),
-  maxCostUsd: Number(valueOf('--max-cost') ?? 0.05),
+  maxRuntimeMs: requestedRuntimeMs,
+  maxMoves: gossipReplyTest ? 0 : Number(valueOf('--max-moves') ?? 12),
+  maxRequests: gossipReplyTest
+    ? Math.min(Number(valueOf('--max-requests') ?? 16), 16)
+    : Number(valueOf('--max-requests') ?? 16),
+  maxTokens: gossipReplyTest
+    ? Math.min(Number(valueOf('--max-tokens') ?? 60_000), 60_000)
+    : Number(valueOf('--max-tokens') ?? 60_000),
+  maxCostUsd: gossipReplyTest
+    ? Math.min(Number(valueOf('--max-cost') ?? 0.05), 0.05)
+    : Number(valueOf('--max-cost') ?? 0.05),
   maxRepeatedAction: 2
 });
-const lines = [];
 let combatVictoryEvidence = false;
 let currentRoom = null;
 let multiRoomTarget = null;
@@ -67,13 +76,22 @@ const sink = {
   data: () => {},
   block: (block) => {
     if (block.type === 'user-gain-experience') combatVictoryEvidence = true;
+    if (
+      gossipReplyTest &&
+      block.type === 'conversation-gossip' &&
+      session.character.phase === 'in-game'
+    ) {
+      monitor.incomingGossip(
+        block.groups.player ?? '',
+        block.groups.message ?? '',
+        session.character.name ?? ''
+      );
+    }
   },
   state: () => {},
   telnet: () => {},
   notice: () => {},
-  line: (line) => {
-    if (currentRoom !== null && line.plain.trim()) lines.push(line.plain.trim().slice(0, 240));
-  },
+  line: () => {},
   command: (command) => monitor.command(command)
 };
 
@@ -213,6 +231,107 @@ const runProviderDrivenObjective = async () => {
   return passed;
 };
 
+const runGossipReplyTest = async () => {
+  monitor.authorizeGossipReplies();
+  const startedAt = Date.now();
+  const deadline =
+    startedAt + Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs);
+  const rejectedApprovals = [];
+  const objective =
+    'For up to five minutes, reply briefly and politely only to actual incoming gossip messages. Choose the send_message action for the gossip channel. Never initiate a message or communicate over another channel. Continue listening after each reply and stop after five replies.';
+  session.aiGoal(objective);
+  let approvedReplies = 0;
+  while (
+    Date.now() < deadline &&
+    monitor.gossipRepliesSent < 5 &&
+    !monitor.failed
+  ) {
+    await session.aiTick();
+    monitor.check();
+    const state = snapshot().state;
+    monitor.usage(
+      state.usage.requests,
+      state.usage.inputTokens + state.usage.outputTokens,
+      state.usage.estimatedCostUsd
+    );
+    if (state.status === 'budget-paused' || state.status === 'error') {
+      monitor.fail('stall', `Gossip reply test stopped with AI status ${state.status}`);
+      break;
+    }
+    if (monitor.failed) break;
+    if (approvedReplies > monitor.gossipRepliesSent) {
+      await wait(250);
+      continue;
+    }
+    for (const approval of state.pendingApprovals) {
+      monitor.check();
+      if (monitor.failed) break;
+      const action = approval.action;
+      const message =
+        action?.name === 'send_message' && action.args?.channel === 'gossip'
+          ? String(action.args.message ?? '')
+          : '';
+      const eligibility =
+        action?.name === 'send_message' && action.args?.channel === 'gossip'
+          ? monitor.gossipReplyEligibility(message)
+          : {
+              ok: false,
+              reason: 'Only replies to recent inbound gossip may be approved in this test'
+            };
+      if (eligibility.ok) {
+        session.aiApprove(approval.id);
+        approvedReplies += 1;
+      } else {
+        session.aiReject(approval.id);
+        const commandVerb = approval.command.split(/\s/, 1)[0] ?? '';
+        rejectedApprovals.push({
+          action: action?.name ?? 'execute_supported_command',
+          ...(typeof action?.args?.channel === 'string' ? { channel: action.args.channel } : {}),
+          ...(!action && commandVerb
+            ? {
+                commandVerb: /^[.>/-]/.test(commandVerb) ? 'public-message' : commandVerb
+              }
+            : {})
+        });
+        monitor.fail(
+          'unsafe-command',
+          `Gossip test rejected an out-of-scope approval: ${eligibility.reason}`
+        );
+        break;
+      }
+      break;
+    }
+    if (!monitor.failed)
+      await wait(Math.min(250, Math.max(0, deadline - Date.now())));
+  }
+  session.aiEmergencyStop();
+  const state = snapshot().state;
+  const passed = monitor.gossipRepliesSent > 0 && !monitor.failed;
+  report.scenarios.push({
+    name: 'bounded-gossip-replies',
+    passed,
+    inboundMessages: monitor.gossipInboundMessages,
+    repliesSent: monitor.gossipRepliesSent,
+    rejectedApprovals,
+    durationMs: Date.now() - startedAt,
+    status: state.status,
+    activity: state.activity,
+    currentAction: state.currentAction
+      ? { name: state.currentAction.name, phase: state.currentAction.phase }
+      : null,
+    advertisedActions: snapshot().observation.availableActions,
+    result:
+      monitor.gossipRepliesSent > 0
+        ? 'Replies were approval-gated and matched to recent inbound gossip'
+        : 'No approved reply was sent; no inbound gossip may have arrived during the bounded window',
+    usage: state.usage
+  });
+  report.violations = monitor.violations;
+  report.trace = monitor.events.slice(-50);
+  console.log(JSON.stringify(report, null, 2));
+  if (!passed) process.exitCode = 1;
+};
+
 async function main() {
   monitor.start();
   // Ordinary recovery is explicitly authorized for disposable Kefka and is
@@ -222,6 +341,10 @@ async function main() {
   await session.connect(profile.target);
   const connected = await waitFor(() => session.character.phase === 'in-game');
   if (!connected) throw new Error(`did not reach in-game state: ${session.character.phase}`);
+  if (gossipReplyTest) {
+    await runGossipReplyTest();
+    return;
+  }
   await runProviderDrivenObjective();
   session.aiClearGoal();
   session.aiEnable();

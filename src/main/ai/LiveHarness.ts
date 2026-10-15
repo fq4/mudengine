@@ -40,6 +40,12 @@ export class LiveHarnessMonitor {
   private recentActions: string[] = [];
   private recentRooms: string[] = [];
   private lastUsage: string | null = null;
+  private gossipRepliesAuthorized = false;
+  private gossipInboundCount = 0;
+  private gossipReplyCount = 0;
+  private pendingGossipReplies: number[] = [];
+  private lastGossipReplyAt = 0;
+  private publicCommandRefusals = 0;
   private readonly authorizedCombatTargets = new Set<string>();
   private recoveryAuthorized = false;
   private equipmentAuthorized = false;
@@ -63,10 +69,75 @@ export class LiveHarnessMonitor {
     this.equipmentAuthorized = true;
   }
 
-  command(command: string): void {
+  authorizeGossipReplies(): void {
+    this.gossipRepliesAuthorized = true;
+  }
+
+  incomingGossip(
+    speaker: string,
+    message: string,
+    characterName: string,
+    at = Date.now()
+  ): void {
+    const normalizedSpeaker = speaker.trim().toLowerCase();
+    const normalizedCharacter = characterName.trim().toLowerCase();
+    if (
+      !this.gossipRepliesAuthorized ||
+      !normalizedSpeaker ||
+      !message.trim() ||
+      normalizedSpeaker === 'you' ||
+      normalizedSpeaker === normalizedCharacter ||
+      this.gossipReplyCount + this.pendingGossipReplies.length >= 5
+    )
+      return;
+    this.gossipInboundCount += 1;
+    this.pendingGossipReplies.push(at);
+    this.events.push({ kind: 'state', value: 'incoming-gossip', at });
+  }
+
+  gossipReplyEligibility(
+    message: string,
+    at = Date.now()
+  ): { ok: true } | { ok: false; reason: string } {
+    this.pendingGossipReplies = this.pendingGossipReplies.filter(
+      (receivedAt) => at - receivedAt <= 90_000
+    );
+    if (!this.gossipRepliesAuthorized)
+      return { ok: false, reason: 'Gossip replies are not authorized for this harness run' };
+    if (this.gossipReplyCount >= 5)
+      return { ok: false, reason: 'The bounded gossip-reply limit has been reached' };
+    if (this.pendingGossipReplies.length === 0)
+      return { ok: false, reason: 'A recent inbound gossip message is required before replying' };
+    if (this.lastGossipReplyAt !== 0 && at - this.lastGossipReplyAt < 30_000)
+      return { ok: false, reason: 'Gossip replies require a 30-second interval' };
+    if (!message.trim() || message.length > 240 || /[\r\n\x00]/.test(message))
+      return { ok: false, reason: 'Gossip reply must be a single non-empty line of at most 240 characters' };
+    return { ok: true };
+  }
+
+  command(command: string, at = Date.now()): void {
     const value = command.trim().replace(/\s+/g, ' ');
     if (!value) return;
-    this.events.push({ kind: 'command', value, at: Date.now() });
+    const publicMessage = /^(?:[.>/-]|gos|gossip|say|tell|whisper|yell|shout|broadcast|emote|pose|ooc|channel|reply|osay)\b/i.test(
+      value
+    );
+    this.events.push({
+      kind: 'command',
+      value: publicMessage ? `${value.split(/\s/, 1)[0]} <redacted>` : value,
+      at
+    });
+    const gossipReply = /^gos\s+(.+)$/i.exec(value);
+    if (gossipReply) {
+      const eligibility = this.gossipReplyEligibility(gossipReply[1] ?? '', at);
+      if (!eligibility.ok) {
+        this.fail('unsafe-command', `Public gossip reply refused: ${eligibility.reason}`);
+        return;
+      }
+      this.pendingGossipReplies.shift();
+      this.gossipReplyCount += 1;
+      this.lastGossipReplyAt = at;
+      return;
+    }
     const combatCommand = /^(?:kill|attack|hit|strike)\s+(.+)$/i.exec(value);
     const authorizedCombat =
       combatCommand !== null &&
@@ -75,7 +146,14 @@ export class LiveHarnessMonitor {
     const authorizedEquipment =
       this.equipmentAuthorized && /^(?:wear|remove|wield|equip)\b/i.test(value);
     if (unsafe.test(value) && !authorizedCombat && !authorizedRecovery && !authorizedEquipment)
-      this.fail('unsafe-command', `Unsafe live-test command: ${value}`);
+      this.fail(
+        'unsafe-command',
+        publicMessage
+          ? `Public communication command refused by the live-test monitor (${
+              ++this.publicCommandRefusals
+            })`
+          : `Unsafe live-test command: ${value}`
+      );
     if (movement.test(value)) {
       this.moves += 1;
       if (this.moves > this.limits.maxMoves)
@@ -144,5 +222,14 @@ export class LiveHarnessMonitor {
   }
   get moveCount(): number {
     return this.moves;
+  }
+  get elapsedRuntimeMs(): number {
+    return Date.now() - this.startedAt;
+  }
+  get gossipInboundMessages(): number {
+    return this.gossipInboundCount;
+  }
+  get gossipRepliesSent(): number {
+    return this.gossipReplyCount;
   }
 }

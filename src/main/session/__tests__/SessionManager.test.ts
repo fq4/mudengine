@@ -234,6 +234,52 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('treats wait as a successful event-driven no-op', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const result = await isolated.aiAction({ name: 'wait', reason: 'listen for gossip' });
+    expect(result).toEqual({ ok: true, message: 'Waiting for a meaningful event' });
+    isolated.dispose();
+  });
+
+  it('refuses a gossip reply without a recent inbound gossip event', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    (isolated as any).aiAgent.state.objective = 'Respond to people in the gossip channel';
+    const result = await (isolated as any).executeAiAction(
+      {
+        name: 'send_message',
+        args: { channel: 'gossip', message: 'An unsolicited message' },
+        reason: 'reply to gossip'
+      },
+      'agent'
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      message: 'Refused: a recent inbound gossip message is required to reply'
+    });
+    expect(isolated.aiSnapshot.state.pendingApprovals).toHaveLength(0);
+
+    (isolated as any).aiEventForBlock({
+      type: 'conversation-gossip',
+      groups: { player: 'OtherPlayer', message: 'Hello' }
+    });
+    const wrongChannel = await (isolated as any).executeAiAction(
+      {
+        name: 'send_message',
+        args: { channel: 'local', message: 'A local reply' },
+        reason: 'reply to gossip'
+      },
+      'agent'
+    );
+    expect(wrongChannel).toMatchObject({
+      ok: false,
+      message: 'Refused: this reply objective is limited to the gossip channel'
+    });
+    expect(isolated.aiSnapshot.state.pendingApprovals).toHaveLength(0);
+    isolated.dispose();
+  });
+
   it('rejects an empty general command before classification or approval', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
@@ -300,6 +346,10 @@ describe('AI reconnect lifecycle', () => {
     let wire = '';
     socket.on('data', (chunk) => { wire += chunk.toString('latin1'); });
     (manager as any).aiAgent.state.objective = 'Respond to people in the gossip channel';
+    (manager as any).aiEventForBlock({
+      type: 'conversation-gossip',
+      groups: { player: 'OtherPlayer', message: 'Hello Kefka' }
+    });
 
     const pending = await (manager as any).executeAiAction({
       name: 'send_message',

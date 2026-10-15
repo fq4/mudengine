@@ -49,7 +49,7 @@ MudEngine is a cross-platform Electron/Vite client, terminal, parser, world mode
 
 Manual input always wins. AI must not bypass `CommandQueue`, permissions, approvals, budgets, or emergency stop. Live `kefka` testing is bounded; combat requires fresh authoritative target, health, escape, and budget checks.
 
-Do not enable unattended live testing for combat, PvP, social interaction, equipment changes, item use, spending, destructive/irreversible actions, private-data handling, or unclassified commands. Never disable TLS verification or commit credentials.
+Do not enable unattended live testing for combat, PvP, social interaction, equipment changes, item use, spending, destructive/irreversible actions, private-data handling, or unclassified commands. The opt-in gossip mode below is limited to an explicitly authorized, supervised Kefka run. Never disable TLS verification or commit credentials.
 
 ## Verification and limitations
 
@@ -203,8 +203,23 @@ npm run test:ai-live -- --live --profile kefka
 
 The harness withholds credentials from output and enforces bounded runtime, requests, tokens, cost, movement, and command safety. It performs inspection, safety-refusal checks, bounded PvE when a verified safe NPC is present, safe navigation, approval-path, interruption, budget, and emergency-stop scenarios. Never run it unattended or expand its allowed commands without explicit authorization.
 
-The live harness intentionally rejects public-chat commands such as `gos` and
-`gossip`; social-message routing is covered by deterministic tests instead.
+The default live harness intentionally rejects public-chat commands such as
+`gos` and `gossip`. A separate, explicit `--gossip-reply-test` mode is available
+for a supervised Kefka run only: it lasts at most five minutes, permits at
+most five replies with the production 30-second social pacing, and approves
+only `send_message` actions for recent inbound gossip. It does not move Kefka
+or initiate messages. Provider ceilings remain capped at 16 requests, 60,000
+tokens, and $0.05. Message text is redacted from the harness trace. If no
+inbound gossip arrives, the run is inconclusive rather than a pass.
+
+Production reply objectives also require a recent inbound gossip event before
+`send_message` can enter approval, and remain active while waiting for further
+events. The `wait` action is an event-driven no-op; incoming gossip wakes the
+existing session agent.
+
+```powershell
+npm run test:ai-live -- --live --profile kefka --gossip-reply-test --max-ms 300000 --max-requests 16 --max-tokens 60000 --max-cost 0.05
+```
 
 ## Next Codex session instruction
 

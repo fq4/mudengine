@@ -1040,6 +1040,7 @@ export class SessionManager {
   private readonly aiSessionPolicyOverrides: Record<string, AiAuthorization> = {};
   private readonly aiSocial = new SocialGate();
   private readonly aiApprovals = new ApprovalStore();
+  private aiPendingGossipReplyAt: number | null = null;
   private aiNavigationDestination: string | null = null;
   private aiEquipmentBaseline: string | null = null;
   private aiNavigationWalkOutcome: 'arrived' | 'failed' | null = null;
@@ -3511,6 +3512,7 @@ export class SessionManager {
         'AI cannot resume until the active character is in-game';
       return this.aiSnapshot;
     }
+    this.aiPendingGossipReplyAt = null;
     if (model) this.aiProvider.setModel(model);
     this.aiAgent.state.model = this.aiProvider.modelName();
     this.aiAgent.enable();
@@ -3519,6 +3521,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiPause(): AiSnapshot {
+    this.aiPendingGossipReplyAt = null;
     this.aiAgent.pause();
     return this.aiSnapshot;
   }
@@ -3548,6 +3551,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiStop(): AiSnapshot {
+    this.aiPendingGossipReplyAt = null;
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
     this.aiScheduler.reset();
@@ -3556,6 +3560,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiEmergencyStop(): AiSnapshot {
+    this.aiPendingGossipReplyAt = null;
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
     this.aiScheduler.reset();
@@ -3722,6 +3727,7 @@ export class SessionManager {
     return this.aiMemories();
   }
   aiGoal(goal: string): AiSnapshot {
+    this.aiPendingGossipReplyAt = null;
     this.aiApprovals.resetTransient();
     this.aiAutonomousMode = false;
     this.aiScheduler.reset();
@@ -3733,6 +3739,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiClearGoal(): AiSnapshot {
+    this.aiPendingGossipReplyAt = null;
     this.aiApprovals.resetTransient();
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
@@ -4140,6 +4147,26 @@ export class SessionManager {
     action: AiAction,
     source: 'agent' | 'approved' | undefined = undefined
   ): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }> {
+    const objective = this.aiAgent.state.objective.toLowerCase();
+    const gossipReplyRequested =
+      action.name === 'send_message' &&
+      /\b(reply|respond)\b/.test(objective) &&
+      /\bgossip\b/.test(objective);
+    if (gossipReplyRequested) {
+      const inboundAt = this.aiPendingGossipReplyAt;
+      if (action.args?.channel !== 'gossip') {
+        return {
+          ok: false,
+          message: 'Refused: this reply objective is limited to the gossip channel'
+        };
+      }
+      const age = inboundAt === null ? null : Date.now() - inboundAt;
+      if (age === null || age < 0 || age > 90_000)
+        return {
+          ok: false,
+          message: 'Refused: a recent inbound gossip message is required to reply'
+        };
+    }
     const policy = actionPolicy(action.name);
     if (source === 'agent' && policy.authorization === 'ask-first') {
       const contextHash = JSON.stringify({
@@ -4187,6 +4214,8 @@ export class SessionManager {
         });
         return { ok: true, message: `Combat outcome: ${outcome}` };
       } else return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
+    if (action.name === 'wait')
+      return { ok: true, message: 'Waiting for a meaningful event' };
     if (action.name === 'recover_health')
       if (!isPassiveRecovery('rest'))
         return { ok: false, message: 'Refused: recovery command is not passive' };
@@ -4296,6 +4325,7 @@ export class SessionManager {
         priority: 'user',
         reason: `AI: ${action.reason}`
       });
+      if (queued && gossipReplyRequested) this.aiPendingGossipReplyAt = null;
       return {
         ok: queued,
         message: queued
@@ -7010,9 +7040,10 @@ export class SessionManager {
     if (
       speaker === undefined ||
       speaker.trim().toLowerCase() === 'you' ||
-      speaker.trim() === (this.tracker.current.name ?? '').trim()
+      speaker.trim().toLowerCase() === (this.tracker.current.name ?? '').trim().toLowerCase()
     )
       return null;
+    if (block.type === 'conversation-gossip') this.aiPendingGossipReplyAt = Date.now();
     const boundedMessage = message.trim().slice(0, 240);
     const boundedSpeaker = speaker.trim().slice(0, 80);
     return `${block.type} from ${boundedSpeaker}: ${boundedMessage}`;

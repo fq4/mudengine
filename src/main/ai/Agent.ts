@@ -403,6 +403,10 @@ export class AutonomousAgent {
   }
   private actionSatisfiesObjective(action: AiActionName): boolean {
     const objective = this.state.objective.toLowerCase();
+    if (/\b(reply|respond)\b/.test(objective) && /\bgossip\b/.test(objective))
+      return (
+        action === 'send_message' && /\b(?:once|one reply|single reply|then stop)\b/.test(objective)
+      );
     if (/\b(navigate|travel|go to|walk to|explore)\b/.test(objective))
       return action === 'navigate_to';
     if (/\b(npc|non[- ]player|townsperson|villager)\b/.test(objective))

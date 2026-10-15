@@ -96,6 +96,11 @@ An emergency stop is session-wide for AI only: cancel pending decisions/approval
 
 The AI must be prohibited from PvP, irreversible/destructive actions, real-money spending, credential handling, private-data exfiltration, and other policy-defined hazards unless a future explicit safety design allows a narrowly scoped exception. Unknown commands are never safe by syntax alone.
 
+Reply-oriented public communication is event-driven: a gossip reply requires a
+recent inbound gossip block, must use the matching gossip channel, and consumes
+that session-scoped reply authorization once queued. A standing reply objective
+remains active while waiting for later conversation events.
+
 ## 7. Memory and persistence model
 
 Persistent memory is automatic but structured and selective. Each record includes server/character scope, category, source/provenance, confidence, observed time, validity/expiry, verification status, evidence references, and whether it is user-pinned.
@@ -145,6 +150,10 @@ Keep provider, memory, permission, and AI UI modules independently testable. Reb
 The specification is approved and implementation is underway. Aggregate budget state now persists in the user-scoped home without persisting transient AI execution state. Remaining phases are validation and closing the capability gaps identified in the inventory; they must not duplicate MudEngine's existing automation.
 
 ## 12. Open research items and acceptance criteria
+
+Reply-oriented public gossip objectives must require a recent matching inbound
+event, stay active while waiting for later events, and route each authorized
+message through the existing approval and CommandQueue paths.
 
 Before coding, confirm exact command aliases and risk classes from `shared/commands.ts`, parser patterns, probe scripts, queue behavior, automation switches, profile/server storage, and realm differences. Validate approval expiration against observed event frequency and benchmark compact context/token use.
 

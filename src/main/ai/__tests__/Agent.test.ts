@@ -62,6 +62,49 @@ describe('AutonomousAgent', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     expect(agent.state.status).toBe('idle');
   });
+
+  it('keeps a gossip reply objective active after waiting and responding', async () => {
+    const objective = 'Respond to people in the gossip channel';
+    const decide = vi
+      .fn()
+      .mockResolvedValueOnce({
+        objective,
+        explanation: 'Wait for an incoming gossip message',
+        action: { name: 'wait', reason: 'listen for gossip' },
+        done: true
+      })
+      .mockResolvedValueOnce({
+        objective,
+        explanation: 'Reply to the incoming message',
+        action: {
+          name: 'send_message',
+          args: { channel: 'gossip', message: 'Hello there' },
+          reason: 'reply to incoming gossip'
+        },
+        done: true
+      });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({ requests: decide.mock.calls.length, inputTokens: 1, outputTokens: 1, estimatedCostUsd: 0 })
+    };
+    const execute = vi.fn().mockResolvedValue({ ok: true, message: 'handled' });
+    const agent = new AutonomousAgent(provider, { execute });
+    agent.enable(objective);
+
+    await agent.tick({ ...observation, availableActions: ['wait', 'send_message'] });
+    expect(agent.state.enabled).toBe(true);
+    expect(agent.state.objectiveComplete).toBe(false);
+
+    await agent.tick({
+      ...observation,
+      availableActions: ['wait', 'send_message'],
+      event: 'conversation-gossip from OtherPlayer: hello'
+    });
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(agent.state.enabled).toBe(true);
+    expect(agent.state.objectiveComplete).toBe(false);
+  });
+
   it('records the selected decision in the agent trace for review', async () => {
     const provider: AiProvider = {
       decide: vi.fn().mockResolvedValue({
