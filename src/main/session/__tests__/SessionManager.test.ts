@@ -356,6 +356,135 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('records navigation outcomes from the requested destination and tracker room', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const scheduler = (isolated as any).aiScheduler;
+    scheduler.choose(
+      [
+        {
+          action: {
+            name: 'navigate_to',
+            args: { destination: '1/2' },
+            reason: 'explore an authoritative exit'
+          },
+          priority: 70,
+          rationale: 'explore'
+        }
+      ],
+      'room-1'
+    );
+    (isolated as any).aiSchedulerActionBaseline = {
+      room: '1/1',
+      experience: null,
+      hpRatio: null
+    };
+    (isolated as any).aiNavigationWalkOutcome = 'arrived';
+    (isolated as any).finishAutonomous(true, {
+      room: '1/2',
+      experience: null,
+      hpRatio: null
+    });
+    expect(scheduler.journal.routeOutcomes).toEqual([
+      { from: '1/1', to: '1/2', attempts: 1, arrivals: 1, failures: 0 }
+    ]);
+    isolated.dispose();
+  });
+
+  it('does not record unattempted or interrupted navigation as a failed route', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const scheduler = (isolated as any).aiScheduler;
+    scheduler.choose(
+      [
+        {
+          action: {
+            name: 'navigate_to',
+            args: { destination: '1/2' },
+            reason: 'explore an authoritative exit'
+          },
+          priority: 70,
+          rationale: 'explore'
+        }
+      ],
+      'room-1'
+    );
+    (isolated as any).aiSchedulerActionBaseline = {
+      room: '1/1',
+      experience: null,
+      hpRatio: null
+    };
+    (isolated as any).finishAutonomous(false, {
+      room: '1/1',
+      experience: null,
+      hpRatio: null
+    });
+    expect(scheduler.journal.routeOutcomes).toEqual([]);
+    scheduler.choose(
+      [
+        {
+          action: {
+            name: 'navigate_to',
+            args: { destination: '1/2' },
+            reason: 'explore an authoritative exit'
+          },
+          priority: 70,
+          rationale: 'explore'
+        }
+      ],
+      'room-2'
+    );
+    (isolated as any).aiSchedulerActionBaseline = {
+      room: '1/1',
+      experience: null,
+      hpRatio: null
+    };
+    (isolated as any).aiNavigationWalkOutcome = null;
+    (isolated as any).finishAutonomous(false, {
+      room: '1/1',
+      experience: null,
+      hpRatio: null
+    });
+    expect(scheduler.journal.routeOutcomes).toEqual([]);
+    isolated.dispose();
+  });
+
+  it('records a failed route only after Walker reports an exit refusal', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const scheduler = (isolated as any).aiScheduler;
+    scheduler.choose(
+      [
+        {
+          action: {
+            name: 'navigate_to',
+            args: { destination: '1/2' },
+            reason: 'explore an authoritative exit'
+          },
+          priority: 70,
+          rationale: 'explore'
+        }
+      ],
+      'room-1'
+    );
+    (isolated as any).aiSchedulerActionBaseline = {
+      room: '1/1',
+      experience: null,
+      hpRatio: null
+    };
+    (isolated as any).aiNavigationRouteRefused = true;
+    (isolated as any).aiNavigationWalkOutcome = 'failed';
+    (isolated as any).finishAutonomous(false, {
+      room: '1/1',
+      experience: null,
+      hpRatio: null
+    });
+    expect(scheduler.journal.routeOutcomes).toEqual([
+      { from: '1/1', to: '1/2', attempts: 1, arrivals: 0, failures: 1 }
+    ]);
+    isolated.dispose();
+  });
+
   it('delegates recovery and equipment actions to existing automation adapters', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);

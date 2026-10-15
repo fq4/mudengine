@@ -35,6 +35,20 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
     unsupported plans retain the provider/planner path.
   - `SessionManager.finishAutonomous` surfaces strategy changes and records
     a 24-hour `strategy` AI memory when a memory store exists.
+- **Bounded exploration memory** (`AutonomousScheduler` and
+  `ActivitySelector`):
+  - The session journal records confirmed dead-end rooms and per-route attempts,
+    arrivals and failures. Dead-end observations are removed if a later
+    authoritative room state reports exits; route history is capped at 256
+    route pairs.
+  - Exploration ranks only currently printed, mapped exits without
+    requirements, excludes already visited or remembered dead-end destinations,
+    and prefers routes with fewer failures. Navigation remains delegated to
+    Walker; arrivals are confirmed by its end callback, while failures require
+    an explicit Walker exit-refusal signal. Unattempted or interrupted walks
+    are not recorded as failed routes.
+  - Version-one scheduler snapshots created before these fields are accepted
+    and restored with empty exploration memory.
 - Tests: `AutonomousScheduler.test.ts`, `AutonomousSchedulerStore.test.ts`,
   `ObjectivePlan.test.ts`, and SessionManager/SessionHost coverage verify
   progress signals, snapshot persistence, broad-objective routing, and
@@ -48,8 +62,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 2. Scheduler-backed explicit goals are limited to supported
    `ObjectivePlan` steps; unsupported or broader plans continue on the
    provider/planner path.
-3. Visited-room tracking is not yet a full exploration model: dead ends,
-   learned routes and goal selection from world knowledge remain unimplemented.
+3. Exploration is currently bounded to fresh exits printed for the active room.
+   Route history is not yet used for graph-wide frontier discovery or routing
+   back to previously observed rooms with unexplored exits.
 4. Candidate selection remains deliberately small (`inspect_*`, recovery,
    equipment, navigation, engage). Add other activities only when delegated
    to production owners and policy-gated.
@@ -67,21 +82,21 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Verification (this checkpoint)
 
-- Focused scheduler, objective-plan, SessionManager and SessionHost tests:
-  292 passed.
+- Focused exploration and SessionManager tests: 274 passed.
 - Node and renderer typechecks: passed.
 - Production build: passed; the existing large-renderer-chunk warning remains.
 - Secret scan: passed against the configured user-scoped profile data.
-- Full suite: 6,954 passed, 2 skipped, with one unrelated watcher timeout in
-  `ConfigStore.test.ts` (`reloads on change without a restart`). The complete
-  `ConfigStore.test.ts` file passes 12/12 when run in isolation.
+- Full suite: 6,960 passed, 2 skipped, and 2 unrelated concurrent-test failures:
+  `ConfigStore.test.ts` watcher timeout and `SessionLog.test.ts` temporary
+  directory cleanup. Both complete test files pass in isolation (12/12 and
+  14/14).
 - No provider or live-server tests were run.
 
 ## Next recommended task
 
-Add deterministic exploration memory for dead ends and route outcomes, then
-use that world knowledge to rank bounded Walker-owned exploration candidates.
-Keep the target facts authoritative and use deterministic tests only.
+Extend deterministic exploration to choose reachable frontier rooms from
+authoritative remembered exits, including Walker-owned backtracking. Keep route
+evidence scoped to the session journal and use deterministic tests only.
 
 ## Environment on a new computer
 ```powershell

@@ -12,6 +12,16 @@ export interface ActivitySelection {
   considered: ActivityCandidate[];
 }
 
+export interface ExplorationContext {
+  visitedRooms: readonly string[];
+  deadEnds: readonly string[];
+  routeOutcomes: ReadonlyArray<{
+    from: string;
+    to: string;
+    failures: number;
+  }>;
+}
+
 export function summarizeWorldState(state: CharacterState, goal = ''): string {
   const hp = state.vitals.hp;
   const hpMax = state.vitals.hpMax;
@@ -36,7 +46,11 @@ export function summarizeWorldState(state: CharacterState, goal = ''): string {
  * is deliberately a small decision layer: execution remains owned by the
  * production adapters and the provider never receives arbitrary commands.
  */
-export function selectActivity(state: CharacterState, goal = ''): ActivitySelection {
+export function selectActivity(
+  state: CharacterState,
+  goal = '',
+  exploration?: ExplorationContext
+): ActivitySelection {
   const candidates: ActivityCandidate[] = [];
   const lower = goal.toLowerCase();
   const summary = summarizeWorldState(state, goal);
@@ -67,25 +81,51 @@ export function selectActivity(state: CharacterState, goal = ''): ActivitySelect
       observe('inspect_room', 60, `the player goal requests current surroundings (${summary})`)
     );
   if (/\bexplore\b/.test(lower)) {
-    const exit = state.room.exits.find(
+    const currentRoom =
+      state.room.map !== null && state.room.number !== null
+        ? `${state.room.map}/${state.room.number}`
+        : null;
+    const visited = new Set(exploration?.visitedRooms ?? []);
+    const exits = state.room.exits.filter(
       ({ targetMap, targetRoom, requirement }) =>
         targetMap !== null && targetRoom !== null && requirement === null
     );
-    if (exit)
+    const exit = exits
+      .filter(
+        ({ targetMap, targetRoom }) =>
+          !visited.has(`${targetMap}/${targetRoom}`) &&
+          !exploration?.deadEnds.includes(`${targetMap}/${targetRoom}`)
+      )
+      .sort((a, b) => {
+        const failures = (targetMap: number | null, targetRoom: number | null): number =>
+          currentRoom === null || targetMap === null || targetRoom === null
+            ? 0
+            : exploration?.routeOutcomes.find(
+                ({ from, to }) => from === currentRoom && to === `${targetMap}/${targetRoom}`
+              )?.failures ?? 0;
+        return (
+          failures(a.targetMap, a.targetRoom) - failures(b.targetMap, b.targetRoom) ||
+          a.direction.localeCompare(b.direction)
+        );
+      })[0];
+    if (exit) {
+      const destination = `${exit.targetMap}/${exit.targetRoom}`;
+      const failures =
+        currentRoom === null
+          ? 0
+          : exploration?.routeOutcomes.find(
+              ({ from, to }) => from === currentRoom && to === destination
+            )?.failures ?? 0;
       candidates.push({
         action: {
           name: 'navigate_to',
-          args: {
-            destination:
-              exit.targetMap !== null && exit.targetRoom !== null
-                ? `${exit.targetMap}/${exit.targetRoom}`
-                : exit.direction
-          },
+          args: { destination },
           reason: 'An authoritative available exit supports bounded exploration'
         },
-        priority: 70,
+        priority: Math.max(70 - failures * 5, 20),
         rationale: `exploration can safely delegate one valid exit to Walker (${summary})`
       });
+    }
   }
   if (!goal.trim())
     candidates.push(

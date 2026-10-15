@@ -145,5 +145,32 @@ describe('AutonomousScheduler', () => {
       expect(scheduler.journal.highestExperience).toBe(101);
       expect(scheduler.journal.bestHpRatio).toBe(0.5);
     });
+
+    it('persists bounded route outcomes and revisable dead-end observations', () => {
+      const scheduler = new AutonomousScheduler();
+      scheduler.recordRouteOutcome('1/1', '1/2', false);
+      scheduler.recordRouteOutcome('1/1', '1/2', true);
+      expect(scheduler.rememberDeadEnd('1/3', true)).toBe(true);
+      expect(scheduler.rememberDeadEnd('1/3', true)).toBe(false);
+      const restored = new AutonomousScheduler();
+      expect(restored.restore(scheduler.snapshot())).toBe(true);
+      expect(restored.journal.routeOutcomes).toEqual([
+        { from: '1/1', to: '1/2', attempts: 2, arrivals: 1, failures: 1 }
+      ]);
+      expect(restored.journal.deadEnds).toEqual(['1/3']);
+      expect(restored.rememberDeadEnd('1/3', false)).toBe(true);
+      expect(restored.journal.deadEnds).toEqual([]);
+    });
+
+    it('restores version-one snapshots created before exploration memory', () => {
+      const scheduler = new AutonomousScheduler();
+      const legacySnapshot = scheduler.snapshot();
+      delete (legacySnapshot.journal as Partial<typeof legacySnapshot.journal>).deadEnds;
+      delete (legacySnapshot.journal as Partial<typeof legacySnapshot.journal>).routeOutcomes;
+      const restored = new AutonomousScheduler();
+      expect(restored.restore(legacySnapshot)).toBe(true);
+      expect(restored.journal.deadEnds).toEqual([]);
+      expect(restored.journal.routeOutcomes).toEqual([]);
+    });
   });
 });

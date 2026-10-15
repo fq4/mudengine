@@ -105,7 +105,7 @@ import { assessCombatEligibility } from '../ai/CombatSafety';
 import { combatOutcome } from '../ai/CombatOutcome';
 import { assessItemUse } from '../ai/InventorySafety';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
-import { selectActivity } from '../ai/ActivitySelector';
+import { selectActivity, type ExplorationContext } from '../ai/ActivitySelector';
 import {
   AutonomousScheduler,
   type SchedulerProgress,
@@ -1038,6 +1038,8 @@ export class SessionManager {
   private readonly aiApprovals = new ApprovalStore();
   private aiNavigationDestination: string | null = null;
   private aiEquipmentBaseline: string | null = null;
+  private aiNavigationWalkOutcome: 'arrived' | 'failed' | null = null;
+  private aiNavigationRouteRefused = false;
   readonly rules: RuleEngine;
   /** The realm's message table, answering the realm. See `MessageTriggers`. */
   readonly messages: MessageTriggers;
@@ -1807,6 +1809,15 @@ export class SessionManager {
     this.walker = new Walker(automation, this.queue, {
       // A loop walks through the walker, so this is how it hears a leg end.
       ended: (arrived, reason) => {
+        if (
+          this.aiNavigationDestination !== null &&
+          this.aiScheduler.state.current?.name === 'navigate_to'
+        )
+          this.aiNavigationWalkOutcome = arrived
+            ? 'arrived'
+            : this.aiNavigationRouteRefused
+              ? 'failed'
+              : null;
         const home = this.homeward;
         this.homeward = null;
         const standing = this.tracker.current;
@@ -1856,6 +1867,11 @@ export class SessionManager {
         this.tracker.hintMove(command, direction);
       },
       refused: (from, direction, why) => {
+        if (
+          this.aiNavigationDestination !== null &&
+          this.aiScheduler.state.current?.name === 'navigate_to'
+        )
+          this.aiNavigationRouteRefused = true;
         const edge = `${from}|${direction}`;
         this.refusedEdges.add(edge);
         // Only a way the realm records as *shut* can be opened by somebody
@@ -3435,7 +3451,11 @@ export class SessionManager {
       ...(memories.length ? { memories } : {}),
       availableActions: objectiveAvailableActions(this.aiAgent.state.objective),
       actionPolicies: objectiveActionPolicies(this.aiAgent.state.objective),
-      activityCandidates: selectActivity(state, this.aiAgent.state.objective).considered,
+      activityCandidates: selectActivity(
+        state,
+        this.aiAgent.state.objective,
+        this.aiExplorationContext()
+      ).considered,
       ...(event ? { event } : {})
     };
   }
@@ -3539,8 +3559,9 @@ export class SessionManager {
         intent.reason?.startsWith('AI:') === true ||
         intent.reason?.startsWith('Approved AI action:') === true
     );
-    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking)
+    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) {
       this.walker.stop('AI emergency stop');
+    }
     this.aiAgent.state.lastActionResult =
       'Emergency stop active; AI commands canceled. Manual gameplay remains available.';
     return this.aiSnapshot;
@@ -3738,6 +3759,11 @@ export class SessionManager {
     const broadObjective = this.aiAgent.state.objective.trim().length > 0;
     const progress = this.schedulerProgress();
     if (
+      progress.room !== null &&
+      this.aiScheduler.rememberDeadEnd(progress.room, this.tracker.current.room.exits.length === 0)
+    )
+      this.persistAiScheduler();
+    if (
       broadObjective &&
       this.aiAgent.state.plan?.some((step) => step.status === 'blocked') &&
       this.aiSchedulerBlockedObservation !== this.schedulerObservationFingerprint()
@@ -3780,7 +3806,11 @@ export class SessionManager {
       }
       return;
     }
-    const ranked = selectActivity(this.tracker.current, this.aiAgent.state.objective).considered;
+    const ranked = selectActivity(
+      this.tracker.current,
+      this.aiAgent.state.objective,
+      this.aiExplorationContext()
+    ).considered;
     const selection = planStep ? this.candidatesForObjectiveStep(planStep, ranked) : ranked;
     if (broadObjective && selection.length === 0) {
       this.aiAgent.state.status = 'idle';
@@ -3838,6 +3868,19 @@ export class SessionManager {
   private finishAutonomous(ok: boolean, progress: SchedulerProgress): void {
     const before = this.aiScheduler.journal.strategyChanges;
     const current = this.aiScheduler.state.current;
+    if (current?.name === 'navigate_to') {
+      const destination = current.args?.destination;
+      const from = this.aiSchedulerActionBaseline?.room;
+      if (
+        typeof destination === 'string' &&
+        /^\d{1,3}\/\d{1,6}$/.test(destination) &&
+        from !== null &&
+        from !== undefined &&
+        ((ok && progress.room === destination && this.aiNavigationWalkOutcome === 'arrived') ||
+          (!ok && this.aiNavigationWalkOutcome === 'failed'))
+      )
+        this.aiScheduler.recordRouteOutcome(from, destination, ok);
+    }
     this.aiScheduler.finish(ok, progress);
     if (current && this.aiAgent.state.objective.trim()) {
       this.aiAgent.state.plan = advanceObjectivePlan(
@@ -3868,6 +3911,8 @@ export class SessionManager {
       });
     }
     this.aiSchedulerActionBaseline = null;
+    this.aiNavigationWalkOutcome = null;
+    this.aiNavigationRouteRefused = false;
     this.persistAiScheduler();
   }
 
@@ -3954,6 +3999,11 @@ export class SessionManager {
           ? Math.min(1, Math.max(0, hp / hpMax))
           : null
     };
+  }
+
+  private aiExplorationContext(): ExplorationContext {
+    const { visitedRooms, deadEnds, routeOutcomes } = this.aiScheduler.journal;
+    return { visitedRooms, deadEnds, routeOutcomes };
   }
 
   private schedulerObservationFingerprint(): string {
@@ -4262,6 +4312,8 @@ export class SessionManager {
       const route = this.planFromHere(target);
       if (typeof route === 'string')
         return { ok: false, message: `Refused: navigation to ${target} is unavailable: ${route}` };
+      this.aiNavigationWalkOutcome = null;
+      this.aiNavigationRouteRefused = false;
       this.aiNavigationDestination = target;
       const refused = this.walkRoute(route, true);
       if (refused !== null) this.aiNavigationDestination = null;
@@ -4977,8 +5029,9 @@ export class SessionManager {
         intent.reason?.startsWith('AI:') === true ||
         intent.reason?.startsWith('Approved AI action:') === true
     );
-    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking)
+    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) {
       this.walker.stop('Manual command interrupted AI navigation');
+    }
     this.aiAgent.pause();
     this.aiAgent.state.lastActionResult = `AI yielded to manual command: ${command}`;
   }

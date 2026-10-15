@@ -7,6 +7,13 @@ export interface ActivityJournalEntry {
   failures: number;
   stalls: number;
 }
+export interface ExplorationRouteOutcome {
+  from: string;
+  to: string;
+  attempts: number;
+  arrivals: number;
+  failures: number;
+}
 export interface SchedulerProgress {
   room: string | null;
   experience: number | null;
@@ -19,6 +26,8 @@ export interface SchedulerJournal {
   strategyChanges: number;
   lastStrategyChange: string | null;
   visitedRooms: string[];
+  deadEnds: string[];
+  routeOutcomes: ExplorationRouteOutcome[];
   highestExperience: number | null;
   bestHpRatio: number | null;
 }
@@ -37,11 +46,14 @@ const blankJournal = (): SchedulerJournal => ({
   strategyChanges: 0,
   lastStrategyChange: null,
   visitedRooms: [],
+  deadEnds: [],
+  routeOutcomes: [],
   highestExperience: null,
   bestHpRatio: null
 });
 /** Recovery is never abandoned by strategy: it is the safety priority. */
 const NEVER_AVOID: readonly AiActionName[] = ['recover_health'];
+const MAX_EXPLORATION_RECORDS = 256;
 
 export interface SchedulerState {
   status: SchedulerStatus;
@@ -82,7 +94,12 @@ export class AutonomousScheduler {
   restore(value: unknown): boolean {
     if (!isSchedulerSnapshot(value)) return false;
     this.reset();
-    this.journal = { ...blankJournal(), ...structuredClone(value.journal) };
+    this.journal = {
+      ...blankJournal(),
+      ...structuredClone(value.journal),
+      deadEnds: value.journal.deadEnds ?? [],
+      routeOutcomes: value.journal.routeOutcomes ?? []
+    };
     this.visitedRooms.clear();
     for (const room of this.journal.visitedRooms) this.visitedRooms.add(room);
     this.state.completed = [...value.completed];
@@ -107,6 +124,31 @@ export class AutonomousScheduler {
   }
   clearCompleted(): void {
     this.state.completed = [];
+  }
+  rememberDeadEnd(room: string, isDeadEnd: boolean): boolean {
+    if (isDeadEnd) {
+      if (this.journal.deadEnds.includes(room)) return false;
+      this.journal.deadEnds.push(room);
+      if (this.journal.deadEnds.length > MAX_EXPLORATION_RECORDS)
+        this.journal.deadEnds.shift();
+      return true;
+    }
+    const kept = this.journal.deadEnds.filter((known) => known !== room);
+    if (kept.length === this.journal.deadEnds.length) return false;
+    this.journal.deadEnds = kept;
+    return true;
+  }
+  recordRouteOutcome(from: string, to: string, arrived: boolean): void {
+    let outcome = this.journal.routeOutcomes.find((route) => route.from === from && route.to === to);
+    if (!outcome) {
+      outcome = { from, to, attempts: 0, arrivals: 0, failures: 0 };
+      this.journal.routeOutcomes.push(outcome);
+      if (this.journal.routeOutcomes.length > MAX_EXPLORATION_RECORDS)
+        this.journal.routeOutcomes.shift();
+    }
+    outcome.attempts += 1;
+    if (arrived) outcome.arrivals += 1;
+    else outcome.failures += 1;
   }
   choose(candidates: readonly ActivityCandidate[], observation: string): AiAction | null {
     if (
@@ -207,6 +249,27 @@ export function isSchedulerSnapshot(value: unknown): value is SchedulerSnapshot 
     !journal.avoided.every((name) => AI_ACTIONS.includes(name)) ||
     !Array.isArray(journal.visitedRooms) ||
     !journal.visitedRooms.every((room) => typeof room === 'string') ||
+    (journal.deadEnds !== undefined &&
+      (!Array.isArray(journal.deadEnds) ||
+        journal.deadEnds.length > MAX_EXPLORATION_RECORDS ||
+        !journal.deadEnds.every((room) => typeof room === 'string'))) ||
+    (journal.routeOutcomes !== undefined &&
+      (!Array.isArray(journal.routeOutcomes) ||
+        journal.routeOutcomes.length > MAX_EXPLORATION_RECORDS ||
+        !journal.routeOutcomes.every(
+          (route) =>
+            route !== null &&
+            typeof route === 'object' &&
+            typeof route.from === 'string' &&
+            typeof route.to === 'string' &&
+            Number.isInteger(route.attempts) &&
+            route.attempts >= 0 &&
+            Number.isInteger(route.arrivals) &&
+            route.arrivals >= 0 &&
+            Number.isInteger(route.failures) &&
+            route.failures >= 0 &&
+            route.arrivals + route.failures === route.attempts
+        ))) ||
     typeof journal.activities !== 'object' ||
     journal.activities === null ||
     Array.isArray(journal.activities) ||
