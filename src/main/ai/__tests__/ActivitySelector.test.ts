@@ -216,6 +216,114 @@ describe('policy-filtered activity selection', () => {
     });
   });
 
+  it('uses reachable frontiers to search for an NPC without pretending one is visible', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    state.room.map = 1;
+    state.room.number = 1;
+    state.room.exits = [
+      {
+        direction: 'north',
+        note: null,
+        targetMap: 1,
+        targetRoom: 2,
+        targetName: null,
+        requirement: null
+      }
+    ];
+
+    const result = selectActivity(state, 'Find an NPC and inspect it.');
+
+    expect(result.considered.map(({ action }) => action.name)).toEqual(['navigate_to']);
+    expect(result.candidate?.action.args).toEqual({ destination: '1/2' });
+  });
+
+  it('searches valid frontiers for a required combat target but not optional combat', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    state.room.map = 1;
+    state.room.number = 1;
+    state.room.exits = [
+      {
+        direction: 'north',
+        note: null,
+        targetMap: 1,
+        targetRoom: 2,
+        targetName: null,
+        requirement: null
+      }
+    ];
+
+    const required = selectActivity(state, 'Fight a suitable hostile mob.');
+    expect(required.candidate?.action).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/2' }
+    });
+    expect(required.considered.some(({ action }) => action.name === 'engage_enemy')).toBe(false);
+
+    const optional = selectActivity(state, 'Fight a suitable hostile mob if one is available.');
+    expect(optional.considered).toEqual([]);
+
+    state.room.occupants = [
+      {
+        name: 'filthbug',
+        kind: 'mob',
+        mob: {} as never,
+        disposition: 'hostile',
+        uncertain: false,
+        costly: 'never',
+        charmed: false,
+        hidden: false,
+        free: false
+      }
+    ];
+    expect(
+      selectActivity(state, 'Fight a suitable hostile mob if one is available.').candidate?.action
+    ).toMatchObject({ name: 'engage_enemy', args: { name: 'filthbug' } });
+  });
+
+  it('never selects an unverified, friendly, or player occupant for combat', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    state.room.occupants = [
+      {
+        name: 'unknown creature',
+        kind: 'mob',
+        mob: {} as never,
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never',
+        charmed: false,
+        hidden: false,
+        free: false
+      },
+      {
+        name: 'friendly guardian',
+        kind: 'mob',
+        mob: {} as never,
+        disposition: 'passive',
+        uncertain: false,
+        costly: 'never',
+        charmed: false,
+        hidden: false,
+        free: false
+      },
+      {
+        name: 'another player',
+        kind: 'player',
+        disposition: null,
+        uncertain: false,
+        costly: 'never',
+        charmed: false,
+        hidden: false,
+        free: false
+      }
+    ];
+
+    expect(
+      selectActivity(state, 'Fight a suitable hostile mob').considered.some(
+        ({ action }) => action.name === 'engage_enemy'
+      )
+    ).toBe(false);
+  });
+
   it('does not invent combat when the goal or target evidence is missing', () => {
     const state = structuredClone(EMPTY_CHARACTER);
     state.room.occupants = [

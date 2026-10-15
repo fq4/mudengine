@@ -26,7 +26,13 @@ export function findSafeCombatNpc(
   const requested = preferred?.trim().toLowerCase();
   return (
     occupants.find((occupant) => {
-      if (occupant.kind !== 'mob' || !occupant.mob || occupant.charmed) return false;
+      if (
+        occupant.kind !== 'mob' ||
+        !occupant.mob ||
+        occupant.uncertain ||
+        occupant.charmed
+      )
+        return false;
       if (occupant.costly === 'always' || occupant.disposition !== 'hostile') return false;
       return requested === undefined || occupant.name.toLowerCase() === requested;
     }) ?? null

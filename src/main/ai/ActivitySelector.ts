@@ -1,5 +1,11 @@
 import type { CharacterState } from '../../shared/character';
 import type { AiAction, AiActionName } from '../../shared/ai';
+import { findSafeCombatNpc } from './NpcDiscovery';
+import {
+  objectiveCombatIsOptional,
+  objectiveRequestsCombat,
+  objectiveRequestsNpcSearch
+} from './objectiveIntents';
 
 export interface ActivityCandidate {
   action: AiAction;
@@ -58,13 +64,11 @@ export function summarizeWorldState(state: CharacterState, goal = ''): string {
     ({ targetMap, targetRoom, requirement }) =>
       targetMap !== null && targetRoom !== null && requirement === null
   );
-  const hostile = state.room.occupants.filter(
-    (occupant) => occupant.kind === 'mob' && occupant.mob && !occupant.charmed && !occupant.uncertain
-  );
+  const hostile = findSafeCombatNpc(state.room.occupants);
   const parts = [
     hp !== null && hpMax !== null ? `HP ${hp}/${hpMax}` : 'HP unknown',
     exits.length > 0 ? `${exits.length} valid exits` : 'no valid exits',
-    hostile.length > 0 ? `${hostile.length} hostile target${hostile.length === 1 ? '' : 's'}` : 'no hostile target',
+    hostile ? 'suitable hostile target available' : 'no suitable hostile target',
     goal.trim() ? `goal: ${goal.trim()}` : 'no explicit goal'
   ];
   return parts.join(' | ');
@@ -84,6 +88,10 @@ export function selectActivity(
   const candidates: ActivityCandidate[] = [];
   const lower = goal.toLowerCase();
   const summary = summarizeWorldState(state, goal);
+  const explorationRequested = /\bexplore\b/.test(lower);
+  const npcSearchRequested = objectiveRequestsNpcSearch(goal);
+  const combatRequested = objectiveRequestsCombat(goal);
+  const optionalCombat = objectiveCombatIsOptional(goal);
   const hp = state.vitals.hp;
   const hpMax = state.vitals.hpMax;
   const healthRatio = hp !== null && hpMax !== null && hpMax > 0 ? hp / hpMax : null;
@@ -121,7 +129,7 @@ export function selectActivity(
     candidates.push(
       observe('inspect_room', 60, `the player goal requests current surroundings (${summary})`)
     );
-  if (/\bexplore\b/.test(lower)) {
+  if (explorationRequested || npcSearchRequested || (combatRequested && !optionalCombat)) {
     const currentRoom =
       state.room.map !== null && state.room.number !== null
         ? `${state.room.map}/${state.room.number}`
@@ -132,7 +140,11 @@ export function selectActivity(
         targetMap !== null && targetRoom !== null && requirement === null
     );
     const destinations = new Set<string>();
-    const addNavigation = (destination: string, steps: number): void => {
+    const addNavigation = (
+      destination: string,
+      steps: number,
+      priorityBase = explorationRequested ? 70 : 35
+    ): void => {
       if (destinations.has(destination)) return;
       destinations.add(destination);
       const failures =
@@ -141,14 +153,22 @@ export function selectActivity(
           : exploration?.routeOutcomes.find(
               ({ from, to }) => from === currentRoom && to === destination
             )?.failures ?? 0;
+      const purpose = explorationRequested
+        ? 'exploration'
+        : npcSearchRequested
+          ? 'NPC discovery'
+          : 'finding a suitable combat target';
       candidates.push({
         action: {
           name: 'navigate_to',
           args: { destination },
           reason: 'Authoritative room exits support Walker-owned frontier navigation'
         },
-        priority: Math.max(25, 70 - Math.min(40, Math.max(0, steps - 1) * 2) - failures * 5),
-        rationale: `exploration can delegate a reachable unvisited frontier to Walker (${summary})`
+        priority: Math.max(
+          10,
+          priorityBase - Math.min(40, Math.max(0, steps - 1) * 2) - failures * 5
+        ),
+        rationale: `${purpose} can delegate a reachable unvisited frontier to Walker (${summary})`
       });
     };
     for (const exit of exits) {
@@ -166,13 +186,7 @@ export function selectActivity(
     candidates.push(
       observe('inspect_room', 10, `observe the current room before choosing further work (${summary})`)
     );
-  const mob = state.room.occupants.find(
-    (occupant) =>
-      occupant.kind === 'mob' && occupant.mob && !occupant.charmed && !occupant.uncertain
-  );
-  const combatRequested =
-    /fight|combat|hunt|enemy/.test(lower) &&
-    !/(?:do not|don't|without|never)[^.!?]{0,40}\b(?:fight|combat|attack)\b/.test(lower);
+  const mob = findSafeCombatNpc(state.room.occupants);
   if (combatRequested && mob)
     candidates.push({
       action: {

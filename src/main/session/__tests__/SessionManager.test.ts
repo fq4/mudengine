@@ -38,6 +38,24 @@ import type { RewritesUiConfig } from '../../../shared/config';
 import type { Route } from '../../../shared/world';
 import type { Block } from '../../../shared/blocks';
 
+function oneStepRoute(from: string, to: string): Route {
+  return {
+    blocked: false,
+    cost: 1,
+    steps: [
+      {
+        from,
+        to,
+        direction: 'e',
+        command: 'e',
+        name: to,
+        requirement: null,
+        dark: false
+      }
+    ]
+  };
+}
+
 /**
  * These drive a real socket rather than a mocked client: framing sits directly
  * on top of the transport, and a chunk boundary landing inside a terminator is
@@ -508,7 +526,7 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
-  it('reobserves a simulated Walker arrival and selects a fresh frontier after an AI stop', async () => {
+  it('reobserves an actual Walker arrival and selects a fresh frontier after an AI stop', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
     const state = (isolated as any).tracker.current as CharacterState;
@@ -526,32 +544,23 @@ describe('AI reconnect lifecycle', () => {
       }
     ];
     vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
-    const route = vi.fn((_from: string, to: string) => ({
-      blocked: false,
-      steps: to === '1/4' ? [{}, {}] : [{}]
-    }));
-    (isolated as any).world = { route };
+    (isolated as any).world = {
+      route: (from: string, to: string) => oneStepRoute(from, to),
+      spellOver: () => null
+    };
     (isolated as any).preferred = new Set<string>();
     const scheduler = (isolated as any).aiScheduler;
     scheduler.recordRoomObservation('1/1', [{ direction: 'north', to: '1/4' }], false);
     scheduler.recordRoomObservation('1/2', [], false);
-    const execute = vi
-      .spyOn(isolated as any, 'executeAiAction')
-      .mockResolvedValue({ ok: true, message: 'Navigation delegated to Walker' });
-    let delegated: 'active' | 'completed' = 'active';
-    vi.spyOn(isolated as any, 'delegatedAiStatus').mockImplementation(() => delegated);
-
-    isolated.aiEnable();
-    (isolated as any).aiAgent.state.objective = 'Explore the world';
-    (isolated as any).aiAgent.state.plan = [
-      { id: 'explore', action: 'navigate_to', label: 'Explore a frontier', status: 'active' },
-      { id: 'observe', action: 'inspect_room', label: 'Observe the frontier', status: 'pending' }
-    ];
+    vi.spyOn((isolated as any).queue, 'enqueue').mockReturnValue(true);
+    (isolated as any).aiAgent.enable('Explore the world and inspect the room');
+    (isolated as any).aiAutonomousMode = true;
     await (isolated as any).aiAutonomousTick();
     expect(scheduler.state.current).toMatchObject({
       name: 'navigate_to',
       args: { destination: '1/4' }
     });
+    expect(isolated.walker.walking).toBe(true);
 
     state.room.number = 4;
     state.room.exits = [
@@ -572,27 +581,39 @@ describe('AI reconnect lifecycle', () => {
         requirement: null
       }
     ];
-    (isolated as any).aiNavigationWalkOutcome = 'arrived';
-    delegated = 'completed';
+    isolated.walker.onCharacter(state);
+    expect((isolated as any).aiNavigationWalkOutcome).toBe('arrived');
     await (isolated as any).aiAutonomousTick();
     expect(scheduler.journal.routeOutcomes).toEqual([
       { from: '1/9', to: '1/4', attempts: 1, arrivals: 1, failures: 0 }
     ]);
+
+    (isolated as any).aiAgent.enable('Explore the world and inspect the room');
+    (isolated as any).aiAutonomousMode = true;
+    await (isolated as any).aiAutonomousTick();
+    expect(scheduler.state.current).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/5' }
+    });
+    expect(isolated.walker.walking).toBe(true);
     isolated.aiStop();
     expect(scheduler.state.current).toBeNull();
-    expect(scheduler.journal.observedExits).not.toContainEqual({
+    expect(isolated.walker.walking).toBe(false);
+    expect(isolated.walker.progress.status).toBe('stopped');
+    expect((isolated as any).aiNavigationDestination).toBeNull();
+    expect((isolated as any).aiNavigationWalkOutcome).toBeNull();
+    expect(scheduler.journal.routeOutcomes).toEqual([
+      { from: '1/9', to: '1/4', attempts: 1, arrivals: 1, failures: 0 }
+    ]);
+    expect(scheduler.journal.observedExits).toContainEqual({
       room: '1/4',
-      exits: expect.any(Array)
+      exits: [
+        { direction: 'east', to: '1/5' },
+        { direction: 'south', to: '1/6' }
+      ]
     });
 
-    (isolated as any).aiAgent.state.objective = '';
     isolated.aiEnable();
-    (isolated as any).aiAgent.state.objective = 'Explore the world';
-    (isolated as any).aiAgent.state.plan = [
-      { id: 'explore', action: 'navigate_to', label: 'Explore a frontier', status: 'active' },
-      { id: 'observe', action: 'inspect_room', label: 'Observe the frontier', status: 'pending' }
-    ];
-    delegated = 'active';
     await (isolated as any).aiAutonomousTick();
 
     expect(scheduler.journal.observedExits).toContainEqual({
@@ -606,42 +627,7 @@ describe('AI reconnect lifecycle', () => {
       name: 'navigate_to',
       args: { destination: '1/5' }
     });
-    expect(execute).toHaveBeenCalledTimes(2);
-    isolated.dispose();
-  });
-
-  it('records navigation outcomes from the requested destination and tracker room', () => {
-    const { sink } = collect();
-    const isolated = new SessionManager(sink);
-    const scheduler = (isolated as any).aiScheduler;
-    scheduler.choose(
-      [
-        {
-          action: {
-            name: 'navigate_to',
-            args: { destination: '1/2' },
-            reason: 'explore an authoritative exit'
-          },
-          priority: 70,
-          rationale: 'explore'
-        }
-      ],
-      'room-1'
-    );
-    (isolated as any).aiSchedulerActionBaseline = {
-      room: '1/1',
-      experience: null,
-      hpRatio: null
-    };
-    (isolated as any).aiNavigationWalkOutcome = 'arrived';
-    (isolated as any).finishAutonomous(true, {
-      room: '1/2',
-      experience: null,
-      hpRatio: null
-    });
-    expect(scheduler.journal.routeOutcomes).toEqual([
-      { from: '1/1', to: '1/2', attempts: 1, arrivals: 1, failures: 0 }
-    ]);
+    expect(isolated.walker.walking).toBe(true);
     isolated.dispose();
   });
 
@@ -703,9 +689,32 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('does not stop a manual Walker route when AI is stopped', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    vi.spyOn((isolated as any).queue, 'enqueue').mockReturnValue(true);
+
+    expect(isolated.walkRoute(oneStepRoute('1/1', '1/2'))).toBeNull();
+    expect(isolated.walker.walking).toBe(true);
+
+    isolated.aiStop();
+
+    expect(isolated.walker.walking).toBe(true);
+    isolated.dispose();
+  });
+
   it('records a failed route only after Walker reports an exit refusal', () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    vi.spyOn((isolated as any).queue, 'enqueue').mockReturnValue(true);
     const scheduler = (isolated as any).aiScheduler;
     scheduler.choose(
       [
@@ -726,8 +735,36 @@ describe('AI reconnect lifecycle', () => {
       experience: null,
       hpRatio: null
     };
-    (isolated as any).aiNavigationRouteRefused = true;
-    (isolated as any).aiNavigationWalkOutcome = 'failed';
+    (isolated as any).aiNavigationDestination = '1/2';
+    (isolated as any).aiAgent.state.currentAction = {
+      name: 'navigate_to',
+      phase: 'executing',
+      message: 'Walking'
+    };
+    expect(isolated.walkRoute(oneStepRoute('1/1', '1/2'), true)).toBeNull();
+    expect(isolated.walker.walking).toBe(true);
+    (isolated as any).tracker.observeCommand('e');
+    (isolated as any).act({
+      type: 'direction-failed',
+      domain: 'movement',
+      groups: {},
+      text: 'There is no exit in that direction!',
+      at: Date.now(),
+      seq: 1,
+      confidence: 1
+    } as Block, null);
+    (isolated as any).act({
+      type: 'room-exits',
+      domain: 'room',
+      groups: {},
+      text: 'Obvious exits: east',
+      at: Date.now(),
+      seq: 2,
+      confidence: 1
+    } as Block, null);
+    isolated.walker.onCharacter(state);
+    expect((isolated as any).aiNavigationRouteRefused).toBe(true);
+    expect((isolated as any).aiNavigationWalkOutcome).toBe('failed');
     (isolated as any).finishAutonomous(false, {
       room: '1/1',
       experience: null,
@@ -736,6 +773,86 @@ describe('AI reconnect lifecycle', () => {
     expect(scheduler.journal.routeOutcomes).toEqual([
       { from: '1/1', to: '1/2', attempts: 1, arrivals: 0, failures: 1 }
     ]);
+    isolated.dispose();
+  });
+
+  it('delegates NPC search to Walker when no suitable NPC is visible', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    state.room.exits = [
+      {
+        direction: 'north',
+        note: null,
+        targetMap: 1,
+        targetRoom: 2,
+        targetName: null,
+        requirement: null
+      }
+    ];
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    vi.spyOn((isolated as any).queue, 'enqueue').mockReturnValue(true);
+    (isolated as any).world = {
+      route: (from: string, to: string) => oneStepRoute(from, to),
+      spellOver: () => null
+    };
+    (isolated as any).preferred = new Set<string>();
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Find an NPC and inspect it.');
+    agent.state.plan[0]!.status = 'completed';
+    agent.state.plan[1]!.status = 'active';
+    (isolated as any).aiAutonomousMode = true;
+
+    await (isolated as any).aiAutonomousTick();
+
+    expect((isolated as any).aiScheduler.state.current).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/2' }
+    });
+    expect(isolated.walker.walking).toBe(true);
+    isolated.dispose();
+  });
+
+  it('explains an unavailable NPC search and completes only optional absent combat', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Find an NPC and inspect it.');
+    agent.state.plan[0]!.status = 'completed';
+    agent.state.plan[1]!.status = 'active';
+    (isolated as any).aiAutonomousMode = true;
+
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.explanation).toContain('no reachable unvisited frontier');
+    expect((isolated as any).aiScheduler.state.current).toBeNull();
+
+    agent.enable('Fight a suitable hostile mob if one is available.');
+    (isolated as any).aiAutonomousMode = true;
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.objectiveComplete).toBe(true);
+    expect(agent.state.plan?.map((step: { status: string }) => step.status)).toEqual([
+      'skipped',
+      'skipped'
+    ]);
+    expect((isolated as any).aiScheduler.state.current).toBeNull();
+    isolated.dispose();
+  });
+
+  it('does not schedule a supported plan that contains an unsupported objective clause', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    (isolated as any).aiAgent.enable('Travel to 1/2, inspect the room, then finish the quest.');
+    expect((isolated as any).hasSchedulableObjectivePlan()).toBe(false);
     isolated.dispose();
   });
 

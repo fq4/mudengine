@@ -33,6 +33,12 @@ MudEngine is a cross-platform Electron/Vite client, terminal, parser, world mode
 - Ordered bounded multi-step objective plans with prerequisite enforcement,
   progress states, same-observation reassessment, and completion guards.
 - Exact-destination and bounded multi-room navigation through `WorldGraph`/`Walker`, with verified arrival and lifecycle states.
+- NPC and mandatory-combat objectives delegate target search to reachable,
+  unvisited frontiers when no suitable target is visible. Optional combat is
+  skipped only when no safe hostile mob is present.
+- Walker lifecycle tests exercise actual arrival and verified refusal
+  callbacks. AI stop interrupts only its own active route, preserves journal
+  history, and does not resume stale navigation.
 - Objective completion guards, meaningful-event gating, compact observations, and objective-scoped capability advertisement.
 - Session approvals with expiry, state invalidation, history, rejection/expiration feedback, emergency stop, layered permissions, and hard/aggregate budgets.
 - Scoped persistent memory with provenance, confidence, verification, editing, and relevance retrieval.
@@ -53,6 +59,11 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
+- Latest offline Phase 6 verification: `npm run typecheck` passed; `npm test`
+  passed 6,988 tests with 2 skipped across 253 files; `npm run test:realm`
+  passed all 18 tests; `npm run build` passed with the existing renderer chunk
+  size warning; `npm run check:secrets` found no configured password in 45
+  user-scoped files.
 - AI suite and planner regressions pass, including ordered-plan and
   same-observation reassessment coverage.
 - SessionManager suite: 248 tests passed.
@@ -65,7 +76,7 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   manual interruption, budget enforcement, and emergency stop; legacy
   navigation cases may fail when recovery takes priority or the model omits a
   resolvable destination.
-- Final full validation passed 250 test files (6,920 tests passed, 2 skipped),
+- Earlier full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
 - `npm run lint` currently fails the repository-wide pre-existing Prettier baseline. Do not perform a broad formatter rewrite as handoff work.
@@ -107,7 +118,9 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
 
 ## Outstanding work
 
-1. Add broader integration coverage without expanding unsafe live scope.
+1. Add an offline multi-room NPC-search integration fixture through
+   Walker-confirmed arrival, room inspection, target discovery, and
+   tracker-verified objective completion.
 2. Define an explicit action-to-policy mapping before hiding named capabilities by policy.
 3. Improve general-command completion feedback beyond queue acceptance while preserving CommandQueue ownership.
 4. Investigate the concurrent migration-test temporary-home race.
@@ -256,14 +269,18 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   server-listed exits. Exploration uses `WorldGraph` to rank reachable,
   unvisited frontiers and delegates movement to Walker; old version-one
   snapshots remain readable.
-- Focused exploration and session validation passed: 281 tests across
-  `ActivitySelector`, `AutonomousScheduler`, and `SessionManager`.
-- A lifecycle test verifies that a completed frontier observation is recorded
-  and a fresh destination is selected after an AI stop. It simulates the
-  Walker completion signal; exercising the actual Walker callback remains open.
-- Typechecks, production build and secret scan passed. The full suite reports
-  one unrelated intermittent failure (`ConfigStore.test.ts` file-watch timeout,
-  `no change event`); `SessionLog.test.ts` passed in this run.
+- Target-search fallback now explores reachable frontiers for NPC and required
+  combat steps; optional combat skips only when no suitable hostile is visible.
+  Unsupported clauses in mixed objectives remain on the provider/planner path,
+  and unavailable target-search steps expose a specific waiting reason.
+- Walker lifecycle coverage now uses actual `onCharacter()` arrival and
+  verified exit-refusal callbacks. It confirms AI stop cancels an AI-owned
+  route, preserves journal history, and selects a fresh destination on restart.
+- Next deterministic task: cover a complete multi-room NPC-search objective
+  through successive Walker-confirmed arrivals, inspection, target discovery,
+  and tracker-verified completion. Keep it offline and provider-free.
+- Latest offline validation passed 6,988 tests (2 skipped), realm coverage
+  18/18, typechecks, production build and secret scan.
 - Bounded Kefka live harness passed all 24 scenarios on 2026-10-14 with zero
   policy violations (5 provider requests, 11,653 tokens, estimated cost ~$0.002).
   It verifies the production baseline, not persisted frontier selection.

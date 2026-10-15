@@ -98,10 +98,16 @@ import {
   objectiveActionPolicies,
   objectiveAvailableActions
 } from '../ai/observation';
-import { objectiveRequestsItemUse } from '../ai/objectiveIntents';
+import {
+  hasUnsupportedObjectiveIntent,
+  objectiveCombatIsOptional,
+  objectiveRequestsItemUse,
+  objectiveRequestsCombat,
+  objectiveRequestsNpcSearch
+} from '../ai/objectiveIntents';
 import { isMeaningfulAiEvent } from '../ai/events';
 import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
-import { findSafeNpc } from '../ai/NpcDiscovery';
+import { findSafeCombatNpc, findSafeNpc } from '../ai/NpcDiscovery';
 import { assessCombatEligibility } from '../ai/CombatSafety';
 import { combatOutcome } from '../ai/CombatOutcome';
 import { assessItemUse } from '../ai/InventorySafety';
@@ -109,6 +115,7 @@ import { isPassiveRecovery } from '../ai/RecoverySafety';
 import {
   reachableExplorationFrontiers,
   selectActivity,
+  summarizeWorldState,
   type ExplorationContext
 } from '../ai/ActivitySelector';
 import {
@@ -116,7 +123,12 @@ import {
   type SchedulerProgress,
   type SchedulerSnapshotStore
 } from '../ai/AutonomousScheduler';
-import { advanceObjectivePlan, objectivePlanComplete, replanObjectivePlan } from '../ai/ObjectivePlan';
+import {
+  advanceObjectivePlan,
+  objectivePlanComplete,
+  replanObjectivePlan,
+  skipUnavailableOptionalSteps
+} from '../ai/ObjectivePlan';
 import type { ActivityCandidate } from '../ai/ActivitySelector';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
@@ -3564,7 +3576,25 @@ export class SessionManager {
     this.setAiPermissionLayers(this.aiPermissionLayers);
     return this.aiSnapshot;
   }
+  private stopAiNavigation(reason: string, quiet = false): void {
+    const destination = this.aiNavigationDestination;
+    const routeDestination = this.walker.progress.destinationRoom;
+    const currentAction = this.aiAgent.state.currentAction;
+    const aiOwnsRoute =
+      this.aiAgent.state.status !== 'paused' &&
+      this.aiScheduler.state.current?.name === 'navigate_to' &&
+      currentAction?.name === 'navigate_to' &&
+      (currentAction.phase === 'accepted' || currentAction.phase === 'executing') &&
+      destination !== null &&
+      routeDestination !== null &&
+      `${routeDestination.map}/${routeDestination.room}` === destination;
+    if (aiOwnsRoute && this.walker.walking) this.walker.stop(reason, quiet);
+    this.aiNavigationDestination = null;
+    this.aiNavigationWalkOutcome = null;
+    this.aiNavigationRouteRefused = false;
+  }
   aiStop(): AiSnapshot {
+    this.stopAiNavigation('AI stopped', true);
     this.aiPendingGossipReplyAt = null;
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
@@ -3574,6 +3604,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiEmergencyStop(): AiSnapshot {
+    this.stopAiNavigation('AI emergency stop');
     this.aiPendingGossipReplyAt = null;
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
@@ -3585,9 +3616,6 @@ export class SessionManager {
         intent.reason?.startsWith('AI:') === true ||
         intent.reason?.startsWith('Approved AI action:') === true
     );
-    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) {
-      this.walker.stop('AI emergency stop');
-    }
     this.aiAgent.state.lastActionResult =
       'Emergency stop active; AI commands canceled. Manual gameplay remains available.';
     return this.aiSnapshot;
@@ -3741,6 +3769,7 @@ export class SessionManager {
     return this.aiMemories();
   }
   aiGoal(goal: string): AiSnapshot {
+    this.stopAiNavigation('AI objective changed', true);
     this.aiPendingGossipReplyAt = null;
     this.aiApprovals.resetTransient();
     this.aiAutonomousMode = false;
@@ -3753,6 +3782,7 @@ export class SessionManager {
     return this.aiSnapshot;
   }
   aiClearGoal(): AiSnapshot {
+    this.stopAiNavigation('AI goal cleared', true);
     this.aiPendingGossipReplyAt = null;
     this.aiApprovals.resetTransient();
     this.aiAgent.stop();
@@ -3827,9 +3857,21 @@ export class SessionManager {
     }
     const exploration = this.aiExplorationContext(true);
     const observation = this.aiObservation(event, exploration);
-    const planStep = broadObjective
+    let planStep = broadObjective
       ? this.aiAgent.state.plan?.find((step) => step.status === 'active')
       : undefined;
+    if (
+      planStep?.action === 'engage_enemy' &&
+      planStep.optional &&
+      !findSafeCombatNpc(this.tracker.current.room.occupants)
+    ) {
+      const plan = skipUnavailableOptionalSteps(
+        this.aiAgent.state.plan ?? [],
+        'engage_enemy'
+      );
+      this.aiAgent.state.plan = plan;
+      planStep = plan.find((step) => step.status === 'active');
+    }
     if (broadObjective && !planStep) {
       if (objectivePlanComplete(this.aiAgent.state.plan ?? [])) {
         this.aiAgent.state.objectiveComplete = true;
@@ -3849,12 +3891,26 @@ export class SessionManager {
       this.aiAgent.state.objective,
       exploration
     ).considered;
-    const selection = planStep ? this.candidatesForObjectiveStep(planStep, ranked) : ranked;
+    const recovery = ranked.find(({ action }) => action.name === 'recover_health');
+    const selection =
+      recovery && planStep?.action !== 'recover_health'
+        ? [recovery]
+        : planStep
+          ? this.candidatesForObjectiveStep(planStep, ranked)
+          : ranked;
     if (broadObjective && selection.length === 0) {
+      const reason = this.noObjectiveCandidateReason(planStep);
       this.aiAgent.state.status = 'idle';
       this.aiAgent.state.activity = 'autonomous_idle';
-      this.aiAgent.state.explanation =
-        'Waiting for authoritative state that can satisfy the next objective step.';
+      this.aiAgent.state.explanation = reason;
+      this.aiAgent.state.lastActionResult = reason;
+      this.aiAgent.state.decisionTrace = {
+        at: Date.now(),
+        objective: this.aiAgent.state.objective,
+        candidate: 'none',
+        reason,
+        summary: summarizeWorldState(this.tracker.current, this.aiAgent.state.objective)
+      };
       return;
     }
     const action = this.aiScheduler.choose(selection, JSON.stringify({
@@ -3958,6 +4014,7 @@ export class SessionManager {
     step: NonNullable<AiSnapshot['state']['plan']>[number],
     ranked: ActivityCandidate[]
   ): ActivityCandidate[] {
+    const navigation = ranked.filter(({ action }) => action.name === 'navigate_to');
     const existing = ranked.find(({ action }) => action.name === step.action);
     if (existing) {
       if (step.action !== 'navigate_to' || !step.destination) return [existing];
@@ -3992,8 +4049,16 @@ export class SessionManager {
       const npc = findSafeNpc(this.tracker.current.room.occupants);
       return npc
         ? [candidate('inspect_npc', 'Inspect a currently visible non-player NPC', { name: npc.name })]
-        : [];
+        : objectiveRequestsNpcSearch(this.aiAgent.state.objective)
+          ? navigation
+          : [];
     }
+    if (
+      step.action === 'engage_enemy' &&
+      objectiveRequestsCombat(this.aiAgent.state.objective) &&
+      !objectiveCombatIsOptional(this.aiAgent.state.objective)
+    )
+      return navigation;
     if (
       step.action === 'inspect_character' ||
       step.action === 'inspect_room' ||
@@ -4005,6 +4070,18 @@ export class SessionManager {
     if (step.action === 'recover_health')
       return [candidate('recover_health', 'Delegate requested recovery to existing automation')];
     return [];
+  }
+
+  private noObjectiveCandidateReason(
+    step: NonNullable<AiSnapshot['state']['plan']>[number] | undefined
+  ): string {
+    if (step?.action === 'inspect_npc' && !findSafeNpc(this.tracker.current.room.occupants))
+      return 'No authoritative non-player NPC is visible and no reachable unvisited frontier is available; waiting for a new room observation.';
+    if (step?.action === 'engage_enemy' && !findSafeCombatNpc(this.tracker.current.room.occupants))
+      return 'No suitable hostile mob is authoritatively visible and no reachable frontier is available; combat was not initiated.';
+    if (step?.action === 'navigate_to')
+      return 'No authoritative reachable destination is available for this navigation step.';
+    return 'No policy-filtered activity can satisfy the active objective step; waiting for a meaningful observation.';
   }
 
   private hasSchedulableObjectivePlan(): boolean {
@@ -4021,7 +4098,11 @@ export class SessionManager {
       'manage_equipment'
     ]);
     const plan = this.aiAgent.state.plan ?? [];
-    return plan.length > 1 && plan.every((step) => supported.has(step.action));
+    return (
+      plan.length > 1 &&
+      plan.every((step) => supported.has(step.action)) &&
+      !hasUnsupportedObjectiveIntent(this.aiAgent.state.objective)
+    );
   }
 
   private schedulerProgress(): SchedulerProgress {
@@ -4045,11 +4126,13 @@ export class SessionManager {
     const { map, number } = state.room;
     const currentRoom = map !== null && number !== null ? roomId(map, number) : null;
     const world = this.world;
+    const objective = this.aiAgent.state.objective;
+    const shouldSearch =
+      /\bexplore\b/i.test(objective) ||
+      objectiveRequestsNpcSearch(objective) ||
+      (objectiveRequestsCombat(objective) && !objectiveCombatIsOptional(objective));
     const resolveFrontiers =
-      includeReachable &&
-      /\bexplore\b/i.test(this.aiAgent.state.objective) &&
-      currentRoom !== null &&
-      world !== undefined;
+      includeReachable && shouldSearch && currentRoom !== null && world !== undefined;
     const traveller = resolveFrontiers ? this.travellerNow(state) : null;
     const frontiers =
       resolveFrontiers &&

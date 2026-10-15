@@ -71,7 +71,8 @@ export class AutonomousAgent {
     this.state.status = 'idle';
     this.state.objective = objective;
     this.state.plan = buildObjectivePlan(objective);
-    if (this.state.plan[0]) this.state.plan[0].status = 'active';
+    const firstStep = this.state.plan[0];
+    if (firstStep) firstStep.status = 'active';
     this.state.objectiveComplete = false;
     this.state.consecutiveFailures = 0;
     this.lastFailedAction = '';

@@ -49,7 +49,8 @@ describe('safe NPC discovery', () => {
     expect(
       findSafeCombatNpc([
         occupant('Charmed rat', 'mob', false, true, { charmed: true }),
-        occupant('Good guardian', 'mob', false, true, { costly: 'always' })
+        occupant('Good guardian', 'mob', false, true, { costly: 'always' }),
+        occupant('Uncertain rat', 'mob', false, true, { uncertain: true })
       ])
     ).toBeNull();
   });

@@ -3,8 +3,10 @@ import {
   advanceObjectivePlan,
   buildObjectivePlan,
   objectivePlanComplete,
-  replanObjectivePlan
+  replanObjectivePlan,
+  skipUnavailableOptionalSteps
 } from '../ObjectivePlan';
+import { hasUnsupportedObjectiveIntent } from '../objectiveIntents';
 
 describe('bounded objective planning', () => {
   it('decomposes a destination and inspection objective in order', () => {
@@ -66,6 +68,39 @@ describe('bounded objective planning', () => {
       'inspect_combat_result',
       'recover_health'
     ]);
+  });
+
+  it('skips only explicitly optional combat after authoritative target absence', () => {
+    let plan = buildObjectivePlan(
+      'Find an NPC, inspect it, and fight a suitable hostile mob if one is available.'
+    );
+    expect(plan.map((step) => step.action)).toEqual([
+      'inspect_room',
+      'inspect_npc',
+      'engage_enemy',
+      'inspect_combat_result'
+    ]);
+    expect(plan.slice(2).every((step) => step.optional)).toBe(true);
+    plan[0]!.status = 'completed';
+    plan[1]!.status = 'completed';
+    plan[2]!.status = 'active';
+
+    plan = skipUnavailableOptionalSteps(plan, 'engage_enemy');
+
+    expect(plan.map((step) => step.status)).toEqual([
+      'completed',
+      'completed',
+      'skipped',
+      'skipped'
+    ]);
+    expect(objectivePlanComplete(plan)).toBe(true);
+  });
+
+  it('does not accept partially recognized quest objectives as fully schedulable intent', () => {
+    expect(
+      hasUnsupportedObjectiveIntent('Travel to 1/2, inspect the room, then finish the quest.')
+    ).toBe(true);
+    expect(hasUnsupportedObjectiveIntent('Find an NPC, inspect it, and explore.')).toBe(false);
   });
 
   it('keeps a multi-capability objective in prerequisite order', () => {

@@ -172,7 +172,8 @@ export interface AiState {
     id: string;
     action: AiActionName;
     label: string;
-    status: 'pending' | 'active' | 'completed' | 'blocked';
+    status: 'pending' | 'active' | 'completed' | 'blocked' | 'skipped';
+    optional?: boolean;
     destination?: string;
   }>;
   pendingApprovals: AiApproval[];

@@ -1,13 +1,25 @@
 import type { AiActionName } from '../../shared/ai';
-import { ITEM_USE_OBJECTIVE_PATTERN, objectiveRequestsItemUse } from './objectiveIntents';
+import {
+  ITEM_USE_OBJECTIVE_PATTERN,
+  objectiveCombatIsOptional,
+  objectiveRequestsCombat,
+  objectiveRequestsItemUse,
+  objectiveRequestsNpcSearch
+} from './objectiveIntents';
 
-export type ObjectiveStepStatus = 'pending' | 'active' | 'completed' | 'blocked';
+export type ObjectiveStepStatus =
+  | 'pending'
+  | 'active'
+  | 'completed'
+  | 'blocked'
+  | 'skipped';
 
 export interface ObjectiveStep {
   id: string;
   action: AiActionName;
   label: string;
   status: ObjectiveStepStatus;
+  optional?: boolean;
   destination?: string;
 }
 
@@ -30,16 +42,19 @@ export function buildObjectivePlan(objective: string): ObjectiveStep[] {
     add('navigate_to', 'Navigate safely');
   if (/\b(inspect|observe|look|check)\b.*\b(room|location|area|surroundings?)\b/.test(lower))
     add('inspect_room', 'Inspect surroundings');
-  if (/\b(find|discover|locate)\b.*\b(npc|non[- ]player|townsperson|villager)\b/.test(lower))
+  if (objectiveRequestsNpcSearch(value))
     add('inspect_room', 'Discover visible NPCs');
   if (/\b(npc|non[- ]player|townsperson|villager)\b/.test(lower))
     add('inspect_npc', 'Inspect a visible NPC');
-  const combatRequested =
-    /\b(fight|combat|attack|engage)\b/.test(lower) &&
-    !/(?:do not|don't|without|never)[^.!?]{0,40}\b(?:fight|combat|attack)\b/.test(lower);
+  const combatRequested = objectiveRequestsCombat(value);
+  const optionalCombat = objectiveCombatIsOptional(value);
   if (combatRequested) {
-    add('engage_enemy', 'Engage a verified PvE target');
-    add('inspect_combat_result', 'Assess the combat result');
+    add('engage_enemy', 'Engage a verified PvE target', {
+      ...(optionalCombat ? { optional: true } : {})
+    });
+    add('inspect_combat_result', 'Assess the combat result', {
+      ...(optionalCombat ? { optional: true } : {})
+    });
   }
   if (/\b(recover|health|heal|rest)\b/.test(lower))
     add('recover_health', 'Recover without consuming resources');
@@ -101,7 +116,28 @@ export function advanceObjectivePlan(
 }
 
 export function objectivePlanComplete(plan: ObjectiveStep[]): boolean {
-  return plan.length > 0 && plan.every((step) => step.status === 'completed');
+  return (
+    plan.length > 0 &&
+    plan.every((step) => step.status === 'completed' || step.status === 'skipped')
+  );
+}
+
+/** Skip an optional unavailable action and its adjacent optional follow-up. */
+export function skipUnavailableOptionalSteps(
+  plan: ObjectiveStep[],
+  action: AiActionName
+): ObjectiveStep[] {
+  const next = plan.map((step) => ({ ...step }));
+  const index = next.findIndex((step) => step.action === action && step.status === 'active');
+  if (index < 0 || !next[index]!.optional) return next;
+  for (let current = index; current < next.length; current += 1) {
+    const step = next[current]!;
+    if (current !== index && (step.status !== 'pending' || !step.optional)) break;
+    step.status = 'skipped';
+  }
+  const following = next.find((step) => step.status === 'pending');
+  if (following) following.status = 'active';
+  return next;
 }
 
 /** Reactivate one failed step after a new authoritative observation. */

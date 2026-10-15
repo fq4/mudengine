@@ -53,6 +53,22 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
     recorded as failed routes.
   - Version-one scheduler snapshots created before these fields are accepted
     and restored with empty exploration memory.
+- **Prerequisite-aware target search and Walker lifecycle**:
+  - NPC and required-combat objectives can delegate navigation to a reachable
+    unvisited frontier when no suitable target is currently visible. Walker
+    remains the sole route executor and confirms arrival through its real
+    `onCharacter()`/`ended` lifecycle.
+  - Combat selection requires an authoritative hostile mob accepted by
+    `findSafeCombatNpc`; uncertain, player, passive, charmed, and
+    alignment-costly occupants are excluded. Explicitly optional combat and
+    its result-review step are skipped only when no suitable hostile is
+    visible; mandatory combat continues searching reachable frontiers.
+  - Mixed objectives containing unsupported intent do not enter the
+    scheduler-backed path. An empty candidate set now reports why the active
+    target-search step is waiting instead of silently appearing to succeed.
+  - AI stop, goal replacement/clear, and emergency stop interrupt an
+    AI-owned Walker route without recording an unverified failure. A manual
+    route is not stopped, and the scheduler journal survives AI stop.
 - Tests: `AutonomousScheduler.test.ts`, `AutonomousSchedulerStore.test.ts`,
   `ObjectivePlan.test.ts`, and SessionManager/SessionHost coverage verify
   progress signals, snapshot persistence, broad-objective routing, and
@@ -72,10 +88,10 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 4. Candidate selection remains deliberately small (`inspect_*`, recovery,
    equipment, navigation, engage). Add other activities only when delegated
    to production owners and policy-gated.
-5. The bounded live harness verifies the production AI baseline, but does not
-   specifically exercise autonomous selection from persisted exploration
-   frontiers. Add focused deterministic and, if useful, bounded live coverage
-   for that path.
+5. Add a deterministic multi-room objective fixture that carries NPC search
+   through Walker-confirmed arrival, room inspection, target discovery, and
+   objective completion. Do not use live provider/server testing for this
+   coverage unless separately authorized.
 
 ## Known issues
 
@@ -88,13 +104,13 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Verification (this checkpoint)
 
-- Focused exploration and SessionManager tests: 281 passed.
-- Node and renderer typechecks: passed.
-- Production build: passed; the existing large-renderer-chunk warning remains.
-- Secret scan: passed against the configured user-scoped profile data.
-- Full suite: 6,967 passed, 2 skipped, and 1 unrelated
-  `ConfigStore.test.ts` watcher failure (`no change event`). The same watcher
-  test has failed in isolation before; `SessionLog.test.ts` passed in this run.
+- Focused AI and SessionManager suites: 311 passed across five test files.
+- Full deterministic suite: 6,988 passed, 2 skipped across 253 files.
+- Realm coverage: 18 passed across 2 files.
+- Node and renderer typechecks: passed. Production build: passed; the existing
+  large-renderer-chunk warning remains.
+- Secret scan: passed against 45 files under the configured user-scoped
+  profile; no configured password was found.
 - Bounded Kefka live harness (2026-10-14): 24/24 scenarios passed with no
   policy violations; 5 provider requests, 11,653 total tokens, estimated cost
   ~$0.002. Broad-objective/provider and scheduler selection both chose
@@ -145,9 +161,10 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Next recommended task
 
-Connect the frontier lifecycle fixture to Walker's actual end callback instead
-of simulating its completion signal; verify a fresh destination is selected
-after an AI stop and no stale navigation resumes.
+Add a deterministic multi-room NPC-search objective fixture: use authoritative
+room observations and Walker callbacks to verify that the scheduler explores
+successive frontiers, inspects a newly visible NPC, and completes only the
+tracker-verified steps. Keep the test offline and provider-free.
 
 ## Environment on a new computer
 ```powershell
