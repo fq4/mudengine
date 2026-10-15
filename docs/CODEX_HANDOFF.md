@@ -138,7 +138,7 @@ npm ci
 
 ## Configuration and secrets
 
-Never commit secret values. Copy `.env.example` to an untracked `.env` only for the live AI harness:
+Never commit secret values. Copy `.env.example` to an untracked `.env` for local development or the live AI harness:
 
 ```powershell
 Copy-Item .env.example .env
@@ -149,6 +149,10 @@ Names only; never document values:
 
 - `OPENROUTER_API_KEY` - local OpenRouter credential.
 - `MUDENGINE_AI_MODEL` - optional model override.
+
+`npm run dev` loads an existing `.env` into the Electron main-process environment;
+without `.env`, development continues with the normal inherited environment.
+Do not rename the key with a `VITE_` prefix.
 
 The `kefka` profile and connection credentials are user-scoped local settings. Recreate them through the normal profile/settings UI if absent. Corporate TLS/proxy settings must use the OS trust store or approved CA configuration.
 

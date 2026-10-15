@@ -27,6 +27,7 @@
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -41,6 +42,8 @@ const require = createRequire(import.meta.url);
 const manifest = require.resolve('electron-vite/package.json');
 const { bin } = require(manifest);
 const cli = path.join(path.dirname(manifest), typeof bin === 'string' ? bin : bin['electron-vite']);
+const envFile = path.resolve('.env');
+const envFileArgs = existsSync(envFile) ? [`--env-file=${envFile}`] : [];
 
 /**
  * Exactly the shape the bundled parser emits for a directive it does not know:
@@ -53,7 +56,7 @@ const PARSE_WARNING = /^Fontconfig warning: "[^"]*", line \d+: /;
 
 const child = spawn(
   process.execPath,
-  [cli, 'dev', ...process.argv.slice(2)],
+  [...envFileArgs, cli, 'dev', ...process.argv.slice(2)],
   // stdout and stdin stay attached to the real terminal so electron-vite keeps
   // its colours and anything it asks for still reaches it. Only stderr is
   // piped, because only stderr is being read.
