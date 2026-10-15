@@ -72,8 +72,10 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 4. Candidate selection remains deliberately small (`inspect_*`, recovery,
    equipment, navigation, engage). Add other activities only when delegated
    to production owners and policy-gated.
-5. Live provider verification of any Phase 5/6 behaviour remains deferred;
-   no provider tests were run in this checkpoint.
+5. The bounded live harness verifies the production AI baseline, but does not
+   specifically exercise autonomous selection from persisted exploration
+   frontiers. Add focused deterministic and, if useful, bounded live coverage
+   for that path.
 
 ## Known issues
 
@@ -93,7 +95,12 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 - Full suite: 6,967 passed, 2 skipped, and 1 unrelated
   `ConfigStore.test.ts` watcher failure (`no change event`). The same watcher
   test has failed in isolation before; `SessionLog.test.ts` passed in this run.
-- No provider or live-server tests were run.
+- Bounded Kefka live harness (2026-10-14): 24/24 scenarios passed with no
+  policy violations; 5 provider requests, 11,653 total tokens, estimated cost
+  ~$0.002. Broad-objective/provider and scheduler selection both chose
+  `inspect_room`; the harness also verified inspection, safety refusals,
+  bounded combat, navigation, manual interruption, budget enforcement, and
+  emergency stop. It did not exercise persisted frontier selection.
 
 ## Next recommended task
 

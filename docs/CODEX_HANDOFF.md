@@ -219,5 +219,7 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
 - Typechecks, production build and secret scan passed. The full suite reports
   one unrelated intermittent failure (`ConfigStore.test.ts` file-watch timeout,
   `no change event`); `SessionLog.test.ts` passed in this run.
+- Bounded Kefka live harness passed all 24 scenarios on 2026-10-14 with zero
+  policy violations (5 provider requests, 11,653 tokens, estimated cost ~$0.002).
+  It verifies the production baseline, not persisted frontier selection.
 - Run `git log -1 --oneline` on `development` for the latest commit.
-- Live provider verification is still deferred; no paid tests were run.
