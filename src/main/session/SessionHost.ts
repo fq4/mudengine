@@ -58,6 +58,7 @@ import type { TalkSink } from './TalkLog';
 import { isTalkBlock } from '../../shared/talk';
 import { SessionDebug } from './SessionDebug';
 import { AiAggregateBudget, type AiAggregateBudgetState } from '../ai/Budget';
+import type { SchedulerSnapshotStore } from '../ai/AutonomousScheduler';
 
 export interface SessionSlot {
   readonly id: SessionId;
@@ -153,6 +154,8 @@ export interface SessionHostOptions {
   memoryFor(id: SessionId): RealmMemory | undefined;
   /** Structured AI memory, isolated by server and character. */
   aiMemoryFor?(id: SessionId): import('../ai/MemoryStore').AiMemoryStore | undefined;
+  /** Durable scheduler journal; active actions are deliberately not persisted. */
+  aiSchedulerFor?(id: SessionId): SchedulerSnapshotStore | undefined;
   /**
    * Where this character's fights are written down.
    *
@@ -543,7 +546,8 @@ export class SessionHost {
         )?.aiPolicy,
         profile: config.aiPolicy
       },
-      this.aggregateAiBudget
+      this.aggregateAiBudget,
+      this.options.aiSchedulerFor?.(id)
     );
 
     manager.configureInternal(this.options.internal());

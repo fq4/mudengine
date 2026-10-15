@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { AutonomousScheduler } from '../AutonomousScheduler';
+import { AutonomousScheduler, type SchedulerProgress } from '../AutonomousScheduler';
+
+const progress = (
+  room: string | null = null,
+  experience: number | null = null,
+  hpRatio: number | null = null
+): SchedulerProgress => ({ room, experience, hpRatio });
 
 const candidates = [
   {
@@ -14,18 +20,18 @@ describe('AutonomousScheduler', () => {
   it('transitions activity completion and avoids repeated observation loops', () => {
     const scheduler = new AutonomousScheduler();
     expect(scheduler.choose(candidates, 'room-a')?.name).toBe('inspect_room');
-    scheduler.finish(true, 'room-a-observed');
+    scheduler.finish(true, progress('1/1'));
     expect(scheduler.choose(candidates, 'inventory-needed')?.name).toBe('inspect_inventory');
-    scheduler.finish(true, 'inventory-observed');
+    scheduler.finish(true, progress('1/2'));
     expect(scheduler.choose(candidates, 'fresh-complete-observation')).toBeNull();
     expect(scheduler.state.status).toBe('completed');
   });
   it('blocks after repeated failures and supports interruption', () => {
     const scheduler = new AutonomousScheduler(2);
     scheduler.choose(candidates, 'fresh');
-    scheduler.finish(false, 'failed-1');
+    scheduler.finish(false, progress());
     scheduler.choose(candidates, 'fresh-2');
-    scheduler.finish(false, 'failed-2');
+    scheduler.finish(false, progress());
     expect(scheduler.state.status).toBe('blocked');
     scheduler.interrupt();
     expect(scheduler.state.status).toBe('interrupted');
@@ -34,7 +40,7 @@ describe('AutonomousScheduler', () => {
   it('resets stale observation state when restarting autonomous work', () => {
     const scheduler = new AutonomousScheduler();
     scheduler.choose(candidates, 'room-a');
-    scheduler.finish(true, 'room-a-observed');
+    scheduler.finish(true, progress('1/1'));
     expect(scheduler.state.completed).toContain('inspect_room');
     scheduler.interrupt();
     scheduler.reset();
@@ -46,12 +52,12 @@ describe('AutonomousScheduler', () => {
   it('supports a full transition cycle across repeated authoritative observations', () => {
     const scheduler = new AutonomousScheduler(2);
     expect(scheduler.choose(candidates, 'initial-room')).toBeDefined();
-    scheduler.finish(true, 'room-observed');
+    scheduler.finish(true, progress('1/1'));
     expect(scheduler.choose(candidates, 'inventory-needed')?.name).toBe('inspect_inventory');
-    scheduler.finish(false, 'inventory-failed');
+    scheduler.finish(false, progress('1/1'));
     expect(scheduler.state.status).toBe('idle');
     expect(scheduler.choose(candidates, 'inventory-needed-again')?.name).toBe('inspect_inventory');
-    scheduler.finish(true, 'inventory-recovered');
+    scheduler.finish(true, progress('1/1', 25));
     expect(scheduler.state.status).toBe('idle');
     expect(scheduler.choose(candidates, 'fresh-observation')).toBeNull();
     expect(scheduler.state.status).toBe('completed');
@@ -63,7 +69,7 @@ describe('AutonomousScheduler', () => {
       for (let cycle = 0; cycle < 3; cycle++) {
         const action = scheduler.choose(candidates, 'room-' + cycle);
         if (!action) break;
-        scheduler.finish(true, 'same-result');
+        scheduler.finish(true, progress('1/1'));
         scheduler.interrupt();
         scheduler.reset();
       }
@@ -78,7 +84,7 @@ describe('AutonomousScheduler', () => {
       const scheduler = new AutonomousScheduler(3, 1);
       for (let i = 0; i < 3; i++) {
         expect(scheduler.choose(recover, 'low-' + i)?.name).toBe('recover_health');
-        scheduler.finish(true, 'same');
+        scheduler.finish(true, progress('1/1', null, 0.4));
         scheduler.reset();
       }
       expect(scheduler.journal.avoided).toEqual([]);
@@ -86,7 +92,7 @@ describe('AutonomousScheduler', () => {
     it('keeps the journal through interrupt and reset but drops it on forget', () => {
       const scheduler = new AutonomousScheduler();
       scheduler.choose(candidates, 'a');
-      scheduler.finish(false, 'x');
+      scheduler.finish(false, progress());
       scheduler.interrupt();
       scheduler.reset();
       expect(scheduler.journal.activities.inspect_room?.failures).toBe(1);
@@ -96,7 +102,7 @@ describe('AutonomousScheduler', () => {
     it('resumes an interrupted campaign without losing completed work', () => {
       const scheduler = new AutonomousScheduler();
       scheduler.choose(candidates, 'a');
-      scheduler.finish(true, 'x');
+      scheduler.finish(true, progress());
       scheduler.interrupt();
       expect(scheduler.choose(candidates, 'b')).toBeNull();
       scheduler.resume();
@@ -106,14 +112,38 @@ describe('AutonomousScheduler', () => {
     it('round-trips a snapshot', () => {
       const a = new AutonomousScheduler(3, 1);
       a.choose(candidates, 'a');
-      a.finish(true, 's');
+      a.finish(true, progress('1/1'));
       a.reset();
       a.choose(candidates, 'b');
-      a.finish(true, 's');
+      a.finish(true, progress('1/1'));
       const b = new AutonomousScheduler();
       b.restore(JSON.parse(JSON.stringify(a.snapshot())));
       expect(b.journal.avoided).toEqual(['inspect_room']);
       expect(b.snapshot()).toEqual(a.snapshot());
+    });
+
+    it('rejects malformed or unsupported snapshots without changing current state', () => {
+      const scheduler = new AutonomousScheduler();
+      scheduler.choose(candidates, 'current');
+      const before = scheduler.snapshot();
+      expect(scheduler.restore({ version: 2 })).toBe(false);
+      expect(scheduler.snapshot()).toEqual(before);
+    });
+
+    it('counts newly visited rooms, XP, and improved HP as authoritative progress', () => {
+      const scheduler = new AutonomousScheduler(3, 1);
+      scheduler.choose(candidates, 'a');
+      scheduler.finish(true, progress('2/4', 100, 0.25));
+      expect(scheduler.journal.visitedRooms).toEqual(['2/4']);
+      expect(scheduler.journal.highestExperience).toBe(100);
+      expect(scheduler.journal.bestHpRatio).toBe(0.25);
+      scheduler.reset();
+      scheduler.choose(candidates, 'b');
+      scheduler.finish(true, progress('2/4', 101, 0.5));
+      expect(scheduler.journal.avoided).toEqual([]);
+      expect(scheduler.journal.visitedRooms).toEqual(['2/4']);
+      expect(scheduler.journal.highestExperience).toBe(101);
+      expect(scheduler.journal.bestHpRatio).toBe(0.5);
     });
   });
 });

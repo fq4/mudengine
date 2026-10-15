@@ -14,6 +14,7 @@ import { SessionHost } from '../SessionHost';
 import { Push, type Addressed, type Notice, type SessionId } from '../../../shared/ipc';
 import { DEFAULT_CONFIG, type AppConfig } from '../../../shared/config';
 import type { ConnectionTarget, StreamChunk } from '../../../shared/types';
+import { AutonomousScheduler } from '../../ai/AutonomousScheduler';
 
 /**
  * Real sockets, two of them, because the bug this file exists to catch is
@@ -57,6 +58,7 @@ let dialledRealms: ConnectionTarget[] = [];
 /** Whether these sessions want a lost connection dialled back. See `Reconnect`. */
 let autoReconnect = false;
 let savedBudget: unknown;
+let schedulerSnapshots = new Map<SessionId, unknown>();
 /** Where each session's backscroll is written, fresh per test. */
 let backscrollDir = '';
 
@@ -71,6 +73,7 @@ beforeEach(async () => {
   dialledRealms = [];
   autoReconnect = false;
   savedBudget = undefined;
+  schedulerSnapshots = new Map();
 
   server = net.createServer((socket) => {
     const index = accepted.length;
@@ -87,6 +90,10 @@ beforeEach(async () => {
 
   host = new SessionHost({
     aiAggregateBudgetState: { load: () => savedBudget, save: (state) => { savedBudget = state; } },
+    aiSchedulerFor: (id) => ({
+      read: () => schedulerSnapshots.get(id) ?? null,
+      write: (snapshot) => schedulerSnapshots.set(id, snapshot)
+    }),
     worldFor: () => undefined,
     loreFor: () => NO_LORE,
     // Nothing to learn against without a realm, which is what these run with.
@@ -314,6 +321,22 @@ describe('SessionHost', () => {
     });
     expect(restored.ensure('thorn').manager.aiSnapshot.aggregateBudget?.limits).toMatchObject({ requestsPerMinute: 3, sessionTokens: 4000 });
     restored.disposeAll();
+  });
+
+  it('restores and saves the scheduler journal per session', () => {
+    const previous = new AutonomousScheduler();
+    previous.choose(
+      [{ action: { name: 'inspect_room', reason: 'observe' }, priority: 1, rationale: 'observe' }],
+      'room'
+    );
+    previous.finish(true, { room: '2/9', experience: 35, hpRatio: 0.8 });
+    schedulerSnapshots.set('thorn', previous.snapshot());
+
+    const manager = host!.ensure('thorn').manager;
+    expect((manager as any).aiScheduler.journal.visitedRooms).toEqual(['2/9']);
+    manager.aiClearGoal();
+    expect((schedulerSnapshots.get('thorn') as any).journal.activities).toEqual({});
+    expect(schedulerSnapshots.get('mara')).toBeUndefined();
   });
 
   it('addresses every coalesced fact it publishes', async () => {

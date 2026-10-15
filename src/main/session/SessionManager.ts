@@ -106,7 +106,13 @@ import { combatOutcome } from '../ai/CombatOutcome';
 import { assessItemUse } from '../ai/InventorySafety';
 import { isPassiveRecovery } from '../ai/RecoverySafety';
 import { selectActivity } from '../ai/ActivitySelector';
-import { AutonomousScheduler } from '../ai/AutonomousScheduler';
+import {
+  AutonomousScheduler,
+  type SchedulerProgress,
+  type SchedulerSnapshotStore
+} from '../ai/AutonomousScheduler';
+import { advanceObjectivePlan, objectivePlanComplete, replanObjectivePlan } from '../ai/ObjectivePlan';
+import type { ActivityCandidate } from '../ai/ActivitySelector';
 import type { AiMemoryStore } from '../ai/MemoryStore';
 import {
   AI_ACTIONS,
@@ -1020,6 +1026,8 @@ export class SessionManager {
   private readonly aiAgent: AutonomousAgent;
   private readonly aiScheduler = new AutonomousScheduler();
   private aiAutonomousMode = false;
+  private aiSchedulerActionBaseline: SchedulerProgress | null = null;
+  private aiSchedulerBlockedObservation: string | null = null;
   private readonly aiProvider: OpenRouterProvider;
   private readonly aiPermissionLayers: AiPermissionLayers;
   /** Persistent global/server/profile layers, kept separate from session rules. */
@@ -1472,7 +1480,8 @@ export class SessionManager {
     locate: LocateMethod = DEFAULT_CONFIG.connection.locate,
     private readonly aiMemory?: AiMemoryStore,
     aiPermissionLayers: AiPermissionLayers = {},
-    aiAggregateBudget?: AiAggregateBudget
+    aiAggregateBudget?: AiAggregateBudget,
+    private readonly aiSchedulerStore?: SchedulerSnapshotStore
   ) {
     this.aggregateBudgetController = aiAggregateBudget;
     this.aiPermissionLayers = aiPermissionLayers;
@@ -1682,6 +1691,15 @@ export class SessionManager {
       undefined,
       this.aggregateBudgetController
     );
+    try {
+      const savedScheduler = this.aiSchedulerStore?.read();
+      if (savedScheduler !== null && savedScheduler !== undefined && !this.aiScheduler.restore(savedScheduler))
+        this.sink.notice('AI scheduler journal could not be restored: invalid snapshot');
+    } catch (error) {
+      this.sink.notice(
+        `AI scheduler journal could not be restored: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     this.aiAgent.setDelegatedOperationActive((action) => {
       if (action === 'navigate_to')
         return (
@@ -3468,9 +3486,9 @@ export class SessionManager {
     }
     if (model) this.aiProvider.setModel(model);
     this.aiAgent.state.model = this.aiProvider.modelName();
-    this.aiAutonomousMode = this.aiAgent.state.objective.trim().length === 0;
-    if (this.aiAutonomousMode) this.aiScheduler.reset();
     this.aiAgent.enable();
+    this.aiAutonomousMode =
+      this.aiAgent.state.objective.trim().length === 0 || this.hasSchedulableObjectivePlan();
     return this.aiSnapshot;
   }
   aiPause(): AiSnapshot {
@@ -3506,12 +3524,16 @@ export class SessionManager {
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
     this.aiScheduler.reset();
+    this.aiSchedulerBlockedObservation = null;
+    this.persistAiScheduler();
     return this.aiSnapshot;
   }
   aiEmergencyStop(): AiSnapshot {
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
     this.aiScheduler.reset();
+    this.aiSchedulerBlockedObservation = null;
+    this.persistAiScheduler();
     this.queue.cancel(
       (intent) =>
         intent.reason?.startsWith('AI:') === true ||
@@ -3542,13 +3564,33 @@ export class SessionManager {
       return this.aiSnapshot;
     }
     if (approval.action) {
-      void this.executeAiAction(approval.action, 'approved').then((result) => {
+      const approvedAction = approval.action;
+      void this.executeAiAction(approvedAction, 'approved').then((result) => {
         this.aiApprovals.markExecuted(approval.id);
-        this.aiAgent.approvalResolved(
-          result.ok
-            ? `Approved AI action completed: ${result.message}`
-            : `Approved AI action refused: ${result.message}`
-        );
+        const message = result.ok
+          ? `Approved AI action completed: ${result.message}`
+          : `Approved AI action refused: ${result.message}`;
+        this.aiAgent.approvalResolved(message);
+        if (this.aiAutonomousMode && this.aiScheduler.state.current?.name === approvedAction.name) {
+          const delegated = this.delegatedAiStatus(approvedAction.name);
+          if (result.ok && delegated === 'active') {
+            this.aiAgent.state.currentAction = {
+              name: approvedAction.name,
+              phase: 'accepted',
+              message
+            };
+            this.aiAgent.state.status = 'executing';
+          } else {
+            const ok = result.ok && delegated !== 'failed';
+            this.finishAutonomous(ok, this.schedulerProgress());
+            this.aiAgent.state.currentAction = {
+              name: approvedAction.name,
+              phase: ok ? 'completed' : 'failed',
+              message
+            };
+            this.aiAgent.state.status = ok ? 'idle' : 'error';
+          }
+        }
       });
       return this.aiSnapshot;
     }
@@ -3655,7 +3697,10 @@ export class SessionManager {
     this.aiApprovals.resetTransient();
     this.aiAutonomousMode = false;
     this.aiScheduler.reset();
+    this.aiSchedulerBlockedObservation = null;
     this.aiAgent.enable(goal.trim());
+    this.aiAutonomousMode = goal.trim().length === 0 || this.hasSchedulableObjectivePlan();
+    this.persistAiScheduler();
     if (goal.trim()) void this.aiTick();
     return this.aiSnapshot;
   }
@@ -3664,6 +3709,8 @@ export class SessionManager {
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
     this.aiScheduler.forget();
+    this.aiSchedulerBlockedObservation = null;
+    this.persistAiScheduler();
     this.aiAgent.state.objective = '';
     this.aiAgent.state.objectiveComplete = false;
     this.aiAgent.state.currentAction = null;
@@ -3681,7 +3728,23 @@ export class SessionManager {
 
   private async aiAutonomousTick(event?: string): Promise<void> {
     if (this.aiAgent.state.status === 'paused' || this.aiAgent.state.status === 'budget-paused') return;
+    if (!this.client.connected || this.tracker.current.phase !== 'in-game') {
+      this.aiAgent.state.status = 'idle';
+      this.aiAgent.state.activity = 'autonomous_idle';
+      this.aiAgent.state.explanation = 'Waiting for an active in-game session.';
+      return;
+    }
     const observation = this.aiObservation(event);
+    const broadObjective = this.aiAgent.state.objective.trim().length > 0;
+    const progress = this.schedulerProgress();
+    if (
+      broadObjective &&
+      this.aiAgent.state.plan?.some((step) => step.status === 'blocked') &&
+      this.aiSchedulerBlockedObservation !== this.schedulerObservationFingerprint()
+    ) {
+      this.aiAgent.state.plan = replanObjectivePlan(this.aiAgent.state.plan);
+      this.aiSchedulerBlockedObservation = null;
+    }
     const current = this.aiScheduler.state.current;
     if (current) {
       const lifecycle = this.aiAgent.state.currentAction;
@@ -3689,7 +3752,7 @@ export class SessionManager {
       if (delegated === 'active') return;
       if (lifecycle?.phase === 'accepted' || lifecycle?.phase === 'executing') {
         const ok = delegated !== 'failed';
-        this.finishAutonomous(ok, JSON.stringify(observation.character));
+        this.finishAutonomous(ok, progress);
         this.aiAgent.state.currentAction = {
           ...lifecycle,
           phase: ok ? 'completed' : 'failed',
@@ -3700,20 +3763,50 @@ export class SessionManager {
         return;
       }
     }
-    const selection = selectActivity(this.tracker.current, '').considered;
+    const planStep = broadObjective
+      ? this.aiAgent.state.plan?.find((step) => step.status === 'active')
+      : undefined;
+    if (broadObjective && !planStep) {
+      if (objectivePlanComplete(this.aiAgent.state.plan ?? [])) {
+        this.aiAgent.state.objectiveComplete = true;
+        this.aiAgent.state.enabled = false;
+        this.aiAgent.state.activity = 'objective_complete';
+        this.aiAgent.state.explanation = 'All tracker-verified objective steps completed.';
+      } else {
+        this.aiAgent.state.status = 'idle';
+        this.aiAgent.state.activity = 'autonomous_idle';
+        this.aiAgent.state.explanation =
+          'Waiting for a new authoritative observation before retrying the blocked objective step.';
+      }
+      return;
+    }
+    const ranked = selectActivity(this.tracker.current, this.aiAgent.state.objective).considered;
+    const selection = planStep ? this.candidatesForObjectiveStep(planStep, ranked) : ranked;
+    if (broadObjective && selection.length === 0) {
+      this.aiAgent.state.status = 'idle';
+      this.aiAgent.state.activity = 'autonomous_idle';
+      this.aiAgent.state.explanation =
+        'Waiting for authoritative state that can satisfy the next objective step.';
+      return;
+    }
     const action = this.aiScheduler.choose(selection, JSON.stringify({
       character: observation.character,
       room: observation.room,
       event
     }));
+    this.persistAiScheduler();
     if (!action) {
       this.aiAgent.state.status = 'idle';
       this.aiAgent.state.activity = 'autonomous_idle';
-      this.aiAgent.state.explanation = this.aiScheduler.state.status === 'completed'
-        ? 'No further safe autonomous activities are available.'
-        : 'Waiting for a meaningful gameplay event.';
+      this.aiAgent.state.explanation =
+        this.aiScheduler.state.status === 'blocked'
+          ? 'Autonomous scheduling is blocked after repeated failures; change the objective or strategy.'
+          : !broadObjective && this.aiScheduler.state.status === 'completed'
+            ? 'No further safe autonomous activities are available.'
+            : 'Waiting for a meaningful gameplay event.';
       return;
     }
+    this.aiSchedulerActionBaseline = this.schedulerProgress();
     this.aiAgent.state.activity = action.name;
     this.aiAgent.state.explanation = action.reason;
     this.aiAgent.state.status = 'executing';
@@ -3721,13 +3814,12 @@ export class SessionManager {
     const result = await this.executeAiAction(action, 'agent');
     this.aiAgent.state.lastActionResult = result.message;
     if (result.pendingApproval) {
-      this.aiScheduler.finish(false, result.message);
       this.aiAgent.state.currentAction = { name: action.name, phase: 'requested', message: result.message };
       this.aiAgent.state.status = 'paused';
       return;
     }
     if (!result.ok) {
-      this.aiScheduler.finish(false, result.message);
+      this.finishAutonomous(false, this.schedulerProgress());
       this.aiAgent.state.currentAction = { name: action.name, phase: 'failed', message: result.message };
       this.aiAgent.state.status = 'error';
       return;
@@ -3737,15 +3829,31 @@ export class SessionManager {
       this.aiAgent.state.currentAction = { name: action.name, phase: 'accepted', message: result.message };
       return;
     }
-    this.finishAutonomous(true, result.message);
+    this.finishAutonomous(true, this.schedulerProgress());
     this.aiAgent.state.currentAction = { name: action.name, phase: 'completed', message: result.message };
     this.aiAgent.state.status = 'idle';
   }
 
-  /** Finishes a scheduled activity and records any strategy change it caused. */
-  private finishAutonomous(ok: boolean, observation: string): void {
+  /** Finishes a scheduled activity from authoritative tracker facts. */
+  private finishAutonomous(ok: boolean, progress: SchedulerProgress): void {
     const before = this.aiScheduler.journal.strategyChanges;
-    this.aiScheduler.finish(ok, observation);
+    const current = this.aiScheduler.state.current;
+    this.aiScheduler.finish(ok, progress);
+    if (current && this.aiAgent.state.objective.trim()) {
+      this.aiAgent.state.plan = advanceObjectivePlan(
+        this.aiAgent.state.plan ?? [],
+        current.name,
+        ok
+      );
+      if (objectivePlanComplete(this.aiAgent.state.plan)) {
+        this.aiAgent.state.objectiveComplete = true;
+        this.aiAgent.state.enabled = false;
+        this.aiAgent.state.activity = 'objective_complete';
+        this.aiAgent.state.explanation = 'All tracker-verified objective steps completed.';
+      }
+      if (ok) this.aiScheduler.clearCompleted();
+      this.aiSchedulerBlockedObservation = ok ? null : this.schedulerObservationFingerprint();
+    }
     const journal = this.aiScheduler.journal;
     if (journal.strategyChanges > before && journal.lastStrategyChange) {
       this.aiAgent.state.explanation = `Strategy changed: ${journal.lastStrategyChange}`;
@@ -3759,13 +3867,157 @@ export class SessionManager {
         pinned: false
       });
     }
+    this.aiSchedulerActionBaseline = null;
+    this.persistAiScheduler();
+  }
+
+  private candidatesForObjectiveStep(
+    step: NonNullable<AiSnapshot['state']['plan']>[number],
+    ranked: ActivityCandidate[]
+  ): ActivityCandidate[] {
+    const existing = ranked.find(({ action }) => action.name === step.action);
+    if (existing) {
+      if (step.action !== 'navigate_to' || !step.destination) return [existing];
+      return [
+        {
+          ...existing,
+          action: {
+            ...existing.action,
+            args: { ...existing.action.args, destination: step.destination }
+          }
+        }
+      ];
+    }
+    const candidate = (
+      name: AiAction['name'],
+      reason: string,
+      args?: Record<string, unknown>
+    ): ActivityCandidate => ({
+      action: { name, reason, ...(args ? { args } : {}) },
+      priority: 100,
+      rationale: reason
+    });
+    if (step.action === 'navigate_to' && step.destination)
+      return [
+        candidate(
+          'navigate_to',
+          'Follow the explicit destination in the active objective step',
+          { destination: step.destination }
+        )
+      ];
+    if (step.action === 'inspect_npc') {
+      const npc = findSafeNpc(this.tracker.current.room.occupants);
+      return npc
+        ? [candidate('inspect_npc', 'Inspect a currently visible non-player NPC', { name: npc.name })]
+        : [];
+    }
+    if (
+      step.action === 'inspect_character' ||
+      step.action === 'inspect_room' ||
+      step.action === 'inspect_inventory' ||
+      step.action === 'inspect_map' ||
+      step.action === 'inspect_combat_result'
+    )
+      return [candidate(step.action, `Perform the active ${step.action.replaceAll('_', ' ')} step`)];
+    if (step.action === 'recover_health')
+      return [candidate('recover_health', 'Delegate requested recovery to existing automation')];
+    return [];
+  }
+
+  private hasSchedulableObjectivePlan(): boolean {
+    const supported = new Set<AiAction['name']>([
+      'inspect_character',
+      'inspect_room',
+      'inspect_inventory',
+      'inspect_map',
+      'inspect_npc',
+      'navigate_to',
+      'engage_enemy',
+      'recover_health',
+      'inspect_combat_result',
+      'manage_equipment'
+    ]);
+    const plan = this.aiAgent.state.plan ?? [];
+    return plan.length > 1 && plan.every((step) => supported.has(step.action));
+  }
+
+  private schedulerProgress(): SchedulerProgress {
+    const state = this.tracker.current;
+    const { map, number } = state.room;
+    const hp = state.vitals.hp;
+    const hpMax = state.vitals.hpMax;
+    return {
+      room: map !== null && number !== null ? `${map}/${number}` : null,
+      experience: Number.isFinite(state.progress.exp) ? state.progress.exp : null,
+      hpRatio:
+        hp !== null && hpMax !== null && hpMax > 0 && Number.isFinite(hp / hpMax)
+          ? Math.min(1, Math.max(0, hp / hpMax))
+          : null
+    };
+  }
+
+  private schedulerObservationFingerprint(): string {
+    const observation = this.aiObservation();
+    return JSON.stringify({
+      character: observation.character,
+      room: observation.room,
+      inventory: observation.inventory
+    });
+  }
+
+  private persistAiScheduler(): void {
+    if (!this.aiSchedulerStore) return;
+    try {
+      this.aiSchedulerStore.write(this.aiScheduler.snapshot());
+    } catch (error) {
+      this.sink.notice(
+        `AI scheduler journal could not be saved: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   private delegatedAiStatus(action: import('../../shared/ai').AiActionName): 'active' | 'completed' | 'failed' | null {
-    if (action === 'navigate_to') return this.walker.walking ? 'active' : 'completed';
-    if (action === 'engage_enemy') return this.combat.willFight ? 'active' : 'completed';
-    if (action === 'recover_health') return this.recovery.recovering || this.recovery.restInFlight ? 'active' : 'completed';
-    if (action === 'manage_equipment') return this.gear.dressing ? 'active' : 'completed';
+    if (action === 'navigate_to') {
+      const room = this.tracker.current.room;
+      const current =
+        room.map !== null && room.number !== null ? `${room.map}/${room.number}` : null;
+      if (this.aiNavigationDestination && current === this.aiNavigationDestination) {
+        this.aiNavigationDestination = null;
+        return 'completed';
+      }
+      if (
+        this.walker.walking ||
+        this.tracker.pendingMoves > 0 ||
+        this.loops.progress.status === 'running' ||
+        (this.walker.progress.destinationRoom !== null && this.walker.progress.status !== 'stopped')
+      )
+        return 'active';
+      return this.aiNavigationDestination === null ? 'completed' : 'failed';
+    }
+    if (action === 'engage_enemy')
+      return this.combat.willFight || this.tracker.current.combat.attackers.length > 0
+        ? 'active'
+        : 'completed';
+    if (action === 'recover_health') {
+      if (
+        this.recovery.recovering ||
+        this.recovery.restInFlight ||
+        this.queue.queued((intent) => intent.command === 'rest')
+      )
+        return 'active';
+      const before = this.aiSchedulerActionBaseline?.hpRatio;
+      const after = this.schedulerProgress().hpRatio;
+      return before !== null && before !== undefined && after !== null && after > before
+        ? 'completed'
+        : 'failed';
+    }
+    if (action === 'manage_equipment')
+      return this.walker.walking ||
+        this.loops.progress.status === 'running' ||
+        this.recovery.recovering ||
+        this.gear.dressing
+        ? 'active'
+        : 'completed';
     return 'completed';
   }
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {

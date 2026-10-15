@@ -191,6 +191,29 @@ describe('the raw byte record', () => {
 });
 
 describe('AI reconnect lifecycle', () => {
+  it('routes a supported broad objective through its bounded scheduler plan', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    isolated.aiGoal('Travel to 1/2 and inspect the room.');
+    await isolated.aiTick();
+
+    expect(isolated.aiSnapshot.state.plan?.map(({ action }) => action)).toEqual([
+      'navigate_to',
+      'inspect_room'
+    ]);
+    expect((isolated as any).aiAutonomousMode).toBe(true);
+    const candidate = (isolated as any).candidatesForObjectiveStep(
+      isolated.aiSnapshot.state.plan![0],
+      []
+    );
+    expect(candidate[0].action).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/2' }
+    });
+    expect((isolated as any).aiScheduler.state.current).toBeNull();
+    isolated.dispose();
+  });
+
   it('rejects unsupported direct AI actions at the session boundary', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
@@ -307,7 +330,7 @@ describe('AI reconnect lifecycle', () => {
       ],
       'room-a'
     );
-    scheduler.finish(true, 'room-a-observed');
+    scheduler.finish(true, { room: '1/1', experience: null, hpRatio: null });
     expect(scheduler.state.completed).toContain('inspect_room');
     isolated.aiClearGoal();
     expect(scheduler.state.status).toBe('idle');
@@ -325,7 +348,7 @@ describe('AI reconnect lifecycle', () => {
       [{ action: { name: 'inspect_room', reason: 'observe' }, priority: 10, rationale: 'room' }],
       'a'
     );
-    scheduler.finish(true, 'x');
+    scheduler.finish(true, { room: '1/1', experience: null, hpRatio: null });
     isolated.aiStop();
     expect(scheduler.journal.activities.inspect_room?.successes).toBe(1);
     isolated.aiClearGoal();

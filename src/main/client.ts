@@ -35,6 +35,7 @@ import { LoopCatalogue } from './config/LoopCatalogue';
 import { migrateHome } from './config/Migration';
 import { homeAt, homeRoot, type Home } from './app/home';
 import { AiMemoryStore } from './ai/MemoryStore';
+import { FileSchedulerSnapshotStore } from './ai/AutonomousSchedulerStore';
 import { WorldGraph, type Traveller } from './world/WorldGraph';
 import { RealmLibrary } from './world/RealmLibrary';
 import { loopsFromMegaMud } from './world/megamudLoops';
@@ -1387,6 +1388,8 @@ function createHost(): SessionHost {
     sentences,
     memoryFor: splitMemoryFor,
     aiMemoryFor: (id) => new AiMemoryStore(home.state('memory', `ai-${id}.json`), { server: `${configFor(id).connection.host}:${configFor(id).connection.port}`, character: id }),
+    aiSchedulerFor: (id) =>
+      new FileSchedulerSnapshotStore(home.state('memory', `ai-scheduler-${id}.json`)),
     fightsFor,
     talkFor,
     // Beside the conversation and for the same reason: what the console

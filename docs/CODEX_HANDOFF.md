@@ -205,7 +205,12 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
 
 ## Phase 6 checkpoint
 
-- Phase 6 added a long-horizon scheduler journal (stall detection, strategy
-  change, resume, snapshot/restore); see `docs/PHASE6_PROGRESS.md`.
+- The session scheduler journal now persists in user-scoped state, tracks room,
+  XP and HP progress from `CharacterTracker`, and drives supported explicit
+  multi-step objectives through `ObjectivePlan` + `AutonomousScheduler`.
+  Active actions are not resumed blindly. See `docs/PHASE6_PROGRESS.md`.
+- Focused scheduler/session tests (292), typechecks, production build and
+  secret scan passed. The full suite reports 6,954 passed and 2 skipped, with
+  one `ConfigStore.test.ts` file-watch timeout; that file passes 12/12 alone.
 - Run `git log -1 --oneline` on `development` for the latest commit.
 - Live provider verification is still deferred; no paid tests were run.
