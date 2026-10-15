@@ -246,7 +246,7 @@ describe('AI reconnect lifecycle', () => {
   it('wakes the AI for gossip even when the character tracker has no change', () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
-    const reactToState = vi.spyOn(isolated as any, 'reactToState').mockImplementation(() => {});
+    const aiTick = vi.spyOn(isolated as any, 'aiTick').mockResolvedValue(undefined);
     vi.spyOn((isolated as any).tracker, 'apply').mockReturnValue(false);
     const block: Block = {
       seq: 1,
@@ -261,7 +261,7 @@ describe('AI reconnect lifecycle', () => {
 
     (isolated as any).act(block, undefined);
 
-    expect(reactToState).toHaveBeenCalledWith(
+    expect(aiTick).toHaveBeenCalledWith(
       'conversation-gossip from Jumanji: Welcome, Kefka!'
     );
     expect((isolated as any).aiPendingGossipReplyAt).toEqual(expect.any(Number));
