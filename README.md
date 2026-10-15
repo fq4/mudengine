@@ -58,6 +58,20 @@ mudengine is built on the opposite idea: it never pretends to know something
 it doesn't, it never quietly does something you can't inspect, and when it
 declines to act, it tells you that too.
 
+## Developing
+
+Use Node.js 20 or newer, then install dependencies and start the desktop app:
+
+```
+npm ci
+npm run dev
+```
+
+`npm run lint` checks formatting and both TypeScript projects. `npm test` runs
+the fast unit suite; `npm run test:full` also runs the realm-conversion tests
+against the Access databases in `mdb/`. To build the app without starting it,
+run `npm run build`.
+
 ## Running it in a container
 
 There is an image, and it is the client served over HTTP: main runs as a Node
