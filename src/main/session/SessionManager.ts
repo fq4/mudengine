@@ -6743,13 +6743,11 @@ export class SessionManager {
       }
     }
     this.settleClaims();
-    // Republish only on a real change: during a combat burst most lines say
-    // nothing new, and a HUD re-render per line is exactly the stall the
-    // architecture exists to prevent.
-    if (changed) {
+    // Chat is an actionable event even when the tracker already knows its speaker.
+    if (changed || block.type.startsWith('conversation-')) {
       const event = this.aiEventForBlock(block);
       if (event !== null) this.reactToState(event);
-      else this.publishCharacter();
+      else if (changed) this.publishCharacter();
     }
   }
 

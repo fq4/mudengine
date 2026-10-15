@@ -36,6 +36,7 @@ import { setTuning, tuning } from '../../app/tuning';
 import type { RewriteDesign } from '../../../shared/rewrites';
 import type { RewritesUiConfig } from '../../../shared/config';
 import type { Route } from '../../../shared/world';
+import type { Block } from '../../../shared/blocks';
 
 /**
  * These drive a real socket rather than a mocked client: framing sits directly
@@ -239,6 +240,31 @@ describe('AI reconnect lifecycle', () => {
     const isolated = new SessionManager(sink);
     const result = await isolated.aiAction({ name: 'wait', reason: 'listen for gossip' });
     expect(result).toEqual({ ok: true, message: 'Waiting for a meaningful event' });
+    isolated.dispose();
+  });
+
+  it('wakes the AI for gossip even when the character tracker has no change', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const reactToState = vi.spyOn(isolated as any, 'reactToState').mockImplementation(() => {});
+    vi.spyOn((isolated as any).tracker, 'apply').mockReturnValue(false);
+    const block: Block = {
+      seq: 1,
+      at: 1_000,
+      type: 'conversation-gossip',
+      domain: 'conversation',
+      groups: { player: 'Jumanji', message: 'Welcome, Kefka!' },
+      text: 'Jumanji gossips: Welcome, Kefka!',
+      terminator: 'newline',
+      confidence: 1
+    };
+
+    (isolated as any).act(block, undefined);
+
+    expect(reactToState).toHaveBeenCalledWith(
+      'conversation-gossip from Jumanji: Welcome, Kefka!'
+    );
+    expect((isolated as any).aiPendingGossipReplyAt).toEqual(expect.any(Number));
     isolated.dispose();
   });
 
