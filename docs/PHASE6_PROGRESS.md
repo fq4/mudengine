@@ -127,9 +127,16 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 - First live gossip reply observed (2026-10-15): a configured sender session
   sent one test message through `CommandQueue`, and the sender received a
   `conversation-gossip` reply from Kefka. The AI reply path reached the live
-  server. The harness then exited with a missing `sink.character` callback
-  before writing its final report; the callback has been added, but this run's
-  request/token/cost totals were not captured. Message text was not retained.
+  server. Two runs observed the reply, but the harness exited before writing a
+  final report: first the `sink.character` callback was missing; the second
+  exposed a missing `sink.dropped` callback. Both callbacks are now implemented,
+  and unexpected drops are recorded as failures.
+- Clean-report retry (2026-10-15): the responder disconnected after 24 seconds,
+  before receiving gossip; 4 requests, 9,276 tokens, about $0.00152, 0 replies.
+  The responder and configured sender profiles share the same login and server,
+  so concurrent use likely caused the drop. Do not use them simultaneously.
+  Final live verification requires a fresh message from a different login while
+  Kefka remains connected. No message text was retained.
 
 ## Next recommended task
 

@@ -370,5 +370,17 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   The sender received a gossip reply from Kefka, confirming that an inbound
   server event can wake the agent and produce a live reply.
 - The responder harness crashed after the reply because its test sink lacked
-  the required `character` callback. Added the callback; the crashed run did
-  not emit final request/token/cost totals. No message text was retained.
+  required `character` and `dropped` callbacks. A follow-up observed another
+  reply before hitting the second missing callback. Both callbacks are now
+  handled, and an unexpected drop fails the bounded run. Neither crashed run
+  emitted final request/token/cost totals. No message text was retained.
+
+### 2026-10-15 - bounded retry and sender-session collision
+
+- The next run ended after 24 seconds with an unexpected responder disconnect:
+  0 inbound messages, 0 replies, 4 requests, 9,276 tokens, and approximately
+  $0.00152 estimated usage. The new `dropped` callback reported the failure.
+- The configured responder and sender profiles share the same login and
+  server. Concurrent use likely caused the disconnect; do not test with both
+  profiles at once. A clean live verification needs fresh gossip from another
+  login while Kefka stays connected.

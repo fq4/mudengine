@@ -227,9 +227,13 @@ The social harness disables profile `onEnterRealm` probes but still counts
 
 A later supervised test sent one public test message from a configured sender
 session through `CommandQueue`; the sender received a gossip reply from Kefka.
-This demonstrates live communication. The responder harness then crashed
-afterward because its sink lacked the required `character` callback; that
-callback is now present. The run's final usage report was not captured.
+This demonstrates live communication. The harness was missing required
+`character` and `dropped` sink callbacks; both are now handled, and unexpected
+disconnects are recorded as test failures. A clean-report retry disconnected
+Kefka after 24 seconds with no inbound message. The Kefka and sender profiles
+share the same login and server, so do not use them concurrently. Final live
+verification needs an inbound message from a different login while Kefka stays
+connected.
 
 ```powershell
 npm run test:ai-live -- --live --profile kefka --gossip-reply-test --max-ms 300000 --max-requests 16 --max-tokens 60000 --max-cost 0.05

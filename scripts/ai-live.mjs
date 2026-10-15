@@ -90,6 +90,7 @@ const sink = {
   },
   state: () => {},
   character: () => {},
+  dropped: () => monitor.fail('stall', 'Live-test connection dropped unexpectedly'),
   telnet: () => {},
   notice: () => {},
   line: () => {},
