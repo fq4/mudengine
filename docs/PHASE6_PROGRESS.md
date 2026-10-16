@@ -58,6 +58,10 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
     unvisited frontier when no suitable target is currently visible. Walker
     remains the sole route executor and confirms arrival through its real
     `onCharacter()`/`ended` lifecycle.
+  - When an authoritative room observation places a named resident and the
+    server lists that same occupant, the tracker now links the resident entity
+    to that visible occupant. NPC inspection can use the room's realm-backed
+    identity without guessing from capitalization or a bare name.
   - Combat selection requires an authoritative hostile mob accepted by
     `findSafeCombatNpc`; uncertain, player, passive, charmed, and
     alignment-costly occupants are excluded. Explicitly optional combat and
@@ -69,10 +73,14 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   - AI stop, goal replacement/clear, and emergency stop interrupt an
     AI-owned Walker route without recording an unverified failure. A manual
     route is not stopped, and the scheduler journal survives AI stop.
-- Tests: `AutonomousScheduler.test.ts`, `AutonomousSchedulerStore.test.ts`,
-  `ObjectivePlan.test.ts`, and SessionManager/SessionHost coverage verify
-  progress signals, snapshot persistence, broad-objective routing, and
-  isolation by session.
+  - The SessionManager integration fixture feeds room-location, room-name,
+    occupant, and exit observations through `CharacterTracker`, verifies two
+    actual Walker arrival callbacks across successive frontiers, then checks
+    that NPC inspection and objective completion occur only in the tracker-
+    confirmed resident room.
+- Tests: scheduler/store/objective coverage plus SessionManager/SessionHost
+  coverage verify progress signals, snapshot persistence, broad-objective
+  routing, NPC frontier search, resident discovery, and session isolation.
 
 ## Not done yet
 
@@ -88,10 +96,8 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 4. Candidate selection remains deliberately small (`inspect_*`, recovery,
    equipment, navigation, engage). Add other activities only when delegated
    to production owners and policy-gated.
-5. Add a deterministic multi-room objective fixture that carries NPC search
-   through Walker-confirmed arrival, room inspection, target discovery, and
-   objective completion. Do not use live provider/server testing for this
-   coverage unless separately authorized.
+5. Define an explicit action-to-policy mapping before hiding named
+   capabilities by policy.
 
 ## Known issues
 
@@ -104,8 +110,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Verification (this checkpoint)
 
-- Focused AI and SessionManager suites: 311 passed across five test files.
-- Full deterministic suite: 6,988 passed, 2 skipped across 253 files.
+- Focused tracker, SessionManager, and NPC discovery suites: 888 passed across
+  three test files.
+- Full deterministic suite: 6,989 passed, 2 skipped across 253 files.
 - Realm coverage: 18 passed across 2 files.
 - Node and renderer typechecks: passed. Production build: passed; the existing
   large-renderer-chunk warning remains.
@@ -161,10 +168,11 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
 
 ## Next recommended task
 
-Add a deterministic multi-room NPC-search objective fixture: use authoritative
-room observations and Walker callbacks to verify that the scheduler explores
-successive frontiers, inspects a newly visible NPC, and completes only the
-tracker-verified steps. Keep the test offline and provider-free.
+Next, define the action-to-policy mapping before policy rules can hide named
+capabilities. The multi-room NPC-search milestone is now covered offline:
+authoritative room observations drive successive Walker-confirmed arrivals,
+the tracker identifies a visible realm resident, and the objective completes
+only after that resident is inspected.
 
 ## Environment on a new computer
 ```powershell

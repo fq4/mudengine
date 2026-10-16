@@ -1847,6 +1847,14 @@ export class CharacterTracker {
      */
     const at = roomAddress(room);
     room.occupants = room.occupants.map((who) => this.asRowHere(who, at));
+    if (room.npc !== null) {
+      const resident = room.npc;
+      room.occupants = room.occupants.map((who) =>
+        who.kind !== 'player' && who.name.trim().toLowerCase() === resident.name.toLowerCase()
+          ? { ...who, npc: resident }
+          : who
+      );
+    }
     // And the floor the same way: a room that places one of a shared name's
     // rows has said which is lying here (format 42).
     room.items = room.items.map((item) => world.itemPlacedHere(item, placed));

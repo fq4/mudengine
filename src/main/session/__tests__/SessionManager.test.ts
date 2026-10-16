@@ -19,6 +19,7 @@ import { blankTrigger } from '../../../shared/messageTriggers';
 import { WorldGraph } from '../../world/WorldGraph';
 import { t } from '../../app/i18n';
 import { PlayerBook } from '../../world/PlayerBook';
+import type { CommandQueue } from '../../automation/CommandQueue';
 import { PROMPT_REPAINT } from '../../net/stream-quirks';
 import { ABANDON_MS } from '../TerminalFeed';
 import type { StreamLine, StreamChunk } from '../../../shared/types';
@@ -813,6 +814,107 @@ describe('AI reconnect lifecycle', () => {
       args: { destination: '1/2' }
     });
     expect(isolated.walker.walking).toBe(true);
+    isolated.dispose();
+  });
+
+  it('searches successive tracker-observed rooms and completes only after inspecting a visible resident', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink, npcSearchWorld());
+    const tracker = (isolated as any).tracker;
+    const state = tracker.current as CharacterState;
+    state.phase = 'in-game';
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    const commands: string[] = [];
+    const queue = (isolated as any).queue as CommandQueue;
+    vi.spyOn(queue, 'enqueue').mockImplementation((intent) => {
+      commands.push(intent.command);
+      return true;
+    });
+    vi.spyOn(isolated as any, 'aiTick').mockResolvedValue(undefined);
+    (isolated as any).preferred = new Set<string>();
+
+    let seq = 0;
+    const feed = (
+      type: Block['type'],
+      domain: Block['domain'],
+      groups: Record<string, string>,
+      text: string
+    ) =>
+      (isolated as any).act(
+        {
+          seq: ++seq,
+          at: 1_700_000_000_000 + seq,
+          type,
+          domain,
+          groups,
+          text,
+          terminator: 'newline',
+          confidence: 1
+        } satisfies Block,
+        null
+      );
+    const observeRoom = (name: string, exits: string, occupant?: string) => {
+      feed('room-name', 'room', { name }, name);
+      if (occupant) feed('room-also-here', 'room', { who: occupant }, `Also here: ${occupant}.`);
+      feed('room-exits', 'room', { exits }, `Obvious exits: ${exits}`);
+    };
+    const arrive = (name: string, exits: string, occupant?: string) => {
+      const command = commands[commands.length - 1];
+      if (command === undefined) throw new Error('Walker did not enqueue a movement command');
+      tracker.observeCommand(command);
+      observeRoom(name, exits, occupant);
+    };
+
+    feed('user-location', 'status', { map: '1', room: '1' }, 'Location: 1/1');
+    observeRoom('Search Start', 'north');
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Find an NPC and inspect it.');
+    (isolated as any).aiAutonomousMode = true;
+
+    await (isolated as any).aiAutonomousTick();
+    expect(agent.state.plan[0].status).toBe('completed');
+    expect(agent.state.plan[1].status).toBe('active');
+
+    await (isolated as any).aiAutonomousTick();
+    expect((isolated as any).aiScheduler.state.current).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/2' }
+    });
+    expect(isolated.walker.walking).toBe(true);
+    arrive('Search Middle', 'east');
+    expect(tracker.current.room.number).toBe(2);
+    expect((isolated as any).aiNavigationWalkOutcome).toBe('arrived');
+
+    await (isolated as any).aiAutonomousTick();
+    await (isolated as any).aiAutonomousTick();
+    expect((isolated as any).aiScheduler.state.current).toMatchObject({
+      name: 'navigate_to',
+      args: { destination: '1/3' }
+    });
+    arrive('Resident Room', 'west', 'Town Keeper');
+    expect(tracker.current.room.number).toBe(3);
+    expect((isolated as any).aiNavigationWalkOutcome).toBe('arrived');
+    expect(tracker.current.room.occupants).toContainEqual(
+      expect.objectContaining({
+        name: 'Town Keeper',
+        npc: expect.objectContaining({ name: 'Town Keeper', id: 500 })
+      })
+    );
+
+    await (isolated as any).aiAutonomousTick();
+    expect(agent.state.plan[1].status).toBe('active');
+    expect(agent.state.objectiveComplete).toBe(false);
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.plan.map((step: { status: string }) => step.status)).toEqual([
+      'completed',
+      'completed'
+    ]);
+    expect(agent.state.objectiveComplete).toBe(true);
+    expect((isolated as any).aiScheduler.journal.routeOutcomes).toEqual([
+      { from: '1/1', to: '1/2', attempts: 1, arrivals: 1, failures: 0 },
+      { from: '1/2', to: '1/3', attempts: 1, arrivals: 1, failures: 0 }
+    ]);
     isolated.dispose();
   });
 
@@ -3138,6 +3240,32 @@ function haven(): WorldGraph {
         JSON.stringify({ v: 1, source: 'test', rooms: 4, generatedAt: 'x' }),
         ...rooms.map((r) => JSON.stringify(r))
       ].join('\n') + '\n'
+    )
+  );
+  const world = WorldGraph.load(file);
+  fs.rmSync(dir, { recursive: true, force: true });
+  return world;
+}
+
+function npcSearchWorld(): WorldGraph {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mudengine-npc-search-'));
+  const file = path.join(dir, 'rooms.jsonl.gz');
+  const header = {
+    v: 18,
+    source: 'test',
+    rooms: 3,
+    generatedAt: 'x',
+    mobs: [{ n: 'Town Keeper', hp: 20, d: 'p', i: [500] }]
+  };
+  const rooms = [
+    { m: 1, r: 1, n: 'Search Start', x: { n: { m: 1, r: 2 } } },
+    { m: 1, r: 2, n: 'Search Middle', x: { s: { m: 1, r: 1 }, e: { m: 1, r: 3 } } },
+    { m: 1, r: 3, n: 'Resident Room', npc: 500, x: { w: { m: 1, r: 2 } } }
+  ];
+  fs.writeFileSync(
+    file,
+    zlib.gzipSync(
+      [JSON.stringify(header), ...rooms.map((room) => JSON.stringify(room))].join('\n') + '\n'
     )
   );
   const world = WorldGraph.load(file);
