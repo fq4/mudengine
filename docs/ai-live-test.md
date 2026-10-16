@@ -364,6 +364,38 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   `onEnterRealm` probes so entry commands cannot accidentally trigger the
   zero-movement guard.
 
+### 2026-10-16 - Walker lifecycle and approved PvE follow-up
+
+- The previous arena harness could issue another `navigate_to` after an
+  eight-second wait for any room transition, even though Walker might still
+  own the route. The original failed-run capture is unavailable, so this is a
+  verified harness lifecycle defect and a plausible explanation, not a
+  confirmed server-side cause of that particular timeout.
+- The harness now submits once, waits for Walker's terminal result, and
+  verifies the exact authoritative destination before continuing. Four
+  bounded live attempts reached Newhaven Arena (`1/2150`), including the
+  latest `1/2190` → `1/2150` route (`e`, `d`); an earlier repeat also completed
+  one-room and two-room navigation. No movement checks or timeouts were
+  weakened.
+- Latest capped run: 6 requests, 19,952 tokens, about $0.00320, zero policy
+  violations. Arena navigation, health probe, mob discovery, and target
+  preflight passed. No authoritative NPC was visible for inspection. The
+  approved exact-target `acid slime` action sent `a acid slime` and produced
+  authoritative `active` combat state; the 15-second wait did not establish a
+  kill or victory.
+- Passive combat was disabled in Kefka's profile. The action now grants a
+  temporary, exact-target AutoCombat lease after SessionManager approval,
+  without changing that profile setting. It requires authoritative hostile
+  target evidence and ends on target/fight lifecycle events, manual gameplay,
+  AI stop/pause/emergency stop, objective replacement, or master automation
+  disable.
+- The live run exited non-zero for unrelated provider-navigation/recovery
+  results: a one-room provider action had no resolvable destination, a
+  two-room action was deferred by recovery priority, and recovery was attempted
+  before authoritative combat completion. The harness now skips post-combat
+  recovery/inventory/equipment unless combat is confirmed ended. That branch
+  passed JavaScript syntax validation but has not had a repeat live run.
+
 ### 2026-10-15 - first live gossip reply observed
 
 - A configured sender session sent one test gossip through `CommandQueue`.

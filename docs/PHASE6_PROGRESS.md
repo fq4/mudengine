@@ -207,12 +207,74 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   attempted. The harness exited non-zero; do not describe the live run as a
   full pass.
 
-## Next recommended task
+## Live navigation stall and bounded PvE checkpoint (2026-10-16)
 
-Investigate the intermittent live arena-navigation stall reported by the
-bounded harness. Preserve the verified one-/two-room Walker paths and do not
-weaken movement or command safety checks. Then rerun the same bounded Kefka
-harness and record whether the arena objective completes.
+- The original failed-run capture was not present in the workspace, so its
+  exact movement command, server response, transition sequence, and retry
+  behavior remain unverified. At commit `2874a79`, the harness itself had a
+  concrete lifecycle defect: after an eight-second wait for any room change it
+  could dispatch `navigate_to` again while Walker still owned the route.
+  Re-dispatching could supersede or be refused by the active Walker operation;
+  this is a demonstrated harness defect and a plausible cause of the reported
+  stall, not proof of the missing run's exact server-side failure.
+- The harness now dispatches a route once, awaits Walker's terminal lifecycle,
+  and counts arrival only when Walker reports `arrived` and the authoritative
+  current room equals the requested destination. A missing/failed verification
+  skips dependent arena actions; it does not mark movement successful or retry
+  blindly. Walker's destination, exit, and move-acknowledgement checks are
+  unchanged. Regression coverage exercises arrival, intermediate transitions
+  without redispatch, refusal, and timeout.
+- Repeated bounded Kefka navigation evidence: four arena routes reached
+  `1/2150` from `1/2143`, `1/2190`, `1/2144`, and `1/2190`; the fourth is from
+  the latest harness run. The prior repeated run also completed its one-room
+  and two-room routes. In the latest trace, Walker dispatched `e`, then `d`,
+  finished `arrived`, and the authoritative room changed from `1/2190` to
+  `1/2150`.
+- Latest full harness invocation used the documented caps: 120,000 ms, 16
+  requests, 60,000 tokens, and $0.05. It used 6 provider requests, 19,952
+  tokens, and about $0.00320, with zero policy violations. Arena navigation,
+  health observation, target discovery, and combat preflight passed. No
+  authoritative non-player NPC was visible in the tested rooms, so NPC
+  inspection was correctly skipped. A uniquely identified hostile `acid
+  slime` passed preflight; after exact-target approval through
+  `SessionManager`, the wire trace contained `a acid slime` and authoritative
+  combat state became active. The fight remained active at the 15-second
+  bounded observation; no kill or victory is claimed.
+- Kefka's passive combat setting was disabled. The approved `engage_enemy`
+  capability now creates a temporary, exact-target lease inside `AutoCombat`;
+  it leaves the profile setting unchanged, requires the master automation
+  switch and one authoritative hostile target, revalidates target identity and
+  hostility on each room observation, and cancels on target departure/fight
+  end, AI pause/stop/emergency stop, objective replacement, manual gameplay,
+  or master automation disable. SessionManager remains the approval boundary
+  and AutoCombat remains the sole combat loop. Focused AutoCombat and
+  SessionManager suites passed 497/497, including approved execution and
+  manual interruption.
+- The same live run was non-zero for separate reasons: one provider-driven
+  one-room action supplied no resolvable destination, and the two-room action
+  was deferred by recovery priority. The harness also tried recovery while
+  the authoritative combat outcome was still `active` and did not recover
+  within its window. The harness now skips post-combat recovery, inventory,
+  and equipment scenarios unless combat has authoritatively ended; this
+  reporting/safety correction passed `node --check` but has not yet been
+  exercised by another live run. These failures do not reproduce the arena
+  Walker stall.
+- Validation after the AutoCombat change: the full suite passed 7,009 tests
+  with 2 skipped across 253 files; `npm run test:realm` passed 18/18;
+  `npm run typecheck`, `npm run build`, `npm run check:secrets`,
+  `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
+  retains the existing renderer chunk-size warning.
+
+## Remaining work
+
+The repeated arena arrival verifies the corrected Walker lifecycle path, but
+the exact cause of the historical server timeout cannot be proven without its
+capture. A live hostile was engaged only after exact approval, but the bounded
+window ended with combat still active; victory and post-combat recovery remain
+unverified. No authoritative NPC was visible in the tested rooms, and the
+latest provider-driven one-/two-room objectives were separately blocked by
+missing destination input and recovery priority. Keep these as distinct
+limitations rather than treating them as navigation failures.
 
 ## Environment on a new computer
 ```powershell

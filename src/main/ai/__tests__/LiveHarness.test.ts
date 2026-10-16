@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LiveHarnessMonitor } from '../LiveHarness';
+import {
+  exactCombatApproval,
+  LiveHarnessMonitor,
+  navigateToWithWalker
+} from '../LiveHarness';
+import type { AiApproval } from '../../../shared/ai';
 
 const limits = {
   maxRuntimeMs: 10_000,
@@ -9,6 +14,191 @@ const limits = {
   maxCostUsd: 0.1,
   maxRepeatedAction: 2
 };
+
+describe('exactCombatApproval', () => {
+  const approval = (id: string, targetName: string): AiApproval => ({
+    id,
+    command: 'ai-action:engage_enemy',
+    reason: 'verified target',
+    risk: 'high',
+    contextHash: 'room-and-target',
+    target: targetName,
+    createdAt: 0,
+    expiresAt: 1_000,
+    status: 'pending',
+    action: {
+      name: 'engage_enemy',
+      reason: 'verified target',
+      args: { name: targetName }
+    }
+  });
+
+  it('matches only one pending engagement for the exact identified target', () => {
+    expect(
+      exactCombatApproval(
+        [
+          approval('other-target', 'rat'),
+          approval('approval-1', 'acid slime')
+        ],
+        'acid slime'
+      )
+    ).toMatchObject({ id: 'approval-1' });
+  });
+
+  it('does not auto-approve a different action or ambiguous duplicate approvals', () => {
+    const combat = approval('approval-1', 'acid slime');
+
+    expect(
+      exactCombatApproval(
+        [
+          {
+            ...combat,
+            action: {
+              name: 'manage_equipment',
+              reason: 'equipment action',
+              args: {}
+            }
+          }
+        ],
+        'acid slime'
+      )
+    ).toBeNull();
+    expect(
+      exactCombatApproval([combat, approval('approval-2', 'acid slime')], 'acid slime')
+    ).toBeNull();
+  });
+});
+
+describe('navigateToWithWalker', () => {
+  it('does not dispatch when already at the authoritative destination', async () => {
+    let dispatches = 0;
+    const result = await navigateToWithWalker({
+      destination: '1/2150',
+      roomKey: () => '1/2150',
+      progress: () => ({ status: 'idle', reason: null }),
+      dispatch: async () => {
+        dispatches += 1;
+        return { ok: true, message: 'Navigation delegated to Walker' };
+      },
+      waitFor: async () => false,
+      isError: () => false
+    });
+
+    expect(dispatches).toBe(0);
+    expect(result).toMatchObject({ waitCompleted: true, arrived: true });
+  });
+
+  it('dispatches once and waits through intermediate room transitions', async () => {
+    let room = '1/2144';
+    let status: 'idle' | 'walking' | 'arrived' = 'idle';
+    let dispatches = 0;
+    let waitedForWalker = false;
+
+    const result = await navigateToWithWalker({
+      destination: '1/2150',
+      roomKey: () => room,
+      progress: () => ({ status, reason: null }),
+      dispatch: async () => {
+        dispatches += 1;
+        status = 'walking';
+        return { ok: true, message: 'Navigation delegated to Walker' };
+      },
+      waitFor: async (predicate, timeoutMs) => {
+        expect(timeoutMs).toBe(45_000);
+        room = '1/2146';
+        expect(predicate()).toBe(false);
+        room = '1/2147';
+        expect(predicate()).toBe(false);
+        waitedForWalker = true;
+        room = '1/2150';
+        status = 'arrived';
+        return predicate();
+      },
+      isError: () => false
+    });
+
+    expect(dispatches).toBe(1);
+    expect(waitedForWalker).toBe(true);
+    expect(result).toMatchObject({
+      before: '1/2144',
+      after: '1/2150',
+      status: 'arrived',
+      waitCompleted: true,
+      arrived: true
+    });
+  });
+
+  it('does not count a stopped route as arrival', async () => {
+    const result = await navigateToWithWalker({
+      destination: '1/2150',
+      roomKey: () => '1/2146',
+      progress: () => ({ status: 'stopped', reason: 'No confirmed exit' }),
+      dispatch: async () => ({ ok: true, message: 'Navigation delegated to Walker' }),
+      waitFor: async (predicate) => predicate(),
+      isError: () => false
+    });
+
+    expect(result).toMatchObject({
+      status: 'stopped',
+      reason: 'No confirmed exit',
+      waitCompleted: true,
+      arrived: false
+    });
+  });
+
+  it('does not count an arrival at a different room as success', async () => {
+    const result = await navigateToWithWalker({
+      destination: '1/2150',
+      roomKey: () => '1/2147',
+      progress: () => ({ status: 'arrived', reason: null }),
+      dispatch: async () => ({ ok: true, message: 'Navigation delegated to Walker' }),
+      waitFor: async (predicate) => predicate(),
+      isError: () => false
+    });
+
+    expect(result.arrived).toBe(false);
+  });
+
+  it('does not wait or claim arrival when navigation dispatch is refused', async () => {
+    let waited = false;
+    const result = await navigateToWithWalker({
+      destination: '1/2150',
+      roomKey: () => '1/2144',
+      progress: () => ({ status: 'stopped', reason: 'Move already pending' }),
+      dispatch: async () => ({ ok: false, message: 'Move already pending' }),
+      waitFor: async () => {
+        waited = true;
+        return false;
+      },
+      isError: () => false
+    });
+
+    expect(waited).toBe(false);
+    expect(result).toMatchObject({
+      dispatchMessage: 'Move already pending',
+      reason: 'Move already pending',
+      waitCompleted: null,
+      arrived: false
+    });
+  });
+
+  it('does not claim arrival when the walker wait times out', async () => {
+    const result = await navigateToWithWalker({
+      destination: '1/2150',
+      roomKey: () => '1/2146',
+      progress: () => ({ status: 'walking', reason: null }),
+      dispatch: async () => ({ ok: true, message: 'Navigation delegated to Walker' }),
+      waitFor: async () => false,
+      isError: () => false
+    });
+
+    expect(result).toMatchObject({
+      status: 'walking',
+      waitCompleted: false,
+      arrived: false
+    });
+  });
+});
 
 describe('LiveHarnessMonitor', () => {
   it('allows observation and one safe movement', () => {

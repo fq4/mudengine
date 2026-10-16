@@ -1732,7 +1732,11 @@ export class SessionManager {
           this.loops.progress.status === 'running'
         );
       if (action === 'engage_enemy')
-        return Boolean(this.combat.willFight || this.tracker.current.combat.attackers.length > 0);
+        return Boolean(
+          this.combat.requestedEngagementActive ||
+          this.combat.willFight ||
+          this.tracker.current.combat.attackers.length > 0
+        );
       if (action === 'recover_health')
         return Boolean(
           this.recovery.recovering ||
@@ -1744,7 +1748,11 @@ export class SessionManager {
     });
     this.aiAgent.setDelegatedOperationStatus((action) => {
       if (action === 'engage_enemy') {
-        if (this.combat.willFight || this.tracker.current.combat.attackers.length > 0)
+        if (
+          this.combat.requestedEngagementActive ||
+          this.combat.willFight ||
+          this.tracker.current.combat.attackers.length > 0
+        )
           return 'active';
         return 'completed';
       }
@@ -3536,6 +3544,7 @@ export class SessionManager {
   }
   aiEnable(model?: string): AiSnapshot {
     if (this.tracker.current.phase !== 'in-game') {
+      this.combat.cancelRequestedEngagement();
       this.aiAgent.stop();
       this.aiAgent.state.lastActionResult =
         'AI cannot resume until the active character is in-game';
@@ -3551,6 +3560,7 @@ export class SessionManager {
   }
   aiPause(): AiSnapshot {
     this.aiPendingGossipReplyAt = null;
+    this.combat.cancelRequestedEngagement();
     this.aiAgent.pause();
     return this.aiSnapshot;
   }
@@ -3598,6 +3608,7 @@ export class SessionManager {
   }
   aiStop(): AiSnapshot {
     this.stopAiNavigation('AI stopped', true);
+    this.combat.cancelRequestedEngagement();
     this.aiPendingGossipReplyAt = null;
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
@@ -3608,6 +3619,7 @@ export class SessionManager {
   }
   aiEmergencyStop(): AiSnapshot {
     this.stopAiNavigation('AI emergency stop');
+    this.combat.cancelRequestedEngagement();
     this.aiPendingGossipReplyAt = null;
     this.aiAgent.stop();
     this.aiAutonomousMode = false;
@@ -3773,6 +3785,7 @@ export class SessionManager {
   }
   aiGoal(goal: string): AiSnapshot {
     this.stopAiNavigation('AI objective changed', true);
+    this.combat.cancelRequestedEngagement();
     this.aiPendingGossipReplyAt = null;
     this.aiApprovals.resetTransient();
     this.aiAutonomousMode = false;
@@ -3786,6 +3799,7 @@ export class SessionManager {
   }
   aiClearGoal(): AiSnapshot {
     this.stopAiNavigation('AI goal cleared', true);
+    this.combat.cancelRequestedEngagement();
     this.aiPendingGossipReplyAt = null;
     this.aiApprovals.resetTransient();
     this.aiAgent.stop();
@@ -4425,7 +4439,8 @@ export class SessionManager {
           ok: false,
           message: `Refused: ${eligibility.reason}`
         };
-      this.combat.alsoFight(target.name);
+      const refused = this.combat.requestEngagement(target.name, this.tracker.current);
+      if (refused !== null) return { ok: false, message: `Refused: ${refused}` };
       this.aiMemory?.upsert({
         category: 'strategy',
         text: `Engage ordinary NPC ${target.name} through AutoCombat`,
@@ -5161,21 +5176,25 @@ export class SessionManager {
     this.tracker.noteTyping(this.outbound.length > 0);
   }
 
-  /** Manual gameplay wins over an AI strategy; informational reads do not interrupt it. */
+  /** Manual gameplay wins over AI work; informational reads do not interrupt it. */
   private noteAiManualOverride(command: string): void {
-    if (!this.aiAgent.state.enabled) return;
+    const aiEnabled = this.aiAgent.state.enabled;
+    if (!aiEnabled && !this.combat.requestedEngagementActive) return;
     const classification = classifyCommand(command);
     if (classification.risk === 'safe') return;
-    this.queue.cancel(
-      (intent) =>
-        intent.reason?.startsWith('AI:') === true ||
-        intent.reason?.startsWith('Approved AI action:') === true
-    );
-    if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) {
-      this.walker.stop('Manual command interrupted AI navigation');
+    if (aiEnabled) {
+      this.queue.cancel(
+        (intent) =>
+          intent.reason?.startsWith('AI:') === true ||
+          intent.reason?.startsWith('Approved AI action:') === true
+      );
+      if (this.aiAgent.state.currentAction?.name === 'navigate_to' && this.walker.walking) {
+        this.walker.stop('Manual command interrupted AI navigation');
+      }
+      this.aiAgent.pause();
+      this.aiAgent.state.lastActionResult = `AI yielded to manual command: ${command}`;
     }
-    this.aiAgent.pause();
-    this.aiAgent.state.lastActionResult = `AI yielded to manual command: ${command}`;
+    this.combat.cancelRequestedEngagement();
   }
 
   /**

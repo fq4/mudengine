@@ -1,3 +1,6 @@
+import type { AiApproval } from '../../shared/ai';
+import type { WalkProgress } from '../../shared/walk';
+
 export interface LiveHarnessLimits {
   maxRuntimeMs: number;
   maxMoves: number;
@@ -25,6 +28,72 @@ export interface LiveHarnessViolation {
     | 'oscillation'
     | 'stall';
   message: string;
+}
+
+export interface LiveNavigationResult {
+  before: string;
+  after: string;
+  status: WalkProgress['status'];
+  reason: string | null;
+  dispatchMessage: string;
+  waitCompleted: boolean | null;
+  arrived: boolean;
+}
+
+export function exactCombatApproval(
+  approvals: readonly AiApproval[],
+  targetName: string
+): AiApproval | null {
+  const matches = approvals.filter(
+    ({ action }) =>
+      action?.name === 'engage_enemy' && action.args?.name === targetName
+  );
+  return matches.length === 1 ? matches[0]! : null;
+}
+
+export async function navigateToWithWalker(options: {
+  destination: string;
+  roomKey: () => string;
+  progress: () => Pick<WalkProgress, 'status' | 'reason'>;
+  dispatch: () => Promise<{ ok: boolean; message: string }>;
+  waitFor: (predicate: () => boolean, timeoutMs: number) => Promise<boolean>;
+  isError: () => boolean;
+  timeoutMs?: number;
+}): Promise<LiveNavigationResult> {
+  const before = options.roomKey();
+  if (before === options.destination) {
+    const progress = options.progress();
+    return {
+      before,
+      after: before,
+      status: progress.status,
+      reason: progress.reason,
+      dispatchMessage: 'Already at destination',
+      waitCompleted: true,
+      arrived: true
+    };
+  }
+
+  const dispatch = await options.dispatch();
+  let waitCompleted: boolean | null = null;
+  if (dispatch.ok) {
+    waitCompleted = await options.waitFor(
+      () => options.progress().status !== 'walking' || options.isError(),
+      options.timeoutMs ?? 45_000
+    );
+  }
+
+  const progress = options.progress();
+  const after = options.roomKey();
+  return {
+    before,
+    after,
+    status: progress.status,
+    reason: progress.reason,
+    dispatchMessage: dispatch.message,
+    waitCompleted,
+    arrived: dispatch.ok && progress.status === 'arrived' && after === options.destination
+  };
 }
 
 const unsafe =

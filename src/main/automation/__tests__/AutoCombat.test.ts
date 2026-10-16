@@ -191,6 +191,106 @@ describe('opening a fight', () => {
     expect(sent).toEqual(['a giant rat']);
   });
 
+  it('opens one explicitly requested target while passive combat is disabled', () => {
+    const auto = make(combat({ enabled: false, engage: 'none', retaliate: true }));
+    const target = state({
+      room: {
+        ...EMPTY_CHARACTER.room,
+        occupants: [fighter('acid slime', 100, []), fighter('ogre', 100, [])]
+      },
+      combat: { ...EMPTY_CHARACTER.combat, attackers: ['ogre'] }
+    });
+
+    expect(auto.requestEngagement('acid slime', target)).toBeNull();
+    expect(auto.requestedEngagementActive).toBe(true);
+    drain();
+    expect(sent).toEqual(['a acid slime']);
+
+    auto.onCharacter(
+      state({
+        room: { ...EMPTY_CHARACTER.room, occupants: [fighter('ogre', 100, [])] }
+      })
+    );
+    drain();
+    expect(sent).toEqual(['a acid slime']);
+    expect(auto.requestedEngagementActive).toBe(false);
+  });
+
+  it('refuses an ambiguous or missing explicit target and respects the master switch', () => {
+    const ambiguous = make(combat({ enabled: false }));
+    const duplicates = state({
+      room: {
+        ...EMPTY_CHARACTER.room,
+        occupants: [fighter('acid slime', 100, []), fighter('acid slime', 100, [])]
+      }
+    });
+    expect(ambiguous.requestEngagement('acid slime', duplicates)).toContain('uniquely visible');
+    expect(
+      ambiguous.requestEngagement(
+        'acid slime',
+        state({ room: { ...EMPTY_CHARACTER.room, occupants: [] } })
+      )
+    ).toContain('uniquely visible');
+
+    const masterDisabled = make(combat({ enabled: false }), false);
+    expect(
+      masterDisabled.requestEngagement(
+        'acid slime',
+        state({
+          room: { ...EMPTY_CHARACTER.room, occupants: [fighter('acid slime', 100, [])] }
+        })
+      )
+    ).toBe('Master automation is disabled');
+    expect(sent).toEqual([]);
+  });
+
+  it('revalidates explicit target identity and hostility on each room observation', () => {
+    const auto = make(combat({ enabled: false }));
+    const target = state({
+      room: { ...EMPTY_CHARACTER.room, occupants: [fighter('acid slime', 100, [])] }
+    });
+    expect(auto.requestEngagement('acid slime', target)).toBeNull();
+    expect(auto.requestedEngagementActive).toBe(true);
+
+    auto.onCharacter({
+      ...target,
+      room: {
+        ...target.room,
+        occupants: [
+          fighter('acid slime', 100, []),
+          fighter('acid slime', 100, [])
+        ]
+      }
+    });
+    expect(auto.requestedEngagementActive).toBe(false);
+  });
+
+  it('ends an explicit engagement when the named fight ends or is canceled', () => {
+    const auto = make(combat({ enabled: false }));
+    const target = state({
+      room: { ...EMPTY_CHARACTER.room, occupants: [fighter('acid slime', 100, [])] }
+    });
+    expect(auto.requestEngagement('acid slime', target)).toBeNull();
+
+    auto.onCharacter({
+      ...target,
+      inCombat: true,
+      combat: { ...target.combat, engaged: true, target: 'acid slime' }
+    });
+    expect(auto.requestedEngagementActive).toBe(true);
+
+    auto.onCharacter({
+      ...target,
+      inCombat: false,
+      combat: { ...target.combat, engaged: false, target: null }
+    });
+    expect(auto.requestedEngagementActive).toBe(false);
+
+    expect(auto.requestEngagement('acid slime', target)).toBeNull();
+    auto.cancelRequestedEngagement();
+    expect(auto.requestedEngagementActive).toBe(false);
+  });
+
   /* Skinny's warhammer (2026-09-30): the fight waits for the kit it is fought in. */
   it('waits for the kit before opening a fight', () => {
     let ready = false;

@@ -530,6 +530,8 @@ export class AutoCombat {
    * file, and taken off again the moment the step is done. See `alsoFight`.
    */
   private readonly wanted = new Set<string>();
+  /** One policy-approved, exact-target engagement, scoped to this session. */
+  private requestedTarget: string | null = null;
   /** Until when a typed `break` keeps this from fighting. See the constant. */
   private standDownUntil = 0;
   /** Whether a step is outstanding, as of the last line. See `movePending`. */
@@ -687,6 +689,7 @@ export class AutoCombat {
     if (config.enabled) this.declined = false;
     this.config = config;
     this.enabled = enabled;
+    if (!enabled) this.cancelRequestedEngagement();
     if (spells) this.spells = spells;
     if (party) this.party = party;
   }
@@ -747,6 +750,10 @@ export class AutoCombat {
 
   /** A new connection. Nothing about the last fight carries over. */
   reset(): void {
+    const requestedTarget = this.requestedTarget;
+    this.requestedTarget = null;
+    if (requestedTarget !== null)
+      this.queue.cancel((intent) => intent.coalesceKey === `attack:${requestedTarget}`);
     this.wanted.clear();
     this.questing = false;
     this.moveOnly = false;
@@ -829,19 +836,74 @@ export class AutoCombat {
     if (key.length > 0) this.wanted.add(key);
   }
 
+  /**
+   * Temporarily enable AutoCombat for one already-authorized, visible NPC.
+   * This never changes the profile's combat setting or the master automation
+   * switch, and the normal combat loop still owns every attack and refusal.
+   */
+  requestEngagement(name: string, state: CharacterState): string | null {
+    const key = mobKey(name);
+    if (!key) return 'An NPC name is required';
+    if (!this.enabled) return 'Master automation is disabled';
+    if (this.journeyDeclined) return 'Combat was declined for the current journey';
+    if (this.moveOnly) return 'Combat is unavailable while moving out of a timed effect';
+    if (this.stoodDown) return 'Combat is stood down after a manual break';
+    if (this.movePending) return 'A movement command is pending';
+    if (state.phase !== 'in-game') return 'The character is not in-game';
+
+    if (!this.isSafeRequestedTarget(state, key))
+      return 'The requested target is not one uniquely visible authoritative hostile NPC';
+    if (this.requestedTarget !== null && this.requestedTarget !== key)
+      return 'Another explicit combat target is already active';
+    if (this.requestedTarget === key) return null;
+
+    this.requestedTarget = key;
+    this.onCharacter(state);
+    return null;
+  }
+
+  /** Whether a policy-approved exact-target engagement is still active. */
+  get requestedEngagementActive(): boolean {
+    return this.requestedTarget !== null;
+  }
+
+  /** Cancel the temporary target lease and any queued attack it owns. */
+  cancelRequestedEngagement(): void {
+    const target = this.requestedTarget;
+    if (target === null) return;
+    this.requestedTarget = null;
+    if (!this.wanted.has(target))
+      this.queue.cancel((intent) => intent.coalesceKey === `attack:${target}`);
+  }
+
   stopFighting(name: string): void {
     this.wanted.delete(mobKey(name));
   }
 
+  private isSafeRequestedTarget(state: CharacterState, key: string): boolean {
+    const matches = state.room.occupants.filter((who) => mobKey(who.name) === key);
+    if (matches.length !== 1) return false;
+    const target = matches[0];
+    return (
+      target?.kind === 'mob' &&
+      target.mob !== undefined &&
+      !target.uncertain &&
+      !target.charmed &&
+      target.disposition === 'hostile' &&
+      target.costly !== 'always'
+    );
+  }
+
   /** Whether a room's listing names something a quest run wants dead. */
   private wantedHere(state: CharacterState): boolean {
-    if (this.wanted.size === 0) return false;
+    if (this.wanted.size === 0 && this.requestedTarget === null) return false;
     return state.room.occupants.some((who) => who.kind === 'mob' && this.isWanted(who.name));
   }
 
   private isWanted(name: string): boolean {
-    if (this.wanted.size === 0) return false;
     const key = mobKey(name);
+    if (this.requestedTarget === key) return true;
+    if (this.wanted.size === 0) return false;
     for (const wanted of this.wanted) if (nameAnswersTo(key, wanted)) return true;
     return false;
   }
@@ -951,7 +1013,7 @@ export class AutoCombat {
       this.enabled &&
       !this.journeyDeclined &&
       !this.moveOnly &&
-      (this.config.enabled || this.travelling)
+      (this.config.enabled || this.travelling || this.requestedTarget !== null)
     );
   }
 
@@ -1293,6 +1355,14 @@ export class AutoCombat {
   onCharacter(state: CharacterState): void {
     const was = this.state;
     this.state = state;
+    if (this.requestedTarget !== null) {
+      const visible = this.isSafeRequestedTarget(state, this.requestedTarget);
+      const leftRequestedFight =
+        was?.combat.engaged === true &&
+        mobKey(was.combat.target ?? '') === this.requestedTarget &&
+        (!state.combat.engaged || mobKey(state.combat.target ?? '') !== this.requestedTarget);
+      if (!visible || leftRequestedFight) this.cancelRequestedEngagement();
+    }
     const hp = state.vitals.hp;
     if (this.owed !== null && hp !== null && hp >= this.owed) this.owed = null;
     this.forgetGone(state);
@@ -1396,7 +1466,7 @@ export class AutoCombat {
      * ends it (`CharacterState.heard`).
      */
     if (this.cannotAttack(state)) return;
-    if (this.acting && this.retaliation(state)) return;
+    if (this.requestedTarget === null && this.acting && this.retaliation(state)) return;
     this.engage(state);
   }
 
@@ -1838,11 +1908,14 @@ export class AutoCombat {
     // side — the monster brought the fight — and ranks below the assist:
     // following the leader is the party's chosen structure, and defending is
     // what fills in when the leader has no fight to join.
-    const assist = this.assistTarget(state);
-    const defend = assist === null ? this.defendTarget(state) : null;
+    const assist = this.requestedTarget === null ? this.assistTarget(state) : null;
+    const defend =
+      this.requestedTarget === null && assist === null ? this.defendTarget(state) : null;
     const joined = assist ?? defend;
     const choice: Choice | null =
-      assist !== null
+      this.requestedTarget !== null
+        ? this.choose(state)
+        : assist !== null
         ? {
             target: assist.name,
             because: t('automation.party.reasonAssist', {
@@ -2024,7 +2097,11 @@ export class AutoCombat {
    * rather than leaving somebody to guess between four settings.
    */
   private choose(state: CharacterState): Choice | null {
-    const mobs = state.room.occupants.filter((who) => who.kind === 'mob');
+    const mobs = state.room.occupants.filter(
+      (who) =>
+        who.kind === 'mob' &&
+        (this.requestedTarget === null || mobKey(who.name) === this.requestedTarget)
+    );
     if (mobs.length === 0) return null;
     const mine = ownAlignment(state);
 

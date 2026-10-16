@@ -24,7 +24,7 @@ import { PROMPT_REPAINT } from '../../net/stream-quirks';
 import { ABANDON_MS } from '../TerminalFeed';
 import type { StreamLine, StreamChunk } from '../../../shared/types';
 import type { AutomationSnapshot } from '../../../shared/automation';
-import type { CharacterState } from '../../../shared/character';
+import type { CharacterState, RoomOccupant } from '../../../shared/character';
 import type { StandDown } from '../../automation/LoginAutomator';
 import { NO_REALM_PLAYERS } from '../../../shared/players';
 import type { Find, Sighting } from '../../../shared/finds';
@@ -211,6 +211,68 @@ describe('the raw byte record', () => {
 });
 
 describe('AI reconnect lifecycle', () => {
+  it('executes an approved exact NPC engagement through AutoCombat with passive combat disabled', async () => {
+    const { sink } = collect();
+    const automation: AutomationConfig = {
+      ...DEFAULT_CONFIG.automation,
+      enabled: true,
+      combat: { ...DEFAULT_CONFIG.automation.combat, enabled: false }
+    };
+    manager = new SessionManager(sink, undefined, automation);
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const socket = await client();
+    let wire = '';
+    socket.on('data', (chunk) => {
+      wire += chunk.toString('latin1');
+    });
+    const target: RoomOccupant = {
+      name: 'acid slime',
+      kind: 'mob',
+      disposition: 'hostile',
+      uncertain: false,
+      costly: 'never',
+      charmed: false,
+      hidden: false,
+      free: false,
+      mob: {
+        name: 'acid slime',
+        rawName: 'acid slime',
+        source: 'wire',
+        charmed: false,
+        disposition: 'hostile',
+        uncertain: false,
+        costly: 'never'
+      }
+    };
+    const current = (manager as any).tracker.current as CharacterState;
+    current.phase = 'in-game';
+    current.vitals = { ...current.vitals, hp: 100, hpMax: 100 };
+    current.room.occupants = [target];
+    (manager as any).aiAgent.state.objective = 'Engage the hostile NPC acid slime';
+
+    const pending = await manager.aiAction({
+      name: 'engage_enemy',
+      args: { name: 'acid slime' },
+      reason: 'engage the verified hostile NPC'
+    });
+    expect(pending).toMatchObject({ ok: false, pendingApproval: true });
+    const approval = manager.aiSnapshot.state.pendingApprovals[0];
+    expect(approval?.action).toMatchObject({
+      name: 'engage_enemy',
+      args: { name: 'acid slime' }
+    });
+    expect(wire).not.toContain('acid slime');
+
+    manager.aiApprove(approval!.id);
+    await until(() => wire.includes('a acid slime\r\n'));
+    expect(manager.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
+    expect((manager as any).combat.requestedEngagementActive).toBe(true);
+
+    manager.send('north\r');
+    expect((manager as any).combat.requestedEngagementActive).toBe(false);
+    await until(() => wire.includes('north\r\n'));
+  });
+
   it('routes a supported broad objective through its bounded scheduler plan', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);

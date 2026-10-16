@@ -49,7 +49,7 @@ MudEngine is a cross-platform Electron/Vite client, terminal, parser, world mode
 - Session approvals with expiry, state invalidation, history, rejection/expiration feedback, emergency stop, layered permissions, and hard/aggregate budgets.
 - Scoped persistent memory with provenance, confidence, verification, editing, and relevance retrieval.
 - Manual-input priority and reconnect/realm-leave identity cleanup.
-- Guarded adapters for combat, recovery, equipment, communication, and general-command fallback.
+- Guarded adapters for combat, recovery, equipment, communication, and general-command fallback. Approved PvE uses a session-scoped, exact-target AutoCombat lease and does not change profile combat settings.
 - Phase 4 PvE target safety gate: engagement requires authoritative hostile mob
   evidence and rejects players, unknowns, charmed mobs, passive targets, and
   always-costly alignment targets before AutoCombat.
@@ -65,14 +65,17 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
-- Latest offline Phase 6 verification: `npm run typecheck` passed; `npm test`
-  passed 6,989 tests with 2 skipped across 253 files; `npm run test:realm`
-  passed all 18 tests; `npm run build` passed with the existing renderer chunk
-  size warning; `npm run check:secrets` found no configured password in 45
-  user-scoped files.
+- Latest offline Phase 6 verification: `npm test` passed 7,009 tests with 2
+  skipped across 253 files; `npm run test:realm` passed 18/18;
+  `npm run typecheck`, `npm run build`, `npm run check:secrets`,
+  `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
+  retains the existing renderer chunk-size warning; the secret scan found no
+  configured password in 45 user-scoped files.
 - AI suite and planner regressions pass, including ordered-plan and
   same-observation reassessment coverage.
-- SessionManager suite: 264 tests passed.
+- Focused AutoCombat and SessionManager suites: 497 tests passed, including
+  approved exact-target execution with passive combat disabled and manual
+  interruption of the temporary engagement.
 - Node/web typechecks passed.
 - Production Electron build passed; the existing large-renderer-chunk warning remains.
 - Bounded `kefka` provider-driven phase passed with one OpenRouter request,
@@ -114,6 +117,22 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   ranked candidates and completing through production observation with zero
   safety violations. That live verification remains a bounded, explicit subset
   and not a claim of broad autonomous completion.
+- The prior arena-navigation failure's original capture was unavailable, so
+  its exact server-side cause is unconfirmed. The old harness could redispatch
+  `navigate_to` while Walker still owned a route; it now dispatches once and
+  checks Walker's terminal status plus the authoritative destination before
+  continuing. Four bounded Kefka attempts have reached Arena `1/2150`;
+  the latest trace verified `1/2190` → `1/2150` via `e`, `d`.
+- Latest bounded live run stayed within 120,000 ms / 16 requests / 60,000
+  tokens / $0.05, using 6 requests, 19,952 tokens, ~$0.00320 and zero policy
+  violations. It found no authoritative NPC to inspect, but preflighted the
+  visible hostile `acid slime`, executed its exact-target approval, sent
+  `a acid slime`, and observed active combat state. The 15-second observation
+  did not prove a kill or victory. The overall run exited non-zero because
+  one provider navigation action had no destination, a later route was
+  deferred by recovery priority, and recovery was attempted before combat was
+  authoritatively ended. The harness now skips all post-combat actions until
+  it observes `ended`; that new branch is syntax-checked, not yet live-rerun.
 - The no-objective scheduler-selection flow is covered deterministically and is
   not considered live-verified until a future bounded run reports it.
 - The migration suite passes in isolation: 374/374 tests. The `ENOTEMPTY`
@@ -124,10 +143,17 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
 
 ## Outstanding work
 
-1. Define an explicit action-to-policy mapping before hiding named capabilities by policy.
-2. Improve general-command completion feedback beyond queue acceptance while preserving CommandQueue ownership.
-3. Investigate the concurrent migration-test temporary-home race.
-4. Phase 3 is complete for the approved safe capability scope. Keep live use
+1. Verify a completed bounded PvE encounter and post-combat recovery; the latest
+   live run ended its observation while combat was still active, with no victory
+   evidence. Inspect an NPC only in a room where authoritative NPC state is
+   actually visible.
+2. Investigate the historical arena movement report further if its missing
+   capture becomes available. Repeated current routes pass, but the exact
+   server-side cause of the original timeout cannot be established without it.
+3. Improve general-command completion feedback beyond queue acceptance while
+   preserving CommandQueue ownership.
+4. Investigate the concurrent migration-test temporary-home race.
+5. Phase 3 is complete for the approved safe capability scope. Keep live use
    bounded to the harness safety rules; future scope expansion requires a new
    review and explicit authorization.
 

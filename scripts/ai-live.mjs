@@ -11,7 +11,11 @@ import path from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 import { SessionManager } from '../src/main/session/SessionManager.ts';
 import { RealmLibrary } from '../src/main/world/RealmLibrary.ts';
-import { LiveHarnessMonitor } from '../src/main/ai/LiveHarness.ts';
+import {
+  exactCombatApproval,
+  LiveHarnessMonitor,
+  navigateToWithWalker
+} from '../src/main/ai/LiveHarness.ts';
 import { homePaths } from './lib/home.mjs';
 import fs from 'node:fs';
 import YAML from 'yaml';
@@ -421,32 +425,53 @@ async function main() {
     passed: !combatSafety.ok && /refused/i.test(combatSafety.message),
     result: combatSafety.message
   });
-  const arenaBefore = roomKey();
-  let arenaDispatchMessage = 'No arena route dispatched';
-  let arenaArrived = roomKey() === NEWHAVEN_ARENA;
-  for (let attempt = 0; attempt < 6 && !arenaArrived; attempt += 1) {
-    const legBefore = roomKey();
-    const arenaDispatch = await session.aiAction({
-      name: 'navigate_to',
-      args: { destination: NEWHAVEN_ARENA },
-      reason: 'bounded Newhaven Arena route'
-    });
-    arenaDispatchMessage = arenaDispatch.message;
-    if (!arenaDispatch.ok) break;
-    await waitFor(() => roomKey() !== legBefore || snapshot().state.status === 'error', 8_000);
-    arenaArrived = roomKey() === NEWHAVEN_ARENA;
-  }
-  const arenaAfter = roomKey();
+  const arenaRoute = await navigateToWithWalker({
+    destination: NEWHAVEN_ARENA,
+    roomKey,
+    progress: () => session.walker.progress,
+    dispatch: () =>
+      session.aiAction({
+        name: 'navigate_to',
+        args: { destination: NEWHAVEN_ARENA },
+        reason: 'bounded Newhaven Arena route'
+      }),
+    waitFor: (predicate, timeout) => waitFor(() => predicate(), timeout),
+    isError: () => snapshot().state.status === 'error'
+  });
+  const arenaBefore = arenaRoute.before;
+  const arenaAfter = arenaRoute.after;
   monitor.room(arenaAfter);
-  const arenaNavigation = arenaArrived && arenaAfter === NEWHAVEN_ARENA && !monitor.failed;
+  const arenaNavigation = arenaRoute.arrived && !monitor.failed;
   report.scenarios.push({
     name: 'newhaven-arena-navigation',
     passed: arenaNavigation,
     before: arenaBefore,
     after: arenaAfter,
-    status: snapshot().state.status,
-    result: arenaDispatchMessage
+    status: arenaRoute.status,
+    waitCompleted: arenaRoute.waitCompleted,
+    result: `${arenaRoute.dispatchMessage}; ${
+      arenaRoute.waitCompleted === false
+        ? 'harness wait ended before Walker completed the route'
+        : (arenaRoute.reason ?? 'no Walker stop reason')
+    }`
   });
+  if (!arenaNavigation) {
+    const reason = `Skipped because Walker did not verify arrival at ${NEWHAVEN_ARENA}`;
+    for (const name of [
+      'newhaven-arena-inspection',
+      'newhaven-arena-health-probe',
+      'newhaven-arena-target-discovery',
+      'newhaven-arena-combat-preflight',
+      'newhaven-arena-bounded-combat'
+    ]) {
+      report.scenarios.push({ name, passed: false, skipped: true, result: reason });
+    }
+    report.violations = monitor.violations;
+    report.trace = monitor.events.slice(-50);
+    console.log(JSON.stringify(report, null, 2));
+    process.exitCode = 1;
+    return;
+  }
   const arenaRoomInspection = await session.aiAction({
     name: 'inspect_room',
     reason: 'authoritative arena room inspection'
@@ -487,6 +512,27 @@ async function main() {
       ? `Observed ${arenaTargets.length} authoritative mob target(s); combat remains policy-gated`
       : 'No authoritative mob target visible in the arena'
   });
+  const arenaNpc = arenaRoom?.occupants?.find(
+    (occupant) => occupant.kind === 'npc' && occupant.npc?.name
+  );
+  if (arenaNpc?.npc?.name) {
+    const npcInspection = await session.aiAction({
+      name: 'inspect_npc',
+      args: { name: arenaNpc.npc.name },
+      reason: 'inspect the authoritatively visible arena NPC'
+    });
+    report.scenarios.push({
+      name: 'newhaven-arena-npc-inspection',
+      passed: npcInspection.ok,
+      result: npcInspection.message
+    });
+  } else {
+    report.scenarios.push({
+      name: 'newhaven-arena-npc-inspection',
+      passed: true,
+      result: 'Skipped safely: no authoritative non-player NPC is visible in the arena'
+    });
+  }
   const arenaTarget = findSafeCombatNpc(arenaRoom?.occupants ?? []);
   const arenaEscapeAvailable =
     arenaRoom?.exits?.some(
@@ -512,78 +558,139 @@ async function main() {
     // The harness supplies the explicit authorized objective; the executor's
     // target, health, classification, and escape checks remain authoritative.
     session.aiAgent.state.objective = `Engage the verified PvE enemy ${arenaEligibility.target.name}`;
-    const combatDispatch = await session.aiAction({
+    let combatDispatch = await session.aiAction({
       name: 'engage_enemy',
       args: { name: arenaEligibility.target.name },
       reason: 'bounded authorized Newhaven Arena PvE test'
     });
-    const combatDeadline = Date.now() + 15_000;
-    let outcome = combatOutcome(session.character.combat, session.character.vitals);
-    while (Date.now() < combatDeadline && outcome === 'active' && !monitor.failed) {
-      await wait(500);
-      outcome = combatOutcome(session.character.combat, session.character.vitals);
+    if (!combatDispatch.ok) {
+      const approval = exactCombatApproval(
+        snapshot().state.pendingApprovals,
+        arenaEligibility.target.name
+      );
+      if (approval) {
+        session.aiApprove(approval.id);
+        const approvalSettled = await waitFor(
+          (state) =>
+            state.approvalHistory.some(
+              (entry) =>
+                entry.id === approval.id &&
+                ['executed', 'rejected', 'expired'].includes(entry.status)
+            ),
+          5_000
+        );
+        const approvedState = snapshot().state;
+        const approvalResult = approvedState.approvalHistory.find(
+          (entry) => entry.id === approval.id
+        );
+        combatDispatch = {
+          ok: approvalSettled && approvalResult?.status === 'executed',
+          message:
+            approvalResult?.status === 'executed'
+              ? 'Exact-target combat approval executed through SessionManager'
+              : 'The exact-target combat approval did not complete'
+        };
+      }
     }
-    if (outcome === 'active') session.aiEmergencyStop();
+
+    let combatObserved = false;
+    let outcome = 'unknown';
+    if (combatDispatch.ok) {
+      session.aiRequestHealth();
+      combatObserved = await waitFor(
+        () =>
+          combatVictoryEvidence ||
+          session.character.combat.engaged ||
+          session.character.combat.target !== null,
+        5_000
+      );
+      outcome = combatOutcome(session.character.combat, session.character.vitals);
+      const combatDeadline = Date.now() + 15_000;
+      while (Date.now() < combatDeadline && outcome === 'active' && !monitor.failed) {
+        await wait(500);
+        outcome = combatOutcome(session.character.combat, session.character.vitals);
+      }
+      if (outcome === 'active' || outcome === 'unsafe') session.aiEmergencyStop();
+      combatObserved ||= combatVictoryEvidence || session.character.combat.engaged;
+    }
     const combatResult = combatVictoryEvidence ? 'victory' : outcome;
     report.scenarios.push({
       name: 'newhaven-arena-bounded-combat',
-      passed: combatDispatch.ok && outcome !== 'unsafe' && !monitor.failed,
-      result: `${combatDispatch.message}; outcome=${combatResult}`
+      passed:
+        combatDispatch.ok && combatObserved && outcome !== 'unsafe' && !monitor.failed,
+      result: `${combatDispatch.message}; observed=${combatObserved}; outcome=${combatResult}`
     });
 
-    const hp = session.character.vitals.hp;
-    const hpMax = session.character.vitals.hpMax;
-    if (hp !== null && hpMax !== null && hp < hpMax) {
-      monitor.authorizeRecovery();
-      const recovery = await session.aiAction({
-        name: 'recover_health',
-        reason: 'bounded post-combat recovery'
+    if (combatObserved && outcome === 'ended') {
+      const hp = session.character.vitals.hp;
+      const hpMax = session.character.vitals.hpMax;
+      if (hp !== null && hpMax !== null && hp < hpMax) {
+        monitor.authorizeRecovery();
+        const recovery = await session.aiAction({
+          name: 'recover_health',
+          reason: 'bounded post-combat recovery'
+        });
+        const recoveryDeadline = Date.now() + 8_000;
+        while (
+          Date.now() < recoveryDeadline &&
+          session.character.vitals.hp !== null &&
+          session.character.vitals.hpMax !== null &&
+          session.character.vitals.hp < session.character.vitals.hpMax &&
+          !monitor.failed
+        )
+          await wait(500);
+        const recovered =
+          session.character.vitals.hp !== null &&
+          session.character.vitals.hpMax !== null &&
+          session.character.vitals.hp >= session.character.vitals.hpMax;
+        report.scenarios.push({
+          name: 'newhaven-arena-post-combat-recovery',
+          passed: recovery.ok && recovered && !monitor.failed,
+          result: `${recovery.message}; recovered=${recovered}`
+        });
+      } else {
+        report.scenarios.push({
+          name: 'newhaven-arena-post-combat-recovery',
+          passed: hp !== null && hpMax !== null,
+          result: 'Recovery not required; authoritative HP is already at maximum'
+        });
+      }
+      const inventory = await session.aiAction({
+        name: 'inspect_inventory',
+        reason: 'bounded post-combat inventory verification'
       });
-      const recoveryDeadline = Date.now() + 8_000;
-      while (
-        Date.now() < recoveryDeadline &&
-        session.character.vitals.hp !== null &&
-        session.character.vitals.hpMax !== null &&
-        session.character.vitals.hp < session.character.vitals.hpMax &&
-        !monitor.failed
-      )
-        await wait(500);
-      const recovered =
-        session.character.vitals.hp !== null &&
-        session.character.vitals.hpMax !== null &&
-        session.character.vitals.hp >= session.character.vitals.hpMax;
       report.scenarios.push({
-        name: 'newhaven-arena-post-combat-recovery',
-        passed: recovery.ok && recovered && !monitor.failed,
-        result: `${recovery.message}; recovered=${recovered}`
+        name: 'newhaven-arena-post-combat-inventory',
+        passed: inventory.ok && !monitor.failed,
+        result: `${inventory.message}; items=${session.character.inventory.items.length}`
+      });
+      session.aiAgent.state.objective = 'Evaluate ordinary equipment after combat';
+      const equipment = await session.aiAction({
+        name: 'manage_equipment',
+        reason: 'bounded post-combat equipment evaluation'
+      });
+      const equipmentApproval = snapshot().state.pendingApprovals.some(
+        (pending) => pending.action?.name === 'manage_equipment'
+      );
+      report.scenarios.push({
+        name: 'newhaven-arena-post-combat-equipment',
+        passed: !equipment.ok && equipmentApproval,
+        result: equipmentApproval
+          ? 'Equipment action remained approval-gated and was not approved by this run'
+          : equipment.message
       });
     } else {
-      report.scenarios.push({
-        name: 'newhaven-arena-post-combat-recovery',
-        passed: hp !== null && hpMax !== null,
-        result: 'Recovery not required; authoritative HP is already at maximum'
-      });
+      const reason = combatObserved
+        ? `Skipped because combat remained ${outcome}; no post-combat action was issued`
+        : 'Skipped because no combat engagement was authoritatively observed';
+      for (const name of [
+        'newhaven-arena-post-combat-recovery',
+        'newhaven-arena-post-combat-inventory',
+        'newhaven-arena-post-combat-equipment'
+      ]) {
+        report.scenarios.push({ name, passed: true, skipped: true, result: reason });
+      }
     }
-    const inventory = await session.aiAction({
-      name: 'inspect_inventory',
-      reason: 'bounded post-combat inventory verification'
-    });
-    report.scenarios.push({
-      name: 'newhaven-arena-post-combat-inventory',
-      passed: inventory.ok && !monitor.failed,
-      result: `${inventory.message}; items=${session.character.inventory.items.length}`
-    });
-    monitor.authorizeEquipmentChanges();
-    session.aiAgent.state.objective = 'Evaluate ordinary equipment after combat';
-    const equipment = await session.aiAction({
-      name: 'manage_equipment',
-      reason: 'bounded post-combat equipment evaluation'
-    });
-    report.scenarios.push({
-      name: 'newhaven-arena-post-combat-equipment',
-      passed: equipment.ok && !monitor.failed,
-      result: equipment.message
-    });
   }
   const navigation = await runScenario(
     'one-room-navigation',
