@@ -166,13 +166,53 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   provide a complete responder harness report with request, token, cost, and
   monitor totals. No message text was retained.
 
+## Action-to-policy mapping checkpoint (2026-10-16)
+
+- `ActionPolicy.ts` defines a typed policy for every AI action. Policies state
+  risk, authorization, authorization scope, failure behavior, audit label,
+  completion owner, and capability-specific validation.
+- `SessionManager.executeAiAction()` is the shared enforcement gateway for
+  direct, provider, scheduler, and approved actions. It validates against the
+  current session and authoritative tracker evidence before approval or side
+  effects; approval execution revalidates against current state.
+- NPC inspection and combat require one uniquely identified visible NPC,
+  combat additionally requires a conservatively classified hostile mob,
+  item use requires explicit objective intent and one eligible carried item,
+  and gossip replies require the channel plus a recent inbound message.
+  Movement, recovery, equipment, communication, and commands retain their
+  existing production owners and queue path. General commands defer
+  authorization to command classification rather than blanket-gating the
+  wrapper capability.
+- Policy scope, failure behavior, and completion owner are included in the
+  provider-neutral action-policy observation. Shared objective-intent helpers
+  keep social/equipment authorization consistent between observation,
+  candidate selection, and execution. Duplicate NPC/mob names are excluded
+  from both candidate selection and execution.
+- Focused tests passed: 303/303 across policy, activity selection, NPC
+  discovery, observation, and SessionManager suites. Candidate selection
+  refuses ambiguous target names; the scheduler regression suite verifies
+  blocking after repeated failures and avoiding repeated no-progress work.
+- Final full suite passed: 6,996 passed, 2 skipped across 253 files. Typecheck,
+  production build, and secret scan passed. An earlier concurrent run hit the
+  known `SessionLog.test.ts` `ENOTEMPTY` cleanup race; that file passed 14/14
+  in isolation and the final full-suite rerun was clean.
+- Bounded Kefka harness (2026-10-16): 20 scenarios, 16 passed, zero policy
+  violations, 4 provider requests, 11,930 total tokens, estimated cost
+  ~$0.00193. Broad-objective inspection, inventory/equipment/combat safety
+  refusals, unknown-command approval, manual interruption, budget enforcement,
+  emergency stop, and one-/two-room navigation passed. The legacy
+  `newhaven-arena-navigation` scenario stalled on an unanswered move; later
+  arena inspection/target/combat scenarios were consequently unavailable.
+  No authoritative hostile NPC was visible, so no live PvE engagement was
+  attempted. The harness exited non-zero; do not describe the live run as a
+  full pass.
+
 ## Next recommended task
 
-Next, define the action-to-policy mapping before policy rules can hide named
-capabilities. The multi-room NPC-search milestone is now covered offline:
-authoritative room observations drive successive Walker-confirmed arrivals,
-the tracker identifies a visible realm resident, and the objective completes
-only after that resident is inspected.
+Investigate the intermittent live arena-navigation stall reported by the
+bounded harness. Preserve the verified one-/two-room Walker paths and do not
+weaken movement or command safety checks. Then rerun the same bounded Kefka
+harness and record whether the arena objective completes.
 
 ## Environment on a new computer
 ```powershell

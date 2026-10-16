@@ -42,6 +42,14 @@ describe('safe NPC discovery', () => {
   it('selects the first authoritative NPC when no preference is supplied', () => {
     expect(findSafeNpc([occupant('Merchant', 'unknown', true)])?.name).toBe('Merchant');
   });
+  it('refuses ambiguous duplicate NPC names', () => {
+    const merchants = [
+      occupant('Merchant', 'unknown', true),
+      occupant('merchant', 'unknown', true)
+    ];
+    expect(findSafeNpc(merchants)).toBeNull();
+    expect(findSafeNpc(merchants, 'Merchant')).toBeNull();
+  });
 
   it('selects only an authoritative conservative hostile mob for PvE', () => {
     expect(findSafeCombatNpc([occupant('Guard', 'unknown', true)])).toBeNull();
@@ -53,6 +61,11 @@ describe('safe NPC discovery', () => {
         occupant('Uncertain rat', 'mob', false, true, { uncertain: true })
       ])
     ).toBeNull();
+  });
+  it('does not select an ambiguous hostile name as an attack target', () => {
+    const rats = [occupant('Rat', 'mob', false, true), occupant('rat', 'mob', false, true)];
+    expect(findSafeCombatNpc(rats)).toBeNull();
+    expect(findSafeCombatNpc(rats, 'Rat')).toBeNull();
   });
 
   it('requires authoritative health but permits authorized low-health PvE', () => {

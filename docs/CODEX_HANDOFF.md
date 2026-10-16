@@ -279,13 +279,31 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
 - Walker lifecycle coverage now uses actual `onCharacter()` arrival and
   verified exit-refusal callbacks. It confirms AI stop cancels an AI-owned
   route, preserves journal history, and selects a fresh destination on restart.
-- Next deterministic task: define the explicit action-to-policy mapping before
-  hiding named capabilities by policy. The multi-room NPC-search objective is
-  now covered offline through successive Walker-confirmed arrivals, resident
-  discovery, inspection, and tracker-verified completion.
-- Latest offline validation passed 6,989 tests (2 skipped), realm coverage
-  18/18, typechecks, production build and secret scan.
-- Bounded Kefka live harness passed all 24 scenarios on 2026-10-14 with zero
+- `ActionPolicy.ts` now declares the policy for every AI action, including risk,
+  authorization scope, capability validation, failure behavior, and delegated
+  completion. `SessionManager.executeAiAction()` enforces it for direct,
+  provider, scheduler, and approved execution using current session and
+  authoritative tracker evidence. Approved actions are revalidated before
+  execution; general commands defer to command classification. Provider
+  observations expose policy scope, failure behavior, and completion owner.
+  Shared intent helpers align objective gating, and duplicate NPC/mob names
+  are withheld from candidates and rejected during execution.
+- Focused policy, activity-selection, NPC-discovery, observation, and session
+  validation passed 303/303 tests. The final full suite passed 6,996 tests
+  (2 skipped across 253 files); typecheck, production build, and secret scan
+  passed. An earlier concurrent run hit the known SessionLog `ENOTEMPTY`
+  cleanup race; isolated rerun and final full-suite rerun passed.
+- Bounded Kefka harness (2026-10-16): 16/20 scenarios passed, zero policy
+  violations, 4 provider requests, 11,930 total tokens, estimated cost
+  ~$0.00193. Safety refusals, unknown-command approval, interruption, budgets,
+  emergency stop, and one-/two-room navigation passed. The legacy arena
+  navigation scenario timed out waiting for a movement response; dependent
+  arena inspection/target/combat scenarios were unavailable. No authoritative
+  hostile NPC was visible, so no live combat was attempted. This run exited
+  non-zero and is not a full live pass.
+- Next task: investigate the intermittent live arena-navigation stall without
+  weakening movement safety, then rerun the same bounded harness.
+- Earlier bounded Kefka live harness passed all 24 scenarios on 2026-10-14 with zero
   policy violations (5 provider requests, 11,653 tokens, estimated cost ~$0.002).
   It verifies the production baseline, not persisted frontier selection.
 - Run `git log -1 --oneline` on `development` for the latest commit.

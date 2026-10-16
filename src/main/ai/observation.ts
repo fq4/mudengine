@@ -8,7 +8,11 @@ export function compactCharacterObservation<T extends { room: unknown; inventory
 
 import type { AiActionName } from '../../shared/ai';
 import { actionPolicy } from './ActionPolicy';
-import { objectiveRequestsItemUse } from './objectiveIntents';
+import {
+  objectiveRequestsCommunication,
+  objectiveRequestsEquipmentManagement,
+  objectiveRequestsItemUse
+} from './objectiveIntents';
 
 /**
  * Advertise only capabilities relevant to the current objective. This is a
@@ -29,17 +33,12 @@ export function objectiveAvailableActions(objective: string): AiActionName[] {
   if (/\b(navigate|travel|go to|walk to|explore)\b/.test(value)) actions.push('navigate_to');
   if (/\b(recover|health|heal|rest)\b/.test(value)) actions.push('recover_health');
   if (objectiveRequestsItemUse(objective)) actions.push('use_item');
-  if (/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/.test(value))
+  if (objectiveRequestsEquipmentManagement(objective))
     actions.push('manage_equipment');
   if (/\b(fight|combat|attack|engage|enemy|npc)\b/.test(value)) {
     actions.push('engage_enemy', 'inspect_combat_result');
   }
-  if (
-    /\b(communicat\w*|conversation\w*|chat|message\w*|talk|tell|gossip|say|speak|social)\b/.test(
-      value
-    )
-  )
-    actions.push('send_message');
+  if (objectiveRequestsCommunication(objective)) actions.push('send_message');
   if (/\b(command|execute|run|unknown)\b/.test(value)) actions.push('execute_supported_command');
   return actions;
 }
@@ -52,7 +51,10 @@ export function objectiveActionPolicies(objective: string) {
       name,
       risk: policy.risk,
       authorization: policy.authorization,
-      summary: policy.summary
+      authorizationScope: policy.authorizationScope,
+      summary: policy.summary,
+      failure: policy.failure,
+      completion: policy.completion
     };
   });
 }

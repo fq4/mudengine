@@ -10,6 +10,10 @@ const OPTIONAL_COMBAT_PATTERN =
   /\b(?:fight|combat|attack|engage|hunt)\b[^.!?\r\n]{0,80}\b(?:if|when)\b[^.!?\r\n]{0,40}\b(?:available|present|visible)\b|\b(?:if|when)\b[^.!?\r\n]{0,40}\b(?:available|present|visible)\b[^.!?\r\n]{0,80}\b(?:fight|combat|attack|engage|hunt)\b/i;
 const UNSUPPORTED_OBJECTIVE_PATTERN =
   /\b(?:buy|purchase|sell|trade|craft|gather|collect|deliver|claim|cast|teleport|train|loot|unlock)\b|\b(?:complete|finish|start|accept|abandon|turn in)\b[^.!?\r\n]{0,40}\b(?:quest|mission|contract)\b/i;
+const EQUIPMENT_OBJECTIVE_PATTERN = /\b(equipment|gear|armor|armour|weapon|wear|dress)\b/i;
+const COMMUNICATION_OBJECTIVE_PATTERN =
+  /\b(communicat\w*|conversation\w*|chat|message\w*|talk|tell|gossip|say|speak|social|contact|ask)\b/i;
+const GOSSIP_REPLY_OBJECTIVE_PATTERN = /\b(reply|respond)\b/i;
 
 export function objectiveRequestsItemUse(objective: string): boolean {
   return ITEM_USE_OBJECTIVE_PATTERN.test(objective);
@@ -25,6 +29,18 @@ export function objectiveRequestsCombat(objective: string): boolean {
 
 export function objectiveCombatIsOptional(objective: string): boolean {
   return objectiveRequestsCombat(objective) && OPTIONAL_COMBAT_PATTERN.test(objective);
+}
+
+export function objectiveRequestsEquipmentManagement(objective: string): boolean {
+  return EQUIPMENT_OBJECTIVE_PATTERN.test(objective);
+}
+
+export function objectiveRequestsCommunication(objective: string): boolean {
+  return COMMUNICATION_OBJECTIVE_PATTERN.test(objective);
+}
+
+export function objectiveRequestsGossipReply(objective: string): boolean {
+  return GOSSIP_REPLY_OBJECTIVE_PATTERN.test(objective) && /\bgossip\b/i.test(objective);
 }
 
 export function hasUnsupportedObjectiveIntent(objective: string): boolean {

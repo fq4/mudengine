@@ -35,6 +35,11 @@ describe('objective capability advertisement', () => {
     expect(actions).toEqual(expect.arrayContaining(['navigate_to', 'send_message']));
     expect(actions).not.toContain('manage_equipment');
   });
+  it('uses communication intent consistently for questions and replies', () => {
+    expect(objectiveAvailableActions('Ask the nearby shopkeeper a question.')).toContain(
+      'send_message'
+    );
+  });
 
   it('advertises gossip replies without unrelated item-use capability', () => {
     const actions = objectiveAvailableActions(
@@ -47,7 +52,22 @@ describe('objective capability advertisement', () => {
   it('exposes policy metadata alongside advertised capabilities', () => {
     const policies = objectiveActionPolicies('Navigate safely to 1/2.');
     const navigation = policies.find((policy) => policy.name === 'navigate_to');
-    expect(navigation).toMatchObject({ risk: 'routine', authorization: 'autonomous' });
+    expect(navigation).toMatchObject({
+      risk: 'routine',
+      authorization: 'autonomous',
+      authorizationScope: 'capability',
+      completion: 'delegated'
+    });
     expect(navigation?.summary).toMatch(/Walker/);
+    expect(navigation?.failure).toMatch(/authoritative reachable destination/);
+
+    const command = objectiveActionPolicies('Execute a verified command.').find(
+      (policy) => policy.name === 'execute_supported_command'
+    );
+    expect(command).toMatchObject({
+      authorization: 'ask-first',
+      authorizationScope: 'command',
+      completion: 'approval'
+    });
   });
 });

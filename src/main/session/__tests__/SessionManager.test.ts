@@ -394,6 +394,7 @@ describe('AI reconnect lifecycle', () => {
     const socket = await client();
     let wire = '';
     socket.on('data', (chunk) => { wire += chunk.toString('latin1'); });
+    (manager as any).tracker.current.phase = 'in-game';
     const pending = await manager.aiAction({
       name: 'execute_supported_command',
       args: { command: 'check status' },
@@ -416,6 +417,7 @@ describe('AI reconnect lifecycle', () => {
     const socket = await client();
     let wire = '';
     socket.on('data', (chunk) => { wire += chunk.toString('latin1'); });
+    (manager as any).tracker.current.phase = 'in-game';
     (manager as any).aiAgent.state.objective = 'Respond to people in the gossip channel';
     (manager as any).aiEventForBlock({
       type: 'conversation-gossip',
@@ -446,6 +448,7 @@ describe('AI reconnect lifecycle', () => {
     const socket = await client();
     let wire = '';
     socket.on('data', (chunk) => { wire += chunk.toString('latin1'); });
+    (manager as any).tracker.current.phase = 'in-game';
     const result = await manager.aiAction({
       name: 'execute_supported_command',
       args: { command: 'look' },
@@ -963,11 +966,17 @@ describe('AI reconnect lifecycle', () => {
     const isolated = new SessionManager(sink);
     await isolated.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
     await client();
+    (isolated as any).tracker.current.phase = 'in-game';
     const recovery = await isolated.aiAction({ name: 'recover_health', reason: 'restore health' });
     (isolated as any).aiAgent.state.objective = 'manage equipment safely';
     const equipment = await isolated.aiAction({ name: 'manage_equipment', reason: 'review gear' });
     expect(recovery).toEqual({ ok: true, message: 'Recovery delegated to CommandQueue' });
-    expect(equipment).toEqual({ ok: true, message: 'Equipment management delegated to EquipmentManager' });
+    expect(equipment).toMatchObject({ ok: false, pendingApproval: true });
+    const approval = isolated.aiSnapshot.state.pendingApprovals[0];
+    expect(approval?.command).toBe('ai-action:manage_equipment');
+    isolated.aiApprove(approval!.id);
+    await until(() => (isolated as any).aiEquipmentBaseline !== null);
+    expect(isolated.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
     isolated.dispose();
   });
 

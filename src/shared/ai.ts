@@ -30,7 +30,10 @@ export interface AiObservation {
     name: AiActionName;
     risk: 'safe' | 'routine' | 'high' | 'unknown' | 'prohibited';
     authorization: 'autonomous' | 'ask-first' | 'rejected';
+    authorizationScope: 'capability' | 'command';
     summary: string;
+    failure: string;
+    completion: 'immediate' | 'delegated' | 'approval';
   }>;
   activityCandidates?: Array<{
     action: AiAction;

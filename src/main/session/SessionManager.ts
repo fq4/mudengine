@@ -101,12 +101,16 @@ import {
 import {
   hasUnsupportedObjectiveIntent,
   objectiveCombatIsOptional,
-  objectiveRequestsItemUse,
   objectiveRequestsCombat,
+  objectiveRequestsGossipReply,
   objectiveRequestsNpcSearch
 } from '../ai/objectiveIntents';
 import { isMeaningfulAiEvent } from '../ai/events';
-import { actionPolicy, validateActionPolicy } from '../ai/ActionPolicy';
+import {
+  actionPolicy,
+  validateActionPolicy,
+  type ActionPolicyContext
+} from '../ai/ActionPolicy';
 import { findSafeCombatNpc, findSafeNpc } from '../ai/NpcDiscovery';
 import { assessCombatEligibility } from '../ai/CombatSafety';
 import { combatOutcome } from '../ai/CombatOutcome';
@@ -3483,8 +3487,7 @@ export class SessionManager {
   }
 
   private isGossipReplyObjective(): boolean {
-    const objective = this.aiAgent.state.objective.toLowerCase();
-    return /\b(reply|respond)\b/.test(objective) && /\bgossip\b/.test(objective);
+    return objectiveRequestsGossipReply(this.aiAgent.state.objective);
   }
 
   private hasRecentGossipReplyAuthorization(now = Date.now()): boolean {
@@ -4217,6 +4220,26 @@ export class SessionManager {
         : 'completed';
     return 'completed';
   }
+  private aiActionPolicyContext(): ActionPolicyContext {
+    const state = this.tracker.current;
+    return {
+      objective: this.aiAgent.state.objective,
+      connected: this.client.connected,
+      inRealm: state.phase === 'in-game',
+      visibleNpcNames: state.room.occupants
+        .filter((occupant) => findSafeNpc([occupant]) !== null)
+        .map((occupant) => occupant.name),
+      safeCombatTargetNames: state.room.occupants
+        .filter((occupant) => findSafeCombatNpc([occupant]) !== null)
+        .map((occupant) => occupant.name),
+      usableItemNames: state.inventory.items
+        .filter((item) => assessItemUse(state.inventory.items, item.name).ok)
+        .map((item) => item.name),
+      recentGossipReplyAuthorized:
+        this.isGossipReplyObjective() && this.hasRecentGossipReplyAuthorization()
+    };
+  }
+
   async aiAction(action: unknown): Promise<{ ok: boolean; message: string }> {
     if (!action || typeof action !== 'object') return { ok: false, message: 'Invalid AI action' };
     const candidate = action as Partial<AiAction>;
@@ -4232,34 +4255,23 @@ export class SessionManager {
         message: `AI response contains an unsupported action: ${candidate.name}`
       };
     const typed = candidate as AiAction;
-    const policyError = validateActionPolicy(typed, {
-      objective: this.aiAgent.state.objective,
-      connected: this.client.connected,
-      inRealm: this.tracker.current.phase === 'in-game'
-    });
-    if (policyError !== null) return { ok: false, message: `Refused: ${policyError}` };
     return this.executeAiAction(typed);
   }
   private async executeAiAction(
     action: AiAction,
     source: 'agent' | 'approved' | undefined = undefined
   ): Promise<{ ok: boolean; message: string; pendingApproval?: boolean }> {
-    const gossipReplyRequested = action.name === 'send_message' && this.isGossipReplyObjective();
-    if (gossipReplyRequested) {
-      if (action.args?.channel !== 'gossip') {
-        return {
-          ok: false,
-          message: 'Refused: this reply objective is limited to the gossip channel'
-        };
-      }
-      if (!this.hasRecentGossipReplyAuthorization())
-        return {
-          ok: false,
-          message: 'Refused: a recent inbound gossip message is required to reply'
-        };
-    }
     const policy = actionPolicy(action.name);
-    if (source === 'agent' && policy.authorization === 'ask-first') {
+    const policyError = validateActionPolicy(action, this.aiActionPolicyContext());
+    if (policyError !== null) return { ok: false, message: `Refused: ${policyError}` };
+    if (policy.authorization === 'rejected')
+      return { ok: false, message: `Refused: ${policy.failure}` };
+    const gossipReplyRequested = action.name === 'send_message' && this.isGossipReplyObjective();
+    if (
+      source !== 'approved' &&
+      policy.authorizationScope === 'capability' &&
+      policy.authorization === 'ask-first'
+    ) {
       const contextHash = JSON.stringify({
         room: this.tracker.current.room,
         target: this.tracker.current.combat.target
@@ -4320,13 +4332,6 @@ export class SessionManager {
           message: 'Recovery delegated to CommandQueue'
         };
     if (action.name === 'manage_equipment') {
-      if (
-        !/\b(equipment|gear|armor|armour|weapon|wear|dress)\b/i.test(this.aiAgent.state.objective)
-      )
-        return {
-          ok: false,
-          message: 'Refused: the objective does not request equipment management'
-        };
       this.aiEquipmentBaseline = JSON.stringify(this.tracker.current.inventory);
       this.gear.onCharacter(
         this.tracker.current,
@@ -4345,8 +4350,6 @@ export class SessionManager {
       return { ok: true, message: 'Equipment management delegated to EquipmentManager' };
     }
     if (action.name === 'use_item') {
-      if (!objectiveRequestsItemUse(this.aiAgent.state.objective))
-        return { ok: false, message: 'Refused: the objective does not request item use' };
       const name = typeof action.args?.name === 'string' ? action.args.name.trim() : '';
       const eligibility = assessItemUse(this.tracker.current.inventory.items, name);
       if (!eligibility.ok) return { ok: false, message: `Refused: ${eligibility.reason}` };
@@ -4374,33 +4377,10 @@ export class SessionManager {
       };
     }
     if (action.name === 'send_message') {
-      const objective = this.aiAgent.state.objective.toLowerCase();
-      const communicationRequested =
-        /\b(communicat|conversation|convers|chat|message|messag|talk|tell|gossip|say|speak|social|contact|ask)\w*\b/.test(
-          objective
-        );
-      if (!communicationRequested)
-        return {
-          ok: false,
-          message: 'AI social action refused: the current objective does not request communication'
-        };
       const channel = action.args?.channel;
       const message = typeof action.args?.message === 'string' ? action.args.message.trim() : '';
       const target =
         typeof action.args?.target === 'string' ? action.args.target.trim() : undefined;
-      if (
-        /[\r\n\x00]/.test(message) ||
-        (target !== undefined && !/^[\p{L}\p{N}_'-]+$/u.test(target))
-      )
-        return { ok: false, message: 'Refused: message or target contains invalid command syntax' };
-      if (
-        !['local', 'gossip', 'tell', 'telepath', 'broadcast'].includes(String(channel)) ||
-        message.length === 0 ||
-        message.length > 240
-      )
-        return { ok: false, message: 'Refused: invalid social channel or message length' };
-      if ((channel === 'tell' || channel === 'telepath') && !target)
-        return { ok: false, message: 'Refused: private communication requires a target' };
       const allowed = this.aiSocial.allow({ channel: channel as AiSocialChannel, target, message });
       if (!allowed.ok) return { ok: false, message: allowed.reason };
       const command =
@@ -4425,8 +4405,6 @@ export class SessionManager {
       };
     }
     if (action.name === 'engage_enemy') {
-      if (!/\b(fight|combat|attack|engage|enemy)\b/i.test(this.aiAgent.state.objective))
-        return { ok: false, message: 'Refused: the objective does not request PvE combat' };
       const name = typeof action.args?.name === 'string' ? action.args.name : '';
       if (!name || name.startsWith('@'))
         return { ok: false, message: 'Refused: enemy name is required and PvP is not supported' };

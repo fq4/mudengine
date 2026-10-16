@@ -216,6 +216,27 @@ describe('policy-filtered activity selection', () => {
     });
   });
 
+  it('does not expose duplicate hostile names as attack candidates', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    const mob = {
+      name: 'filthbug',
+      kind: 'mob' as const,
+      mob: {} as never,
+      disposition: 'hostile' as const,
+      uncertain: false,
+      costly: 'never' as const,
+      charmed: false,
+      hidden: false,
+      free: false
+    };
+    state.room.occupants = [mob, { ...mob, name: 'Filthbug' }];
+    expect(
+      selectActivity(state, 'fight an enemy').considered.some(
+        ({ action }) => action.name === 'engage_enemy'
+      )
+    ).toBe(false);
+  });
+
   it('uses reachable frontiers to search for an NPC without pretending one is visible', () => {
     const state = structuredClone(EMPTY_CHARACTER);
     state.room.map = 1;

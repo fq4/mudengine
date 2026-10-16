@@ -5,13 +5,8 @@ export function findSafeNpc(
   occupants: readonly RoomOccupant[],
   preferred?: string
 ): RoomOccupant | null {
-  const requested = preferred?.trim().toLowerCase();
-  return (
-    occupants.find((occupant) => {
-      if (!occupant.npc || occupant.kind === 'player') return false;
-      return requested === undefined || occupant.name.toLowerCase() === requested;
-    }) ?? null
-  );
+  const safeNpcs = occupants.filter((occupant) => occupant.npc && occupant.kind !== 'player');
+  return uniqueNameMatch(safeNpcs, preferred);
 }
 
 /**
@@ -23,18 +18,29 @@ export function findSafeCombatNpc(
   occupants: readonly RoomOccupant[],
   preferred?: string
 ): RoomOccupant | null {
+  const safeHostiles = occupants.filter((occupant) => {
+    if (
+      occupant.kind !== 'mob' ||
+      !occupant.mob ||
+      occupant.uncertain ||
+      occupant.charmed
+    )
+      return false;
+    return occupant.costly !== 'always' && occupant.disposition === 'hostile';
+  });
+  return uniqueNameMatch(safeHostiles, preferred);
+}
+
+function uniqueNameMatch<T extends { name: string }>(
+  candidates: readonly T[],
+  preferred?: string
+): T | null {
   const requested = preferred?.trim().toLowerCase();
   return (
-    occupants.find((occupant) => {
-      if (
-        occupant.kind !== 'mob' ||
-        !occupant.mob ||
-        occupant.uncertain ||
-        occupant.charmed
-      )
-        return false;
-      if (occupant.costly === 'always' || occupant.disposition !== 'hostile') return false;
-      return requested === undefined || occupant.name.toLowerCase() === requested;
+    candidates.find((candidate) => {
+      const name = candidate.name.trim().toLowerCase();
+      if (requested !== undefined && name !== requested) return false;
+      return candidates.filter((item) => item.name.trim().toLowerCase() === name).length === 1;
     }) ?? null
   );
 }

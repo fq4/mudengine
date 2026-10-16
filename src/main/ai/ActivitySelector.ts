@@ -4,6 +4,7 @@ import { findSafeCombatNpc } from './NpcDiscovery';
 import {
   objectiveCombatIsOptional,
   objectiveRequestsCombat,
+  objectiveRequestsGossipReply,
   objectiveRequestsNpcSearch
 } from './objectiveIntents';
 
@@ -114,7 +115,7 @@ export function selectActivity(
         `the player goal requests equipment evaluation (${summary})`
       )
     );
-  if (gossipReplyAvailable && /\b(reply|respond)\b/.test(lower) && /\bgossip\b/.test(lower)) {
+  if (gossipReplyAvailable && objectiveRequestsGossipReply(goal)) {
     candidates.push({
       action: {
         name: 'send_message',
