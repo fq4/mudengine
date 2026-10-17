@@ -564,17 +564,22 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   low-health recovery in the same objective.
 - The harness now reports the observed before/after room keys. The recovery
   adapter refuses unknown authoritative HP, reports a no-op at/above
-  `restBelow`, delegates `rest` only below the threshold, explicitly reports
-  CommandQueue rejection, and will not duplicate a Recovery rest already
-  active, in flight, or queued. The integrated objective is skipped if a
-  preceding encounter or recovery remains unresolved.
+  `restBelow`, and delegates due recovery through Recovery's own configured
+  guards and CommandQueue path after SessionManager confirms resting is safe.
+  It does not queue a direct emergency-priority `rest`, reports queued,
+  regeneration-deferred, and not-started outcomes, and does not claim a
+  rejected queue request is in flight. It will not duplicate a Recovery rest
+  already active, in flight, or queued. An explicit recovery objective
+  completes cleanly when rest is not due. The integrated objective is skipped
+  if a preceding encounter or recovery remains unresolved.
 - A later bounded attempt failed the placement gate: the session phase was
   `in-game`, but room identity was `unknown/unknown`, with one attacker
   reported. It made zero provider requests and did not run the objective. This
   is inconclusive about navigation and gameplay; confirm Kefka's placement and
   combat state before another live run.
-- Focused SessionManager recovery tests passed 4/4, and objective/live-harness
-  tests passed 36/36. The latest full suite passed 7,020 tests with 2 skipped
+- Focused Recovery and SessionManager recovery tests passed 8/8, and
+  objective/live-harness tests passed 36/36. The latest full suite passed
+  7,024 tests with 2 skipped
   across 253 files. An earlier concurrent run hit two `SessionLog.test.ts`
   cleanup errors (`ENOTEMPTY`); all 14 tests passed in isolation, and the final
   full run passed. Typecheck, production build, secret scan, script syntax, and

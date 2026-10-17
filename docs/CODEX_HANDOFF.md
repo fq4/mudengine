@@ -186,19 +186,31 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   correctly did not rest. Its route report now prints the observed
   before/after room keys.
 - `recover_health` now refuses unknown HP, reports recovery as not due at or
-  above configured `restBelow`, queues `rest` only below that threshold, and
-  reports CommandQueue rejection explicitly. It recognizes an active,
-  in-flight, or queued Recovery rest and does not enqueue a duplicate.
-  Focused tests cover unknown, at/above-threshold, below-threshold,
+  above configured `restBelow`; due recovery goes through Recovery's own
+  configured guards and CommandQueue path, after SessionManager confirms that
+  resting is safe. It no longer queues an emergency-priority `rest` directly.
+  Recovery reports queued, regeneration-deferred, and not-started outcomes,
+  and rejected queue requests do not claim a rest is in flight. It recognizes
+  an active, in-flight, or queued Recovery rest and does not duplicate it.
+  Focused tests cover unknown, at/above-threshold, below-threshold, unsafe,
   rejected-queue, and duplicate-rest states; queue acceptance is not presented
-  as completed recovery. The integrated objective is skipped if an earlier
-  encounter/recovery remains unresolved.
+  as completed recovery. An explicit recovery step completes cleanly when the
+  result says rest is not due, rather than failing merely because HP did not
+  change. The integrated objective is skipped if an earlier encounter/recovery
+  remains unresolved.
+- Follow-up hardening routes explicit recovery through `Recovery.requestRest`
+  and SessionManager's `mayRest()` instead of directly enqueueing an
+  emergency-priority command. Recovery now distinguishes queued,
+  regeneration-deferred, and not-started requests, and does not set its
+  in-flight/resting bookkeeping if CommandQueue rejects the request. Focused
+  SessionManager and Recovery tests cover the safe-rest refusal and queue
+  outcomes. This improves offline correctness but is not live evidence.
 - The most recent bounded attempt did not pass its room-identity gate:
   `phase=in-game`, `room=unknown/unknown`, and one attacker were reported.
   It made zero provider requests and did not run an objective. This is
   inconclusive about gameplay and is not a navigation failure; do not retry
   until Kefka's placement and combat state are confirmed.
-- Latest local validation: the final `npm test` passed 7,020 tests with 2
+- Latest local validation: the final `npm test` passed 7,024 tests with 2
   skipped across 253 files. An earlier concurrent run hit two
   `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
   isolation (14/14), and the final full run passed. Typecheck, production

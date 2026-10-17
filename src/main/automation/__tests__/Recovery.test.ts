@@ -496,6 +496,29 @@ describe('having asked, before the flag has arrived', () => {
     recovery.onCharacter(state({ hp: 32, hpMax: 80, resting: true }));
     expect(recovery.restInFlight).toBe(false);
   });
+
+  it('does not claim a rest is in flight when the queue rejects the request', () => {
+    const recovery = make(health({ restBelow: 0.5 }));
+    vi.spyOn(queue, 'enqueue').mockReturnValue(false);
+
+    expect(recovery.requestRest(state({ hp: 30, hpMax: 80 }))).toBe('not-started');
+    expect(recovery.restInFlight).toBe(false);
+    expect(recovery.recovering).toBeNull();
+  });
+
+  it('reports when configured regeneration defers resting', () => {
+    const recovery = new Recovery(
+      health({ restBelow: 0.5 }),
+      true,
+      queue,
+      DEFAULT_CONFIG.automation.party,
+      { beforeRest: () => true }
+    );
+
+    expect(recovery.requestRest(state({ hp: 30, hpMax: 80 }))).toBe('deferred');
+    expect(queue.queued((intent) => intent.command === 'rest')).toBe(false);
+    expect(recovery.restInFlight).toBe(false);
+  });
 });
 
 describe('the resting ceiling', () => {

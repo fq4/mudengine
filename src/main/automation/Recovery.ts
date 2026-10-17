@@ -291,6 +291,8 @@ export class Recovery {
    * which is what `Recovery`'s own rule asks of anything corrective here.
    */
   private proposed: { command: string; until: number } | null = null;
+  private requesting = false;
+  private requestResult: 'queued' | 'deferred' | 'not-started' = 'not-started';
 
   constructor(
     private config: HealthConfig,
@@ -595,6 +597,18 @@ export class Recovery {
     }
   }
 
+  /** Re-evaluate an explicit request through Recovery's normal guards. */
+  requestRest(state: CharacterState): 'queued' | 'deferred' | 'not-started' {
+    this.requesting = true;
+    this.requestResult = 'not-started';
+    try {
+      this.onCharacter(state);
+      return this.requestResult;
+    } finally {
+      this.requesting = false;
+    }
+  }
+
   /**
    * A walk is waiting for this many hit points before its next step, or null.
    * See `needed`; `Walker.restingFor` is the one source.
@@ -696,9 +710,10 @@ export class Recovery {
       this.state !== null &&
       this.events.beforeRest?.(this.state) === true
     ) {
+      if (this.requesting) this.requestResult = 'deferred';
       return;
     }
-    this.queue.enqueue({
+    const queued = this.queue.enqueue({
       command,
       priority: 'probe',
       /*
@@ -714,6 +729,8 @@ export class Recovery {
       expiresAt: Date.now() + tuning().rest.expiresMs,
       reason
     });
+    if (this.requesting) this.requestResult = queued ? 'queued' : 'not-started';
+    if (!queued) return;
     // Asked. Nothing else is proposed until the status line says it worked, or
     // until the deadline says it never will — see `askedUntil`.
     this.askedUntil = Date.now() + tuning().rest.askedMs;

@@ -3662,7 +3662,7 @@ export class SessionManager {
           : `Approved AI action refused: ${result.message}`;
         this.aiAgent.approvalResolved(message);
         if (this.aiAutonomousMode && this.aiScheduler.state.current?.name === approvedAction.name) {
-          const delegated = this.delegatedAiStatus(approvedAction.name);
+          const delegated = this.delegatedAiStatus(approvedAction.name, result.message);
           if (result.ok && delegated === 'active') {
             this.aiAgent.state.currentAction = {
               name: approvedAction.name,
@@ -3965,7 +3965,7 @@ export class SessionManager {
       this.aiAgent.state.status = 'error';
       return;
     }
-    const delegated = this.delegatedAiStatus(action.name);
+    const delegated = this.delegatedAiStatus(action.name, result.message);
     if (delegated === 'active') {
       this.aiAgent.state.currentAction = { name: action.name, phase: 'accepted', message: result.message };
       return;
@@ -4190,7 +4190,10 @@ export class SessionManager {
     }
   }
 
-  private delegatedAiStatus(action: import('../../shared/ai').AiActionName): 'active' | 'completed' | 'failed' | null {
+  private delegatedAiStatus(
+    action: import('../../shared/ai').AiActionName,
+    resultMessage?: string
+  ): 'active' | 'completed' | 'failed' | null {
     if (action === 'navigate_to') {
       const room = this.tracker.current.room;
       const current =
@@ -4219,6 +4222,8 @@ export class SessionManager {
         this.queue.queued((intent) => intent.command === 'rest')
       )
         return 'active';
+      if (resultMessage?.startsWith('Recovery not due:'))
+        return 'completed';
       const before = this.aiSchedulerActionBaseline?.hpRatio;
       const after = this.schedulerProgress().hpRatio;
       return before !== null && before !== undefined && after !== null && after > before
@@ -4351,16 +4356,19 @@ export class SessionManager {
         this.queue.queued((intent) => intent.command === 'rest')
       )
         return { ok: true, message: 'Recovery is already active through Recovery or CommandQueue' };
-      const queued = this.queue.enqueue({
-        command: 'rest',
-        priority: 'emergency',
-        reason: `AI: ${action.reason}`
-      });
+      if (!this.mayRest())
+        return { ok: false, message: 'Recovery refused: current session state is not safe for resting' };
+      const request = this.recovery.requestRest(this.tracker.current);
+      if (request === 'queued')
+        return { ok: true, message: 'Recovery delegated to Recovery and CommandQueue' };
+      if (request === 'deferred')
+        return {
+          ok: false,
+          message: 'Recovery deferred: configured regeneration must resolve before resting; reassess after the next authoritative update'
+        };
       return {
-        ok: queued,
-        message: queued
-          ? 'Recovery delegated to CommandQueue'
-          : 'Recovery command was not accepted by CommandQueue'
+        ok: false,
+        message: 'Recovery refused: Recovery did not start a rest under its current safety and configuration rules'
       };
     }
     if (action.name === 'manage_equipment') {

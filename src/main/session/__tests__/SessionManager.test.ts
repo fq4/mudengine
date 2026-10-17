@@ -1034,7 +1034,10 @@ describe('AI reconnect lifecycle', () => {
     const recovery = await isolated.aiAction({ name: 'recover_health', reason: 'restore health' });
     (isolated as any).aiAgent.state.objective = 'manage equipment safely';
     const equipment = await isolated.aiAction({ name: 'manage_equipment', reason: 'review gear' });
-    expect(recovery).toEqual({ ok: true, message: 'Recovery delegated to CommandQueue' });
+    expect(recovery).toEqual({
+      ok: true,
+      message: 'Recovery delegated to Recovery and CommandQueue'
+    });
     expect(equipment).toMatchObject({ ok: false, pendingApproval: true });
     const approval = isolated.aiSnapshot.state.pendingApprovals[0];
     expect(approval?.command).toBe('ai-action:manage_equipment');
@@ -1084,6 +1087,32 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('completes an explicit recovery objective when rest is not due', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.vitals.hp = 50;
+    state.vitals.hpMax = 100;
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Recover health.');
+    (isolated as any).aiAutonomousMode = true;
+
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.plan).toMatchObject([
+      { action: 'recover_health', status: 'completed' }
+    ]);
+    expect(agent.state.objectiveComplete).toBe(true);
+    expect(agent.state.currentAction).toMatchObject({
+      name: 'recover_health',
+      phase: 'completed',
+      message: 'Recovery not due: HP 50/100 is not below configured restBelow 0.35'
+    });
+    isolated.dispose();
+  });
+
   it('reports when the recovery command is rejected by CommandQueue', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
@@ -1100,8 +1129,32 @@ describe('AI reconnect lifecycle', () => {
     });
     expect(recovery).toEqual({
       ok: false,
-      message: 'Recovery command was not accepted by CommandQueue'
+      message: 'Recovery refused: Recovery did not start a rest under its current safety and configuration rules'
     });
+    isolated.dispose();
+  });
+
+  it('refuses an AI rest when SessionManager safety checks disallow resting', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    await isolated.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    await client();
+    (isolated as any).tracker.current.phase = 'in-game';
+    (isolated as any).tracker.current.vitals.hp = 20;
+    (isolated as any).tracker.current.vitals.hpMax = 100;
+    vi.spyOn(isolated as any, 'mayRest').mockReturnValue(false);
+    const enqueue = vi.spyOn((isolated as any).queue, 'enqueue');
+
+    const recovery = await isolated.aiAction({
+      name: 'recover_health',
+      reason: 'restore health'
+    });
+
+    expect(recovery).toEqual({
+      ok: false,
+      message: 'Recovery refused: current session state is not safe for resting'
+    });
+    expect(enqueue).not.toHaveBeenCalled();
     isolated.dispose();
   });
 
