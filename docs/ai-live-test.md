@@ -564,16 +564,17 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   low-health recovery in the same objective.
 - The harness now reports the observed before/after room keys. The recovery
   adapter refuses unknown authoritative HP, reports a no-op at/above
-  `restBelow`, delegates `rest` only below the threshold, and explicitly
-  reports CommandQueue rejection. The integrated objective is skipped if a
+  `restBelow`, delegates `rest` only below the threshold, explicitly reports
+  CommandQueue rejection, and will not duplicate a Recovery rest already
+  active, in flight, or queued. The integrated objective is skipped if a
   preceding encounter or recovery remains unresolved.
 - A later bounded attempt failed the placement gate: the session phase was
   `in-game`, but room identity was `unknown/unknown`, with one attacker
   reported. It made zero provider requests and did not run the objective. This
   is inconclusive about navigation and gameplay; confirm Kefka's placement and
   combat state before another live run.
-- Focused SessionManager recovery tests passed 3/3, and objective/live-harness
-  tests passed 36/36. The final full suite passed 7,019 tests with 2 skipped
+- Focused SessionManager recovery tests passed 4/4, and objective/live-harness
+  tests passed 36/36. The latest full suite passed 7,020 tests with 2 skipped
   across 253 files. An earlier concurrent run hit two `SessionLog.test.ts`
   cleanup errors (`ENOTEMPTY`); all 14 tests passed in isolation, and the final
   full run passed. Typecheck, production build, secret scan, script syntax, and

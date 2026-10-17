@@ -187,16 +187,18 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   before/after room keys.
 - `recover_health` now refuses unknown HP, reports recovery as not due at or
   above configured `restBelow`, queues `rest` only below that threshold, and
-  reports CommandQueue rejection explicitly. Focused tests cover unknown,
-  at/above-threshold, below-threshold, and rejected-queue health states; queue
-  acceptance is not presented as completed recovery. The integrated objective
-  is skipped if an earlier encounter/recovery remains unresolved.
+  reports CommandQueue rejection explicitly. It recognizes an active,
+  in-flight, or queued Recovery rest and does not enqueue a duplicate.
+  Focused tests cover unknown, at/above-threshold, below-threshold,
+  rejected-queue, and duplicate-rest states; queue acceptance is not presented
+  as completed recovery. The integrated objective is skipped if an earlier
+  encounter/recovery remains unresolved.
 - The most recent bounded attempt did not pass its room-identity gate:
   `phase=in-game`, `room=unknown/unknown`, and one attacker were reported.
   It made zero provider requests and did not run an objective. This is
   inconclusive about gameplay and is not a navigation failure; do not retry
   until Kefka's placement and combat state are confirmed.
-- Latest local validation: the final `npm test` passed 7,019 tests with 2
+- Latest local validation: the final `npm test` passed 7,020 tests with 2
   skipped across 253 files. An earlier concurrent run hit two
   `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
   isolation (14/14), and the final full run passed. Typecheck, production

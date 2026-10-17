@@ -1105,6 +1105,31 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('does not enqueue a duplicate rest while Recovery already has one in flight', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    await isolated.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    await client();
+    (isolated as any).tracker.current.phase = 'in-game';
+    (isolated as any).tracker.current.vitals.hp = 20;
+    (isolated as any).tracker.current.vitals.hpMax = 100;
+    (isolated as any).recovery.onCharacter((isolated as any).tracker.current);
+    expect((isolated as any).recovery.restInFlight).toBe(true);
+    const enqueue = vi.spyOn((isolated as any).queue, 'enqueue');
+
+    const recovery = await isolated.aiAction({
+      name: 'recover_health',
+      reason: 'restore health'
+    });
+
+    expect(recovery).toEqual({
+      ok: true,
+      message: 'Recovery is already active through Recovery or CommandQueue'
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    isolated.dispose();
+  });
+
   it('suspends stale AI execution while preserving the objective for reassessment', async () => {
     const { sink } = collect();
     manager = new SessionManager(sink);

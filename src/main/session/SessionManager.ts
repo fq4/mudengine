@@ -4345,6 +4345,12 @@ export class SessionManager {
           ok: true,
           message: `Recovery not due: HP ${hp}/${hpMax} is not below configured restBelow ${restBelow}`
         };
+      if (
+        this.recovery.recovering ||
+        this.recovery.restInFlight ||
+        this.queue.queued((intent) => intent.command === 'rest')
+      )
+        return { ok: true, message: 'Recovery is already active through Recovery or CommandQueue' };
       const queued = this.queue.enqueue({
         command: 'rest',
         priority: 'emergency',

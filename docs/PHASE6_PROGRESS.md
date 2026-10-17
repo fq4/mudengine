@@ -434,8 +434,10 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   reports a truthful no-op when HP is at or above the configured
   `restBelow`, and delegates `rest` only when that configured threshold says
   recovery is due. Queue rejection is reported explicitly; queue acceptance
-  still is not treated as proof that rest occurred. Focused SessionManager
-  tests cover unknown, at/above-threshold, below-threshold, and rejected-queue
+  still is not treated as proof that rest occurred. Before enqueueing, it
+  recognizes Recovery's active state, in-flight request, or queued `rest` and
+  avoids issuing a duplicate. Focused SessionManager tests cover unknown,
+  at/above-threshold, below-threshold, rejected-queue, and duplicate-rest
   states. The integrated objective is also skipped when a prior encounter or
   recovery remains unresolved.
 - Latest bounded live attempt stopped at its login/placement gate: phase was
@@ -443,8 +445,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   attacker was reported and no provider/objective action ran. The run had zero
   provider requests and cannot verify the integrated scenario. Do not retry
   live until Kefka's actual placement and combat state are confirmed.
-- Focused recovery tests passed 3/3; objective/live-harness tests passed 36/36.
-  The final full suite passed 7,019 tests with 2 skipped across 253 files.
+- Focused recovery tests passed 4/4; objective/live-harness tests passed 36/36.
+  After duplicate-rest prevention, the full suite passed 7,020 tests with 2
+  skipped across 253 files.
   An earlier concurrent run hit two `SessionLog.test.ts` cleanup `ENOTEMPTY`
   errors; the file passed in isolation (14/14), and the final full run passed.
   Typecheck, production build, secret scan, JavaScript syntax, and
