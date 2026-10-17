@@ -477,6 +477,18 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   input. The harness reports only parser type, predefined category labels,
   and a flush marker for its final eight pre-game blocks; it never stores or
   prints their text. Keep live retries paused pending prompt confirmation.
+- Following replenishment of Kefka's lives, the next bounded run reached
+  in-game state and passed all 25 scenarios with zero policy violations. It
+  used 4 provider requests, 12,587 tokens, and approximately $0.002071 under
+  the unchanged 120,000 ms / 16 requests / 60,000 tokens / $0.05 limits.
+  Walker verified `1/2140` -> `1/2150`, then one-room and two-room navigation
+  through `1/2146` to `1/2144`. Two authoritative mobs were seen; the
+  eligible exact target was engaged through the approved SessionManager path.
+  Combat produced `outcome=victory` with XP evidence, but no target-death
+  evidence. Settlement was HP 32/51, inactive, with no target or attackers.
+  Recovery readiness at the 60% threshold was reported, but `action=none`;
+  low-health recovery was not exercised. There was no inspectable room
+  resident. This successful login supersedes the preceding pause on live runs.
 
 ### 2026-10-15 - first live gossip reply observed
 

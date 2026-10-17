@@ -355,21 +355,32 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   only the last eight parser types, predefined keyword categories, and flush
   markers, never block text. Do not retry until login availability and the
   expected prompt are confirmed.
+- After the user replenished Kefka's lives, the next bounded harness run
+  reached in-game state and all 25 scenarios passed with zero policy
+  violations. It used 4 provider requests, 12,587 tokens, and approximately
+  $0.002071, within the unchanged 120,000 ms / 16 / 60,000 / $0.05 limits.
+  Walker verified Arena arrival `1/2140` -> `1/2150`, followed by successful
+  one-room and two-room routes (`1/2150` -> `1/2146` -> `1/2144`). The harness
+  observed two authoritative mobs and engaged the eligible exact target through
+  the approved SessionManager path. The result was `victory` with authoritative
+  XP evidence; target-death evidence was not observed. Settlement state was
+  HP 32/51, no engagement, target, or attackers. Recovery reported the
+  character ready at the 60% threshold, but took no rest action; low-health
+  recovery remains unverified. No inspectable room resident was present.
+  This successful login supersedes the prior pause on live retries, subject
+  to the same bounded harness and spend ceilings.
 
 ## Remaining work
 
 Repeated Arena arrivals and the latest one-/two-room routes verify the
 corrected Walker lifecycle path, but the historical server timeout's exact
-cause remains unconfirmed without its missing capture. Combat was authorized
-against an authoritative hostile, but the latest run ended without XP or
-target-death evidence; a confirmed win and live low-health recovery remain
-unverified. The recovery timeout is now diagnostically bounded by remaining
-harness runtime, and combat settling is bounded by the same global runtime;
-both changes still need a live observation. Recent follow-up connections
-failed to acquire authoritative room state / reach in-game, including repeated
-`authenticating` states, so stop further live attempts until Kefka's current
-server placement and login availability are confirmed. There was no
-inspectable resident NPC in the latest placed run.
+cause remains unconfirmed without its missing capture. The latest bounded
+live run achieved an XP-confirmed PvE victory against an authoritative hostile,
+and verified route navigation, but did not observe exact-target death. It
+reached 32/51 HP and was already above the harness's 60% recovery-ready
+threshold; no recovery action occurred, so low-health recovery remains
+unverified. The successful post-refill login supersedes the previous
+authentication stall. No inspectable resident NPC was present in that run.
 Keep these as distinct limitations rather than treating combat or resident
 availability as navigation failures.
 

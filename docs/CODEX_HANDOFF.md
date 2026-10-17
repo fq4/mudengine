@@ -134,6 +134,18 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   Timeout output now contains only the capped parser types, predefined
   categories, and terminator marker; do not resume live attempts until the
   expected login prompt is confirmed.
+- After the user replenished Kefka's lives, a bounded run reached in-game state
+  and passed all 25 scenarios with zero policy violations (4 requests, 12,587
+  tokens, approximately $0.002071). Within unchanged 120,000 ms / 16 /
+  60,000 / $0.05 limits, Walker verified `1/2140` -> `1/2150`, then one-room
+  and two-room routes to `1/2146` and `1/2144`. The approved exact-target
+  SessionManager combat against an authoritative hostile produced `victory`
+  with XP evidence; target-death evidence was not observed. At settlement HP
+  was 32/51 and combat was inactive. Recovery reported readiness at its 60%
+  threshold but took no rest action, so live low-health recovery remains
+  unverified. No inspectable room resident was present. This successful login
+  supersedes the prior authentication-stall pause; keep future live runs within
+  the existing bounds and ceilings.
 - Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.
