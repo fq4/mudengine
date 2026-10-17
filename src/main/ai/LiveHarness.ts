@@ -104,7 +104,7 @@ export interface CombatSettlementResult {
 }
 
 export async function waitForCombatSettlement(options: {
-  combat: () => Pick<Combat, 'engaged' | 'target'>;
+  combat: () => Pick<Combat, 'engaged' | 'target' | 'attackers'>;
   vitals: () => Pick<Vitals, 'hp' | 'hpMax'>;
   wait: (milliseconds: number) => Promise<void>;
   isStopped: () => boolean;
@@ -125,8 +125,13 @@ export async function waitForCombatSettlement(options: {
   ) {
     await options.wait(pollIntervalMs);
   }
-  const unresolved = stillFighting() || options.vitals().hp === 0 || options.isStopped();
-  return { outcome: combatOutcome(options.combat(), options.vitals()), unresolved };
+  const combat = options.combat();
+  const unresolved =
+    stillFighting() ||
+    combat.attackers.length > 0 ||
+    options.vitals().hp === 0 ||
+    options.isStopped();
+  return { outcome: combatOutcome(combat, options.vitals()), unresolved };
 }
 
 export async function waitForRecoveryHealth(options: {

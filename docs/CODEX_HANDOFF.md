@@ -65,7 +65,7 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
-- Latest offline Phase 6 verification: `npm test` passed 7,009 tests with 2
+- Latest offline Phase 6 verification: `npm test` passed 7,014 tests with 2
   skipped across 253 files; `npm run test:realm` passed 18/18;
   `npm run typecheck`, `npm run build`, `npm run check:secrets`,
   `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
@@ -146,7 +146,28 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   unverified. No inspectable room resident was present. This successful login
   supersedes the prior authentication-stall pause; keep future live runs within
   the existing bounds and ceilings.
-- Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
+- The live NPC scenario was then found to use the impossible check
+  `occupant.kind === 'npc'`: the real `RoomOccupant.kind` union is
+  `player | mob | unknown`, and realm-backed identity lives on `.npc`. The
+  harness now calls production `findSafeNpc`, which continues to exclude
+  players. A subsequent live route from `1/2144` to `1/2147` refreshed the
+  room, matched Corwyn's realm identity to the listed occupant, and returned
+  `Observed NPC Corwyn`.
+- An intermediate combat run recorded XP but still had two attackers after
+  target/engagement cleared; the old observer overlooked them and recovery
+  waited out the run. `waitForCombatSettlement` now marks any remaining
+  authoritative attackers unresolved, and the harness fails that combat
+  scenario and skips recovery/navigation/resident movement. A deterministic
+  regression covers the target-cleared/attackers-remain case.
+- Corrected bounded run: 27 scenarios passed, zero policy violations, 4
+  requests, 12,120 tokens, ~$0.002004. It verified Arena and one-/two-room
+  navigation, XP-confirmed exact-target victory with 0 attackers at 37/51 HP,
+  and Corwyn inspection at `1/2147`. A later bounded run again inspected
+  Corwyn and verified navigation; it correctly refused combat when the visible
+  mob was not an eligible hostile (4 requests, 11,679 tokens, ~$0.001937,
+  zero policy violations). Low-health rest recovery remains unverified because
+  no run reached the configured `restBelow=0.35` threshold.
+- Latest local validation: 7,014 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
@@ -194,16 +215,15 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   checks Walker's terminal status plus the authoritative destination before
   continuing. Four bounded Kefka attempts have reached Arena `1/2150`;
   the latest trace verified `1/2190` → `1/2150` via `e`, `d`.
-- Latest bounded live run stayed within 120,000 ms / 16 requests / 60,000
-  tokens / $0.05, using 6 requests, 19,952 tokens, ~$0.00320 and zero policy
-  violations. It found no authoritative NPC to inspect, but preflighted the
-  visible hostile `acid slime`, executed its exact-target approval, sent
-  `a acid slime`, and observed active combat state. The 15-second observation
-  did not prove a kill or victory. The overall run exited non-zero because
-  one provider navigation action had no destination, a later route was
-  deferred by recovery priority, and recovery was attempted before combat was
-  authoritatively ended. The harness now skips all post-combat actions until
-  it observes `ended`; that new branch is syntax-checked, not yet live-rerun.
+- Latest bounded live run (2026-10-17) stayed within 120,000 ms / 16 requests /
+  60,000 tokens / $0.05, using 4 requests, 11,682 tokens, about $0.001938, and
+  zero policy violations. Walker verified Arena navigation (`1/2147` to
+  `1/2150`), one-/two-room routes, and the return to the Guild (`1/2147`);
+  production inspection again observed resident Corwyn. One authoritative
+  Arena mob was visible but did not qualify as a conservative hostile, so
+  combat was correctly refused without an attack. This run did not exercise
+  post-combat or low-health recovery. A previous bounded run did verify an
+  XP-confirmed PvE victory; exact-target death evidence remains unobserved.
 - The no-objective scheduler-selection flow is covered deterministically and is
   not considered live-verified until a future bounded run reports it.
 - The migration suite passes in isolation: 374/374 tests. The `ENOTEMPTY`
@@ -214,12 +234,11 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
 
 ## Outstanding work
 
-1. Verify a completed bounded PvE encounter with authoritative victory evidence
-   and exercise low-health recovery live, after confirming Kefka can enter the
-   game and has an authoritative room placement. The latest attack ended
-   without XP or target-death evidence; the recovery gate was not exercised
-   because HP was already full. Inspect an NPC only when authoritative NPC
-   state is visible.
+1. A bounded PvE encounter with XP-confirmed victory evidence and Corwyn's
+   production inspection at `1/2147` are verified. Still exercise low-health
+   recovery live and seek exact-target death evidence. The latest run found no
+   eligible hostile and correctly issued no attack; do not manufacture a
+   target or weaken combat safeguards to force either result.
 2. Investigate the historical arena movement report further if its missing
    capture becomes available. Repeated current routes pass, but the exact
    server-side cause of the original timeout cannot be established without it.

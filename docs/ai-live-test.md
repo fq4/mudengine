@@ -434,7 +434,7 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   ends rest. Timeout reports include HP/max HP, resting/meditating, combat
   target/attackers, profile `restBelow` / `restTo`, and AI action state/result.
   Production recovery behavior and the 60% combat preflight are unchanged.
-- Focused AI tests passed 27/27. Full tests passed 7,009 with 2 skipped across
+- Focused AI tests passed 27/27. Full tests passed 7,014 with 2 skipped across
   253 files; typecheck, production build, secret scan, script syntax check, and
   `git diff --check` passed.
 - The next bounded live run passed every listed scenario with no policy
@@ -489,6 +489,27 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   Recovery readiness at the 60% threshold was reported, but `action=none`;
   low-health recovery was not exercised. There was no inspectable room
   resident. This successful login supersedes the preceding pause on live runs.
+- Harness review found the NPC check compared `RoomOccupant.kind` with
+  `'npc'`, but the actual union is `player | mob | unknown`; the authoritative
+  realm resident is attached through `.npc`. The check now uses production
+  `findSafeNpc`, preserving player exclusion. An intermediate live combat had
+  XP evidence but two attackers remained after target/engagement cleared. The
+  settlement helper now reports unresolved in that state; post-combat recovery
+  and all movement are skipped rather than treating the room as clear.
+- Corrected bounded run: all 27 scenarios passed, zero policy violations, 4
+  requests, 12,120 tokens, ~$0.002004. Walker verified Arena and one-/two-room
+  routes, then reached `1/2147`; the server-listed realm resident Corwyn was
+  successfully inspected (`Observed NPC Corwyn`). Exact-target combat had
+  XP-victory evidence and settled at 37/51 HP with 0 attackers; no
+  target-death event was observed. No rest action was due at the configured
+  `restBelow=0.35` threshold, so low-health recovery remains unverified.
+- Latest bounded follow-up (2026-10-17): all reported scenarios passed with
+  zero policy violations (4 requests, 11,682 tokens, ~$0.001938). Walker
+  verified Arena arrival, one-/two-room navigation, and the route back to the
+  Guild; `inspect_npc` again returned `Observed NPC Corwyn`. The only visible
+  Arena mob failed the conservative hostile check, so combat was refused
+  without an attack. No combat or recovery behavior was exercised in this run;
+  the earlier XP-confirmed victory remains separate live evidence.
 
 ### 2026-10-15 - first live gossip reply observed
 

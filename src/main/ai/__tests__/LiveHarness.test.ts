@@ -86,75 +86,6 @@ describe('navigateToWithWalker', () => {
       isError: () => false
     });
 
-    describe('waitForCombatSettlement', () => {
-      it('allows an active low-health fight to settle through the combat owner', async () => {
-        let engaged = true;
-        let target: string | null = 'acid slime';
-        const result = await waitForCombatSettlement({
-          combat: () => ({ engaged, target }),
-          vitals: () => ({ hp: 20, hpMax: 100 }),
-          wait: async (milliseconds) => {
-            expect(milliseconds).toBe(500);
-            engaged = false;
-            target = null;
-          },
-          isStopped: () => false,
-          timeoutMs: 1_000
-        });
-
-        expect(result).toEqual({ outcome: 'ended', unresolved: false });
-      });
-
-      it('reports an unresolved fight at the bounded deadline', async () => {
-        const result = await waitForCombatSettlement({
-          combat: () => ({ engaged: true, target: 'acid slime' }),
-          vitals: () => ({ hp: 20, hpMax: 100 }),
-          wait: async () => {
-            throw new Error('No wait should occur after the deadline');
-          },
-          isStopped: () => false,
-          timeoutMs: 0
-        });
-
-        expect(result).toEqual({ outcome: 'unsafe', unresolved: true });
-      });
-    });
-
-    describe('waitForRecoveryHealth', () => {
-      it('waits for authoritative health to reach the requested recovery threshold', async () => {
-        let hp = 40;
-        let engaged = false;
-        const ready = await waitForRecoveryHealth({
-          vitals: () => ({ hp, hpMax: 100 }),
-          combatActive: () => engaged,
-          wait: async () => {
-            hp = 65;
-            engaged = false;
-          },
-          isStopped: () => false,
-          minimumFraction: 0.6,
-          timeoutMs: 1_000
-        });
-
-        expect(ready).toBe(true);
-      });
-
-      it('does not treat unknown health or active combat as recovery readiness', async () => {
-        const ready = await waitForRecoveryHealth({
-          vitals: () => ({ hp: null, hpMax: null }),
-          combatActive: () => false,
-          wait: async () => {
-            throw new Error('No wait should occur after the deadline');
-          },
-          isStopped: () => false,
-          minimumFraction: 0.6,
-          timeoutMs: 0
-        });
-
-        expect(ready).toBe(false);
-      });
-    });
-
     expect(dispatches).toBe(0);
     expect(result).toMatchObject({ waitCompleted: true, arrived: true });
   });
@@ -268,6 +199,94 @@ describe('navigateToWithWalker', () => {
       waitCompleted: false,
       arrived: false
     });
+  });
+});
+
+describe('waitForCombatSettlement', () => {
+  it('allows an active low-health fight to settle through the combat owner', async () => {
+    let engaged = true;
+    let target: string | null = 'acid slime';
+    const result = await waitForCombatSettlement({
+      combat: () => ({ engaged, target, attackers: [] }),
+      vitals: () => ({ hp: 20, hpMax: 100 }),
+      wait: async (milliseconds) => {
+        expect(milliseconds).toBe(500);
+        engaged = false;
+        target = null;
+      },
+      isStopped: () => false,
+      timeoutMs: 1_000
+    });
+
+    expect(result).toEqual({ outcome: 'ended', unresolved: false });
+  });
+
+  it('reports an unresolved fight at the bounded deadline', async () => {
+    const result = await waitForCombatSettlement({
+      combat: () => ({ engaged: true, target: 'acid slime', attackers: [] }),
+      vitals: () => ({ hp: 20, hpMax: 100 }),
+      wait: async () => {
+        throw new Error('No wait should occur after the deadline');
+      },
+      isStopped: () => false,
+      timeoutMs: 0
+    });
+
+    expect(result).toEqual({ outcome: 'unsafe', unresolved: true });
+  });
+
+  it('does not report settlement while attackers remain after the target clears', async () => {
+    let engaged = true;
+    let target: string | null = 'acid slime';
+    let attackers: string[] = [];
+    const result = await waitForCombatSettlement({
+      combat: () => ({ engaged, target, attackers }),
+      vitals: () => ({ hp: 40, hpMax: 100 }),
+      wait: async () => {
+        engaged = false;
+        target = null;
+        attackers = ['second acid slime'];
+      },
+      isStopped: () => false,
+      timeoutMs: 1_000
+    });
+
+    expect(result).toEqual({ outcome: 'ended', unresolved: true });
+  });
+});
+
+describe('waitForRecoveryHealth', () => {
+  it('waits for authoritative health to reach the requested recovery threshold', async () => {
+    let hp = 40;
+    let engaged = false;
+    const ready = await waitForRecoveryHealth({
+      vitals: () => ({ hp, hpMax: 100 }),
+      combatActive: () => engaged,
+      wait: async () => {
+        hp = 65;
+        engaged = false;
+      },
+      isStopped: () => false,
+      minimumFraction: 0.6,
+      timeoutMs: 1_000
+    });
+
+    expect(ready).toBe(true);
+  });
+
+  it('does not treat unknown health or active combat as recovery readiness', async () => {
+    const ready = await waitForRecoveryHealth({
+      vitals: () => ({ hp: null, hpMax: null }),
+      combatActive: () => false,
+      wait: async () => {
+        throw new Error('No wait should occur after the deadline');
+      },
+      isStopped: () => false,
+      minimumFraction: 0.6,
+      timeoutMs: 0
+    });
+
+    expect(ready).toBe(false);
   });
 });
 

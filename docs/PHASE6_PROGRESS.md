@@ -305,7 +305,7 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   resting/meditating, combat/target/attacker state, configured `restBelow` /
   `restTo`, and the AI action result. Production Recovery behavior and combat
   preflight were not weakened.
-- Focused AI tests passed 27/27. Full `npm test` passed 7,009 tests with 2
+- Focused AI tests passed 27/27. Full `npm test` passed 7,014 tests with 2
   skipped across 253 files; `npm run typecheck`, `npm run build`,
   `npm run check:secrets`, `node --check scripts/ai-live.mjs`, and
   `git diff --check` passed. The build retains the existing renderer
@@ -369,6 +369,38 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   recovery remains unverified. No inspectable room resident was present.
   This successful login supersedes the prior pause on live retries, subject
   to the same bounded harness and spend ceilings.
+- A bounded follow-up exposed two harness defects while trying to exercise
+  resident inspection. The harness compared `RoomOccupant.kind` with
+  `'npc'`, although the actual union is `player | mob | unknown`; realm-backed
+  resident identity is carried on `.npc`. Reusing the production `findSafeNpc`
+  selector fixed this false skip without treating players as NPCs. An
+  intermediate live encounter also recorded XP while two attackers remained
+  after engagement/target cleared. The old settlement helper ignored that
+  list, then spent the remaining run time waiting for recovery and attempted a
+  resident route despite unresolved attackers. Settlement now reports the
+  encounter unresolved if attackers remain; the harness neither reports a
+  completed combat scenario nor recovers or moves on in that state.
+- Corrected bounded run (2026-10-17): 27 scenarios passed with zero policy
+  violations, 4 provider requests, 12,120 tokens, and estimated cost $0.002004,
+  within the unchanged 120,000 ms / 16 / 60,000 / $0.05 limits. Walker verified
+  arena and one-/two-room navigation, then reached Newhaven Adventurers' Guild
+  (`1/2147`) from `1/2144`. The room listing and realm-backed identity matched
+  Corwyn, and production `inspect_npc` returned `Observed NPC Corwyn`. In the
+  Arena, two authoritative mobs were found; the eligible exact target was
+  engaged through SessionManager and produced XP-confirmed `victory` evidence.
+  Target-death evidence was not observed; settlement was HP 37/51, no active
+  target/engagement, and zero attackers. Recovery readiness passed, but the
+  character was above the configured rest threshold (`restBelow=0.35`), so no
+  rest action occurred and live low-health recovery remains unverified.
+- Latest bounded follow-up (2026-10-17): the reported scenarios passed with zero
+  policy violations (4 requests, 11,682 tokens, estimated $0.001938). Walker
+  verified Arena arrival (`1/2147` to `1/2150`), one-/two-room navigation, and
+  the route back to `1/2147`; production inspection again returned
+  `Observed NPC Corwyn`. One authoritative Arena mob was visible, but it failed
+  the conservative hostile check, so combat was safely refused and no attack
+  was issued. This run did not exercise combat settlement or recovery. The
+  prior XP-confirmed PvE victory remains live evidence; low-health recovery and
+  exact-target death are still unverified.
 
 ## Remaining work
 
@@ -376,13 +408,13 @@ Repeated Arena arrivals and the latest one-/two-room routes verify the
 corrected Walker lifecycle path, but the historical server timeout's exact
 cause remains unconfirmed without its missing capture. The latest bounded
 live run achieved an XP-confirmed PvE victory against an authoritative hostile,
-and verified route navigation, but did not observe exact-target death. It
-reached 32/51 HP and was already above the harness's 60% recovery-ready
-threshold; no recovery action occurred, so low-health recovery remains
-unverified. The successful post-refill login supersedes the previous
-authentication stall. No inspectable resident NPC was present in that run.
-Keep these as distinct limitations rather than treating combat or resident
-availability as navigation failures.
+and verified route navigation, but did not observe exact-target death. That run
+settled at 37/51 HP, above both the harness's 60% recovery-ready threshold and
+the configured 35% rest threshold; no rest action occurred, so live low-health
+recovery remains unverified. The harness's false NPC-kind filter has been
+corrected, and Corwyn's live inspection is confirmed at `1/2147`. Keep
+low-health recovery and exact-target death evidence as distinct limitations
+rather than treating them as navigation or resident-discovery failures.
 
 ## Environment on a new computer
 ```powershell

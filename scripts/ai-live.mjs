@@ -24,7 +24,7 @@ import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
 import { roomId } from '../src/shared/world.ts';
 import { assessCombatEligibility } from '../src/main/ai/CombatSafety.ts';
-import { findSafeCombatNpc } from '../src/main/ai/NpcDiscovery.ts';
+import { findSafeCombatNpc, findSafeNpc } from '../src/main/ai/NpcDiscovery.ts';
 
 const args = process.argv.slice(2);
 const has = (flag) => args.includes(flag);
@@ -59,6 +59,7 @@ if (!process.env.OPENROUTER_API_KEY)
   throw new Error('OPENROUTER_API_KEY is not present in the environment');
 
 const NEWHAVEN_ARENA = '1/2150';
+const NEWHAVEN_ADVENTURERS_GUILD = '1/2147';
 
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: requestedRuntimeMs,
@@ -545,9 +546,7 @@ async function main() {
     passed: !equipmentSafety.ok && /refused/i.test(equipmentSafety.message),
     result: equipmentSafety.message
   });
-  const visibleNpc = session.character.room?.occupants?.find(
-    (occupant) => occupant.kind !== 'player' && occupant.npc?.name
-  );
+  const visibleNpc = findSafeNpc(session.character.room?.occupants ?? []);
   if (visibleNpc?.npc?.name) {
     await runScenario(
       'npc-inspection',
@@ -658,9 +657,7 @@ async function main() {
       ? `Observed ${arenaTargets.length} authoritative mob target(s); combat remains policy-gated`
       : 'No authoritative mob target visible in the arena'
   });
-  const arenaNpc = arenaRoom?.occupants?.find(
-    (occupant) => occupant.kind === 'npc' && occupant.npc?.name
-  );
+  const arenaNpc = findSafeNpc(arenaRoom?.occupants ?? []);
   if (arenaNpc?.npc?.name) {
     const npcInspection = await session.aiAction({
       name: 'inspect_npc',
@@ -677,7 +674,7 @@ async function main() {
       name: 'newhaven-arena-npc-inspection',
       passed: true,
       result:
-        'Skipped safely: no inspectable room resident (occupant kind "npc") is visible; combat mobs are checked separately'
+        'Skipped safely: no authoritative room resident identity is visible; combat mobs are checked separately'
     });
   }
   const arenaTarget = findSafeCombatNpc(arenaRoom?.occupants ?? []);
@@ -744,13 +741,15 @@ async function main() {
 
     let combatObserved = false;
     let outcome = 'unknown';
+    let combatUnresolved = false;
     if (combatDispatch.ok) {
       session.aiRequestHealth();
       combatObserved = await waitFor(
         () =>
           combatVictoryEvidence ||
           session.character.combat.engaged ||
-          session.character.combat.target !== null,
+          session.character.combat.target !== null ||
+          session.character.combat.attackers.length > 0,
         5_000
       );
       const settlement = await waitForCombatSettlement({
@@ -764,19 +763,28 @@ async function main() {
         timeoutMs: Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs)
       });
       outcome = settlement.outcome;
+      combatUnresolved = settlement.unresolved;
       if (settlement.unresolved) session.aiEmergencyStop();
       combatBlocksNavigation = settlement.unresolved || outcome === 'unsafe';
       combatObserved ||= combatVictoryEvidence || session.character.combat.engaged;
     }
-    const combatResult = combatVictoryEvidence ? 'victory' : outcome;
+    const combatResult = combatVictoryEvidence
+      ? combatUnresolved
+        ? 'victory evidence; combat unresolved'
+        : 'victory'
+      : outcome;
     report.scenarios.push({
       name: 'newhaven-arena-bounded-combat',
       passed:
-        combatDispatch.ok && combatObserved && outcome !== 'unsafe' && !monitor.failed,
-      result: `${combatDispatch.message}; observed=${combatObserved}; outcome=${combatResult}; targetDeathObserved=${combatTargetDied}; xpVictory=${combatVictoryEvidence}; ${combatDiagnostic()}`
+        combatDispatch.ok &&
+        combatObserved &&
+        outcome !== 'unsafe' &&
+        !combatUnresolved &&
+        !monitor.failed,
+      result: `${combatDispatch.message}; observed=${combatObserved}; outcome=${combatResult}; unresolved=${combatUnresolved}; targetDeathObserved=${combatTargetDied}; xpVictory=${combatVictoryEvidence}; ${combatDiagnostic()}`
     });
 
-    if (combatObserved && outcome === 'ended') {
+    if (combatObserved && outcome === 'ended' && !combatUnresolved) {
       const hp = session.character.vitals.hp;
       const hpMax = session.character.vitals.hpMax;
       if (hp === null || hpMax === null || hpMax <= 0) {
@@ -832,7 +840,9 @@ async function main() {
       });
     } else {
       const reason = combatObserved
-        ? `Skipped because combat remained ${outcome}; no post-combat action was issued`
+        ? combatUnresolved
+          ? 'Skipped because authoritative attackers remain; no post-combat action was issued'
+          : `Skipped because combat remained ${outcome}; no post-combat action was issued`
         : 'Skipped because no combat engagement was authoritatively observed';
       for (const name of [
         'newhaven-arena-post-combat-recovery',
@@ -879,6 +889,102 @@ async function main() {
       `Navigate to the authoritative destination ${twoRoomTarget}, then stop.`,
       (_before, after) => after === twoRoomTarget
     );
+  }
+  const residentDestination = roomId(1, 2147);
+  const residentRoom = world.byId(residentDestination);
+  const expectedResident = residentRoom ? world.buildNpcEntity(residentRoom) : null;
+  if (
+    expectedResident &&
+    !combatBlocksNavigation &&
+    !recoveryBlocksNavigation &&
+    !monitor.failed
+  ) {
+    const residentRoute = await navigateToWithWalker({
+      destination: NEWHAVEN_ADVENTURERS_GUILD,
+      roomKey,
+      progress: () => session.walker.progress,
+      dispatch: () =>
+        session.aiAction({
+          name: 'navigate_to',
+          args: { destination: NEWHAVEN_ADVENTURERS_GUILD },
+          reason: "bounded route to the realm-mapped Newhaven Adventurers' Guild resident"
+        }),
+      waitFor: (predicate, timeout) => waitFor(() => predicate(), timeout),
+      isError: () => snapshot().state.status === 'error'
+    });
+    const residentArrived = residentRoute.arrived && !monitor.failed;
+    monitor.room(residentRoute.after);
+    report.scenarios.push({
+      name: 'newhaven-resident-navigation',
+      passed: residentArrived,
+      before: residentRoute.before,
+      after: residentRoute.after,
+      status: residentRoute.status,
+      waitCompleted: residentRoute.waitCompleted,
+      result: `${residentRoute.dispatchMessage}; ${
+        residentRoute.waitCompleted === false
+          ? 'harness wait ended before Walker completed the route'
+          : (residentRoute.reason ?? 'no Walker stop reason')
+      }`
+    });
+    if (residentArrived) {
+      await session.aiAction({
+        name: 'inspect_room',
+        reason: 'observe the realm-mapped resident room'
+      });
+      const visibleResident = await waitFor(
+        () =>
+          roomKey() === NEWHAVEN_ADVENTURERS_GUILD &&
+          findSafeNpc(session.character.room?.occupants ?? [], expectedResident.name) !== null,
+        5_000
+      );
+      const residentOccupant = visibleResident
+        ? findSafeNpc(session.character.room?.occupants ?? [], expectedResident.name)
+        : undefined;
+      if (residentOccupant?.npc?.name) {
+        const npcInspection = await session.aiAction({
+          name: 'inspect_npc',
+          args: { name: residentOccupant.npc.name },
+          reason: 'inspect the server-listed resident in the mapped shop room'
+        });
+        report.scenarios.push({
+          name: 'newhaven-resident-inspection',
+          passed: npcInspection.ok,
+          result: npcInspection.message
+        });
+      } else {
+        report.scenarios.push({
+          name: 'newhaven-resident-inspection',
+          passed: true,
+          skipped: true,
+          result: `Skipped safely: room observation did not list ${expectedResident.name} as an NPC occupant`
+        });
+      }
+    } else {
+      report.scenarios.push({
+        name: 'newhaven-resident-inspection',
+        passed: true,
+        skipped: true,
+        result: `Skipped safely: Walker did not verify arrival at ${NEWHAVEN_ADVENTURERS_GUILD}`
+      });
+    }
+  } else {
+    const residentSkipReason =
+      combatBlocksNavigation || recoveryBlocksNavigation || monitor.failed
+        ? 'Skipped because combat or recovery is unresolved; no movement was requested'
+        : `Skipped: the loaded realm has no resident identity at ${NEWHAVEN_ADVENTURERS_GUILD}`;
+    report.scenarios.push({
+      name: 'newhaven-resident-navigation',
+      passed: true,
+      skipped: true,
+      result: residentSkipReason
+    });
+    report.scenarios.push({
+      name: 'newhaven-resident-inspection',
+      passed: true,
+      skipped: true,
+      result: residentSkipReason
+    });
   }
   const invalid = await session.aiAction({
     name: 'navigate_to',
