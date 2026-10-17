@@ -114,16 +114,20 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   cannot be determined. Combat settling now uses the remaining portion of the
   same runtime cap and records authoritative HP/target/attacker state; it does
   not change combat policy or the global 120-second/request/token/cost limits.
-  The next live attempt did not reach a room identity, and a later one remained
-  `authenticating`; neither reached provider/gameplay scenarios. Pause further
-  live runs until Kefka's login and placement are confirmed.
+  The next live attempt did not reach a room identity, and subsequent retries
+  remained `authenticating` after credential submission; they issued no
+  gameplay/provider actions. Login-timeout reporting now includes only parsed
+  phase, room, HP, and combat state. Pause further live runs until Kefka's login
+  and placement are confirmed.
 - Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
   `node --check scripts/ai-live.mjs` / `git diff --check` passed. The live
   follow-up was blocked before gameplay as described above; no live combat
-  result is claimed for the longer bound.
+  result is claimed for the longer bound. A further retry also remained in
+  authentication; syntax and diff checks passed after adding parsed
+  login-state diagnostics.
 - Earlier full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.

@@ -460,7 +460,10 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   this edit did not reach a room identity, and a subsequent connection remained
   `authenticating`. Neither reached provider/gameplay scenarios. Pause further
   live attempts until the configured Kefka profile's login and server placement
-  are confirmed; no raw login traffic was recorded.
+  are confirmed; no raw login traffic was recorded. A further bounded retry
+  also remained in `authenticating` after credential submission and sent no
+  gameplay/provider action. Timeout reports now include parsed character phase,
+  room, HP, and combat state only.
 
 ### 2026-10-15 - first live gossip reply observed
 

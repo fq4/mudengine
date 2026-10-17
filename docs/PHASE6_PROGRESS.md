@@ -335,6 +335,10 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   ceilings. The follow-up live invocation after this edit did not reach room
   placement; a further connection stopped in `authenticating`. Neither reached
   provider or gameplay scenarios, and no raw login response was retained.
+- A later bounded retry again remained `authenticating` after credential
+  submission and issued no gameplay/provider action. The harness now includes
+  only parsed phase/room/HP/combat state in login-timeout reports. Stop further
+  retries until login availability is confirmed.
 
 ## Remaining work
 
@@ -346,9 +350,10 @@ target-death evidence; a confirmed win and live low-health recovery remain
 unverified. The recovery timeout is now diagnostically bounded by remaining
 harness runtime, and combat settling is bounded by the same global runtime;
 both changes still need a live observation. Recent follow-up connections
-failed to acquire authoritative room state / reach in-game, so stop further
-live attempts until Kefka's current server placement and login availability
-are confirmed. There was no inspectable resident NPC in the latest placed run.
+failed to acquire authoritative room state / reach in-game, including repeated
+`authenticating` states, so stop further live attempts until Kefka's current
+server placement and login availability are confirmed. There was no
+inspectable resident NPC in the latest placed run.
 Keep these as distinct limitations rather than treating combat or resident
 availability as navigation failures.
 

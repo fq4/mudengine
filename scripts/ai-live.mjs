@@ -412,7 +412,15 @@ async function main() {
   console.log(`AI live test -> ${profile.id} (credentials withheld)`);
   await session.connect(profile.target);
   const connected = await waitFor(() => session.character.phase === 'in-game');
-  if (!connected) throw new Error(`did not reach in-game state: ${session.character.phase}`);
+  if (!connected) {
+    const result = loginDiagnostic();
+    report.scenarios.push({
+      name: 'login-in-game-state',
+      passed: false,
+      result
+    });
+    throw new Error(`did not reach in-game state (${result})`);
+  }
   if (gossipReplyTest) {
     await runGossipReplyTest();
     return;
