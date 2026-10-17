@@ -74,6 +74,7 @@ const monitor = new LiveHarnessMonitor({
   maxRepeatedAction: 2
 });
 let combatVictoryEvidence = false;
+let combatBlocksNavigation = false;
 let currentRoom = null;
 let multiRoomTarget = null;
 const sink = {
@@ -611,6 +612,7 @@ async function main() {
         outcome = combatOutcome(session.character.combat, session.character.vitals);
       }
       if (outcome === 'active' || outcome === 'unsafe') session.aiEmergencyStop();
+      combatBlocksNavigation = outcome === 'active' || outcome === 'unsafe';
       combatObserved ||= combatVictoryEvidence || session.character.combat.engaged;
     }
     const combatResult = combatVictoryEvidence ? 'victory' : outcome;
@@ -692,30 +694,42 @@ async function main() {
       }
     }
   }
-  const navigation = await runScenario(
-    'one-room-navigation',
-    'Explore one adjacent room using an available exit, then stop.',
-    (before, after) => before !== after
-  );
-  const current = session.character.room;
-  const twoRoomTarget =
-    current?.map !== undefined && current.number !== undefined
-      ? [...world.withinSteps(roomId(current.map, current.number), 2).entries()].find(
-          ([target, distance]) => {
-            if (distance !== 2) return false;
-            const route = world.route(roomId(current.map, current.number), target);
-            return !route.blocked && route.steps.length === 2;
-          }
-        )?.[0]
-      : undefined;
-  if (twoRoomTarget === undefined)
-    throw new Error('Could not find a bounded two-room target from the authoritative room');
-  multiRoomTarget = twoRoomTarget;
-  const multiRoom = await runScenario(
-    'two-room-navigation',
-    `Navigate to the authoritative destination ${twoRoomTarget}, then stop.`,
-    (_before, after) => after === twoRoomTarget
-  );
+  if (combatBlocksNavigation) {
+    for (const name of ['one-room-navigation', 'two-room-navigation']) {
+      report.scenarios.push({
+        name,
+        passed: true,
+        skipped: true,
+        result:
+          'Skipped because combat remained active or crossed the unsafe-health guard; no route was requested'
+      });
+    }
+  } else {
+    await runScenario(
+      'one-room-navigation',
+      'Explore one adjacent room using an available exit, then stop.',
+      (before, after) => before !== after
+    );
+    const current = session.character.room;
+    const twoRoomTarget =
+      current?.map !== undefined && current.number !== undefined
+        ? [...world.withinSteps(roomId(current.map, current.number), 2).entries()].find(
+            ([target, distance]) => {
+              if (distance !== 2) return false;
+              const route = world.route(roomId(current.map, current.number), target);
+              return !route.blocked && route.steps.length === 2;
+            }
+          )?.[0]
+        : undefined;
+    if (twoRoomTarget === undefined)
+      throw new Error('Could not find a bounded two-room target from the authoritative room');
+    multiRoomTarget = twoRoomTarget;
+    await runScenario(
+      'two-room-navigation',
+      `Navigate to the authoritative destination ${twoRoomTarget}, then stop.`,
+      (_before, after) => after === twoRoomTarget
+    );
+  }
   const invalid = await session.aiAction({
     name: 'navigate_to',
     args: { destination: '999/999999' },

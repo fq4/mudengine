@@ -265,16 +265,39 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
   retains the existing renderer chunk-size warning.
 
+## Bounded navigation follow-up (2026-10-17)
+
+- The next documented bounded Kefka run again reached the Arena through
+  Walker: `1/2190` → `1/2150`, with `arrived` and authoritative room
+  verification. This is a fifth observed successful Arena route on the
+  corrected single-dispatch lifecycle path; it still does not establish the
+  exact cause of the missing historical timeout capture.
+- The run used 2 provider requests, 5,813 tokens, and an estimated $0.00095115,
+  within the unchanged 120-second, 16-request, 60,000-token, and $0.05 caps.
+  There were zero policy violations. No authoritative non-player NPC was
+  visible; two authoritative mob targets were discovered and `acid slime`
+  passed combat preflight.
+- The approved exact-target attack was dispatched, but the bounded combat
+  observation reported `unsafe` and triggered emergency stop. The harness
+  correctly skipped post-combat actions and one-/two-room navigation rather
+  than attempting movement after an unsafe health state. The combat scenario
+  failed as intended; no victory, death, or recovery is claimed. All other
+  listed safety, approval, budget, and emergency-stop checks passed.
+- Focused harness verification after this follow-up: `node --check
+  scripts/ai-live.mjs` passed, and the bounded live run exercised the route
+  skip while reporting the combat safety failure. One-/two-room movement was
+  not exercised in this run because combat reached the unsafe guard.
+
 ## Remaining work
 
-The repeated arena arrival verifies the corrected Walker lifecycle path, but
-the exact cause of the historical server timeout cannot be proven without its
-capture. A live hostile was engaged only after exact approval, but the bounded
-window ended with combat still active; victory and post-combat recovery remain
+Repeated Arena arrivals verify the corrected Walker lifecycle path, but the
+exact cause of the historical server timeout cannot be proven without its
+capture. The latest exact-target live attack reached the unsafe health guard
+and was emergency-stopped; victory, death, and post-combat recovery remain
 unverified. No authoritative NPC was visible in the tested rooms, and the
-latest provider-driven one-/two-room objectives were separately blocked by
-missing destination input and recovery priority. Keep these as distinct
-limitations rather than treating them as navigation failures.
+latest run's one-/two-room routes were intentionally skipped after the unsafe
+combat result. Keep these as distinct limitations rather than treating them
+as navigation failures.
 
 ## Environment on a new computer
 ```powershell

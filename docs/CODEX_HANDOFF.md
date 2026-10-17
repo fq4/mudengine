@@ -85,6 +85,12 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   manual interruption, budget enforcement, and emergency stop; legacy
   navigation cases may fail when recovery takes priority or the model omits a
   resolvable destination.
+- Bounded live follow-up (2026-10-17): Arena navigation again verified
+  `1/2190` → `1/2150` through Walker. The approved exact-target combat probe
+  hit the unsafe-health guard and emergency-stopped; the harness skipped
+  post-combat actions and further navigation. The run used 2 provider
+  requests, 5,813 tokens, about $0.00095115, and had zero policy violations.
+  It exited non-zero for the combat safety result; no victory is claimed.
 - Earlier full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
@@ -327,8 +333,10 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   arena inspection/target/combat scenarios were unavailable. No authoritative
   hostile NPC was visible, so no live combat was attempted. This run exited
   non-zero and is not a full live pass.
-- Next task: investigate the intermittent live arena-navigation stall without
-  weakening movement safety, then rerun the same bounded harness.
+- The 2026-10-17 bounded follow-up verified the single-dispatch Arena route
+  again. One-/two-room routes were skipped after combat hit the unsafe-health
+  guard; they need another bounded observation when safe to do so. Historical
+  server-side timeout cause remains unconfirmed because its capture is absent.
 - Earlier bounded Kefka live harness passed all 24 scenarios on 2026-10-14 with zero
   policy violations (5 provider requests, 11,653 tokens, estimated cost ~$0.002).
   It verifies the production baseline, not persisted frontier selection.

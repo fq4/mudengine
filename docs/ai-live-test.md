@@ -396,6 +396,28 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   recovery/inventory/equipment unless combat is confirmed ended. That branch
   passed JavaScript syntax validation but has not had a repeat live run.
 
+### 2026-10-17 - bounded Arena and combat follow-up
+
+- The documented bounded Kefka run again completed the Arena route from
+  `1/2190` to `1/2150`; Walker reported `arrived` and the authoritative room
+  matched the requested destination.
+- The run used 2 provider requests, 5,813 tokens, and about $0.00095115,
+  within the existing 120-second, 16-request, 60,000-token, and $0.05 caps.
+  It reported zero policy violations. No authoritative non-player NPC was
+  visible; two authoritative mob targets were found and `acid slime` passed
+  the combat preflight.
+- Exact-target combat approval dispatched the attack, then the observed
+  outcome reached `unsafe` and triggered emergency stop. Post-combat actions
+  and one-/two-room navigation were skipped; the harness did not claim a kill,
+  victory, or recovery. The overall run exited non-zero for the combat safety
+  result. All other harness safety, approval, budget, and emergency-stop
+  scenarios passed.
+- This supplies a fifth successful Arena arrival through the corrected Walker
+  lifecycle path. The combat-state navigation skip was exercised, but
+  one-/two-room navigation itself was not tested in this run. The missing
+  original failure capture still prevents confirmation of its exact
+  server-side cause.
+
 ### 2026-10-15 - first live gossip reply observed
 
 - A configured sender session sent one test gossip through `CommandQueue`.
