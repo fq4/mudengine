@@ -229,6 +229,7 @@ const loginDiagnostic = () => {
     `combatEngaged=${combat.engaged}`,
     `targetPresent=${combat.target !== null}`,
     `attackers=${combat.attackers.length}`,
+    `configuredLoginStepCount=${profile.config.connection.login.steps.length}`,
     `parsedBlockTypes=${[...loginBlockCounts]
       .map(([type, count]) => `${type}:${count}`)
       .join(',') || 'none'}`

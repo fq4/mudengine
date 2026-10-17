@@ -464,7 +464,12 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   also remained in `authenticating` after credential submission and sent no
   gameplay/provider action. Timeout reports now include parsed character phase,
   room, HP, combat state, and a capped count of parsed block types, never block
-  text or raw login traffic.
+  text or raw login traffic. The latest report had `login-welcome` plus 146
+  `unknown` blocks but no in-game status line. The configured Kefka profile has
+  only two login steps (the account prompts) on an inline server, with no
+  shared server-menu script; an unconfigured subsequent menu is a plausible,
+  unconfirmed cause. The report now includes the number of configured login
+  steps, not their trigger text. Do not invent a menu response.
 
 ### 2026-10-15 - first live gossip reply observed
 

@@ -120,6 +120,13 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   phase, room, HP, combat state, and a capped count of parser block types (no
   block text or raw traffic). Pause further live runs until Kefka's login and
   placement are confirmed.
+- Latest bounded login diagnostic (2026-10-17): `login-welcome` and 146
+  `unknown` parser blocks were observed without a recognized in-game status
+  line. Kefka's local profile has only two login-script steps, for the account
+  prompts; its inline server entry supplies no shared menu script. A new or
+  unmatched post-credential prompt is plausible but unconfirmed, since its
+  text is not retained. The timeout report now includes the configured login
+  step count, never trigger text or credentials. Do not guess a response.
 - Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.

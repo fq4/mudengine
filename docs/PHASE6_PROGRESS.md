@@ -339,7 +339,14 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   submission and issued no gameplay/provider action. The harness now includes
   only parsed phase/room/HP/combat state plus a capped count of parser block
   types in login-timeout reports; it never retains block text or raw traffic.
-  Stop further retries until login availability is confirmed.
+  The latest run reported `login-welcome` and 146 `unknown` blocks, but no
+  recognized in-game status line. Kefka's local profile has two login script
+  steps, both account prompts; its inline server definition supplies no server
+  menu script. A changed/unmatched post-credential menu is one possible
+  explanation, not a confirmed cause because its text is deliberately not
+  captured. Timeout reporting also exposes only the configured step count.
+  Do not guess a menu answer or retry login further until login availability
+  and the required prompts are confirmed.
 
 ## Remaining work
 
