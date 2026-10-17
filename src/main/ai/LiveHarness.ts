@@ -1,5 +1,7 @@
 import type { AiApproval } from '../../shared/ai';
+import type { Combat, Vitals } from '../../shared/character';
 import type { WalkProgress } from '../../shared/walk';
+import { combatOutcome, type CombatOutcome } from './CombatOutcome';
 
 export interface LiveHarnessLimits {
   maxRuntimeMs: number;
@@ -94,6 +96,63 @@ export async function navigateToWithWalker(options: {
     waitCompleted,
     arrived: dispatch.ok && progress.status === 'arrived' && after === options.destination
   };
+}
+
+export interface CombatSettlementResult {
+  outcome: CombatOutcome;
+  unresolved: boolean;
+}
+
+export async function waitForCombatSettlement(options: {
+  combat: () => Pick<Combat, 'engaged' | 'target'>;
+  vitals: () => Pick<Vitals, 'hp' | 'hpMax'>;
+  wait: (milliseconds: number) => Promise<void>;
+  isStopped: () => boolean;
+  timeoutMs: number;
+  pollIntervalMs?: number;
+}): Promise<CombatSettlementResult> {
+  const stillFighting = () => {
+    const combat = options.combat();
+    return combat.engaged || combat.target !== null;
+  };
+  const pollIntervalMs = options.pollIntervalMs ?? 500;
+  const deadline = Date.now() + options.timeoutMs;
+  while (
+    stillFighting() &&
+    options.vitals().hp !== 0 &&
+    Date.now() < deadline &&
+    !options.isStopped()
+  ) {
+    await options.wait(pollIntervalMs);
+  }
+  const unresolved = stillFighting() || options.vitals().hp === 0 || options.isStopped();
+  return { outcome: combatOutcome(options.combat(), options.vitals()), unresolved };
+}
+
+export async function waitForRecoveryHealth(options: {
+  vitals: () => Pick<Vitals, 'hp' | 'hpMax'>;
+  combatActive: () => boolean;
+  wait: (milliseconds: number) => Promise<void>;
+  isStopped: () => boolean;
+  minimumFraction: number;
+  timeoutMs: number;
+  pollIntervalMs?: number;
+}): Promise<boolean> {
+  const ready = () => {
+    const { hp, hpMax } = options.vitals();
+    return (
+      hp !== null &&
+      hpMax !== null &&
+      hpMax > 0 &&
+      hp / hpMax >= options.minimumFraction &&
+      !options.combatActive()
+    );
+  };
+  const deadline = Date.now() + options.timeoutMs;
+  const pollIntervalMs = options.pollIntervalMs ?? 500;
+  while (!ready() && Date.now() < deadline && !options.isStopped())
+    await options.wait(pollIntervalMs);
+  return ready();
 }
 
 const unsafe =

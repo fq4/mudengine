@@ -93,6 +93,23 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   Two combat mobs were visible, but no separate inspectable room resident
   (`kind === 'npc'`) was present. It exited non-zero for the combat safety
   result; no victory is claimed.
+- Latest bounded run (2026-10-17): all listed scenarios passed with zero
+  policy violations, 4 provider requests, 12,460 tokens, and estimated cost
+  $0.00207375, within the unchanged 120,000 ms / 16 / 60,000 / $0.05 limits.
+  Arena and one-/two-room navigation passed. Two authoritative mobs were
+  discovered, but the exact-target encounter ended without XP or target-death
+  evidence; no victory is claimed. Post-combat HP was already full, so live
+  low-health recovery remains unverified.
+- Recovery harness follow-up: the earlier 45-second failure omitted HP/rest/
+  combat diagnostics, so its precise cause is unknown. Existing recovery notes
+  document 2 HP per 5 seconds while resting; 40/100 to 60% can take about 50
+  seconds. Recovery waiting now uses only the remaining existing runtime
+  budget and records authoritative HP, rest/combat/target state, profile
+  thresholds, and action result without requiring the character to stand up.
+  This does not alter production Recovery or the combat safety gate.
+- Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
+  typecheck, production build, secret scan, harness syntax check, and
+  `git diff --check` passed. The renderer chunk-size warning remains.
 - Earlier full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
@@ -151,10 +168,10 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
 
 ## Outstanding work
 
-1. Verify a completed bounded PvE encounter and post-combat recovery; the latest
-   live run ended its observation while combat was still active, with no victory
-   evidence. Inspect an NPC only in a room where authoritative NPC state is
-   actually visible.
+1. Verify a completed bounded PvE encounter with authoritative victory evidence
+   and exercise low-health recovery live. The latest attack ended without XP or
+   target-death evidence; the recovery gate was not exercised because HP was
+   already full. Inspect an NPC only when authoritative NPC state is visible.
 2. Investigate the historical arena movement report further if its missing
    capture becomes available. Repeated current routes pass, but the exact
    server-side cause of the original timeout cannot be established without it.

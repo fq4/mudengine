@@ -84,6 +84,8 @@ describe('safe NPC discovery', () => {
     expect(combatOutcome({ engaged: true, target: 'rat' }, { hp: 80, hpMax: 100 })).toBe('active');
     expect(combatOutcome({ engaged: false, target: null }, { hp: 80, hpMax: 100 })).toBe('ended');
     expect(combatOutcome({ engaged: true, target: 'rat' }, { hp: 20, hpMax: 100 })).toBe('unsafe');
+    expect(combatOutcome({ engaged: false, target: null }, { hp: 20, hpMax: 100 })).toBe('ended');
+    expect(combatOutcome({ engaged: false, target: null }, { hp: 0, hpMax: 100 })).toBe('unsafe');
     expect(combatOutcome({ engaged: true, target: null }, { hp: null, hpMax: null })).toBe(
       'unknown'
     );

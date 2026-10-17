@@ -14,7 +14,9 @@ import { RealmLibrary } from '../src/main/world/RealmLibrary.ts';
 import {
   exactCombatApproval,
   LiveHarnessMonitor,
-  navigateToWithWalker
+  navigateToWithWalker,
+  waitForCombatSettlement,
+  waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
 import { homePaths } from './lib/home.mjs';
 import fs from 'node:fs';
@@ -22,7 +24,6 @@ import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
 import { roomId } from '../src/shared/world.ts';
 import { assessCombatEligibility } from '../src/main/ai/CombatSafety.ts';
-import { combatOutcome } from '../src/main/ai/CombatOutcome.ts';
 import { findSafeCombatNpc } from '../src/main/ai/NpcDiscovery.ts';
 
 const args = process.argv.slice(2);
@@ -74,13 +75,22 @@ const monitor = new LiveHarnessMonitor({
   maxRepeatedAction: 2
 });
 let combatVictoryEvidence = false;
+let combatTargetName = null;
+let combatTargetDied = false;
 let combatBlocksNavigation = false;
+let recoveryBlocksNavigation = false;
 let currentRoom = null;
 let multiRoomTarget = null;
 const sink = {
   data: () => {},
   block: (block) => {
     if (block.type === 'user-gain-experience') combatVictoryEvidence = true;
+    if (
+      block.type === 'mob-dies' &&
+      combatTargetName !== null &&
+      block.groups.mob?.trim().toLowerCase() === combatTargetName.trim().toLowerCase()
+    )
+      combatTargetDied = true;
     if (
       gossipReplyTest &&
       block.type === 'conversation-gossip' &&
@@ -164,6 +174,27 @@ const waitFor = async (predicate, timeout = 45_000) => {
     await wait(250);
   }
   return false;
+};
+const waitForRecoveryReady = () =>
+  waitForRecoveryHealth({
+    vitals: () => session.character.vitals,
+    combatActive: () =>
+      session.character.combat.engaged || session.character.combat.attackers.length > 0,
+    wait,
+    isStopped: () => {
+      monitor.check();
+      return monitor.failed;
+    },
+    minimumFraction: 0.6,
+    timeoutMs: Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs),
+    pollIntervalMs: 250
+  });
+const recoveryDiagnostic = () => {
+  const { hp, hpMax, resting, meditating } = session.character.vitals;
+  const { engaged, target, attackers } = session.character.combat;
+  const { restBelow, restTo } = profile.config.automation.health;
+  const state = snapshot().state;
+  return `HP=${hp ?? 'unknown'}/${hpMax ?? 'unknown'}; resting=${resting}; meditating=${meditating}; combatEngaged=${engaged}; target=${target ?? 'none'}; attackers=${attackers.length}; restBelow=${restBelow}; restTo=${restTo}; action=${state.currentAction?.name ?? 'none'}; actionResult=${state.lastActionResult || 'none'}`;
 };
 const runScenario = async (name, objective, expected) => {
   const before = roomKey();
@@ -354,23 +385,49 @@ async function main() {
     await runGossipReplyTest();
     return;
   }
+  const roomKnown = await waitFor(() => /^\d+\/\d+$/.test(roomKey()), 30_000);
+  if (!roomKnown) throw new Error('no authoritative room identity was observed after login');
   await runProviderDrivenObjective();
   session.aiClearGoal();
   session.aiEnable();
+  const expectedSchedulerAction =
+    snapshot().observation.activityCandidates?.[0]?.action.name ?? null;
   let schedulerSelectedAction = null;
   const schedulerSettled = await waitFor((state) => {
     schedulerSelectedAction ??= state.currentAction?.name ?? null;
-    return state.activity === 'autonomous_idle' || state.status === 'error';
+    return (
+      state.currentAction !== null ||
+      state.activity === 'autonomous_idle' ||
+      state.status === 'error'
+    );
   }, 10_000);
   report.scenarios.push({
     name: 'autonomous-scheduler-selection',
-    passed: schedulerSettled && schedulerSelectedAction === 'inspect_room' && !monitor.failed,
+    passed:
+      schedulerSettled &&
+      expectedSchedulerAction !== null &&
+      schedulerSelectedAction === expectedSchedulerAction &&
+      !monitor.failed,
     selectedAction: schedulerSelectedAction,
+    expectedAction: expectedSchedulerAction,
     status: snapshot().state.status,
     result: snapshot().state.lastActionResult,
-    note: 'No objective or activity sequence was supplied; the session scheduler selected the safe candidate.'
+    note:
+      'No objective or activity sequence was supplied; the session scheduler selected the top currently ranked policy-filtered candidate.'
   });
   session.aiClearGoal();
+  if (schedulerSelectedAction === 'recover_health') {
+    const recoverySettled = await waitForRecoveryReady();
+    report.scenarios.push({
+      name: 'autonomous-recovery-before-next-goal',
+      passed: recoverySettled && !monitor.failed,
+      result: recoverySettled
+        ? `Authoritative HP met combat preflight; movement may end the rest normally (${recoveryDiagnostic()})`
+        : `Recovery did not reach combat preflight health within the remaining harness runtime (${recoveryDiagnostic()})`
+    });
+    if (!recoverySettled)
+      throw new Error('autonomous recovery did not settle before the next gameplay objective');
+  }
   const inspection = await runScenario(
     'inspection',
     'Inspect my current character and room, then stop.',
@@ -556,6 +613,8 @@ async function main() {
   });
   if (arenaEligibility.ok && arenaEligibility.target) {
     combatVictoryEvidence = false;
+    combatTargetName = arenaEligibility.target.name;
+    combatTargetDied = false;
     monitor.authorizeCombatTarget(arenaEligibility.target.name);
     // The harness supplies the explicit authorized objective; the executor's
     // target, health, classification, and escape checks remain authoritative.
@@ -606,14 +665,16 @@ async function main() {
           session.character.combat.target !== null,
         5_000
       );
-      outcome = combatOutcome(session.character.combat, session.character.vitals);
-      const combatDeadline = Date.now() + 15_000;
-      while (Date.now() < combatDeadline && outcome === 'active' && !monitor.failed) {
-        await wait(500);
-        outcome = combatOutcome(session.character.combat, session.character.vitals);
-      }
-      if (outcome === 'active' || outcome === 'unsafe') session.aiEmergencyStop();
-      combatBlocksNavigation = outcome === 'active' || outcome === 'unsafe';
+      const settlement = await waitForCombatSettlement({
+        combat: () => session.character.combat,
+        vitals: () => session.character.vitals,
+        wait,
+        isStopped: () => monitor.failed,
+        timeoutMs: 30_000
+      });
+      outcome = settlement.outcome;
+      if (settlement.unresolved) session.aiEmergencyStop();
+      combatBlocksNavigation = settlement.unresolved || outcome === 'unsafe';
       combatObserved ||= combatVictoryEvidence || session.character.combat.engaged;
     }
     const combatResult = combatVictoryEvidence ? 'victory' : outcome;
@@ -621,35 +682,31 @@ async function main() {
       name: 'newhaven-arena-bounded-combat',
       passed:
         combatDispatch.ok && combatObserved && outcome !== 'unsafe' && !monitor.failed,
-      result: `${combatDispatch.message}; observed=${combatObserved}; outcome=${combatResult}`
+      result: `${combatDispatch.message}; observed=${combatObserved}; outcome=${combatResult}; targetDeathObserved=${combatTargetDied}; xpVictory=${combatVictoryEvidence}`
     });
 
     if (combatObserved && outcome === 'ended') {
       const hp = session.character.vitals.hp;
       const hpMax = session.character.vitals.hpMax;
-      if (hp !== null && hpMax !== null && hp < hpMax) {
+      if (hp === null || hpMax === null || hpMax <= 0) {
+        recoveryBlocksNavigation = true;
+        report.scenarios.push({
+          name: 'newhaven-arena-post-combat-recovery',
+          passed: false,
+          result: 'Recovery readiness is unknown because authoritative HP is unavailable'
+        });
+      } else if (hp < hpMax) {
         monitor.authorizeRecovery();
         const recovery = await session.aiAction({
           name: 'recover_health',
           reason: 'bounded post-combat recovery'
         });
-        const recoveryDeadline = Date.now() + 8_000;
-        while (
-          Date.now() < recoveryDeadline &&
-          session.character.vitals.hp !== null &&
-          session.character.vitals.hpMax !== null &&
-          session.character.vitals.hp < session.character.vitals.hpMax &&
-          !monitor.failed
-        )
-          await wait(500);
-        const recovered =
-          session.character.vitals.hp !== null &&
-          session.character.vitals.hpMax !== null &&
-          session.character.vitals.hp >= session.character.vitals.hpMax;
+        const recoveryReady = await waitForRecoveryReady();
+        recoveryBlocksNavigation = !recoveryReady;
         report.scenarios.push({
           name: 'newhaven-arena-post-combat-recovery',
-          passed: recovery.ok && recovered && !monitor.failed,
-          result: `${recovery.message}; recovered=${recovered}`
+          passed: recovery.ok && recoveryReady && !monitor.failed,
+          result: `${recovery.message}; combatReadyHealth=${recoveryReady}; target=60%; ${recoveryDiagnostic()}`
         });
       } else {
         report.scenarios.push({
@@ -695,14 +752,15 @@ async function main() {
       }
     }
   }
-  if (combatBlocksNavigation) {
+  if (combatBlocksNavigation || recoveryBlocksNavigation) {
     for (const name of ['one-room-navigation', 'two-room-navigation']) {
       report.scenarios.push({
         name,
         passed: true,
         skipped: true,
-        result:
-          'Skipped because combat remained active or crossed the unsafe-health guard; no route was requested'
+        result: combatBlocksNavigation
+          ? 'Skipped because combat remained active or the character was dead; no route was requested'
+          : 'Skipped because authoritative recovery did not reach the combat health threshold'
       });
     }
   } else {

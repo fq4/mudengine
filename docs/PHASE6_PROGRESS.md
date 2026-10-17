@@ -288,16 +288,51 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   skip while reporting the combat safety failure. One-/two-room movement was
   not exercised in this run because combat reached the unsafe guard.
 
+## Recovery timing and bounded gameplay follow-up (2026-10-17)
+
+- The prior low-health harness attempt spent its 45-second recovery window
+  without recording HP, rest state, combat state, or the profile thresholds.
+  Its exact failure cause is therefore unconfirmed. The checked-in recovery
+  notes document 2 HP per 5 seconds while resting on a measured realm; for
+  example, 40/100 to the harness's 60% combat threshold can take about 50
+  seconds. The old fixed timeout could therefore reject legitimate recovery,
+  but this calculation does not prove that was the cause of that attempt.
+- The harness now treats authoritative HP >= 60% and no active combat as
+  recovery-ready even if the character remains resting; a verified movement
+  naturally ends rest. It waits only for the remaining portion of the existing
+  max-runtime budget (checking the runtime limit while polling), rather than
+  using an independent 45-second timeout. On timeout it records HP/max HP,
+  resting/meditating, combat/target/attacker state, configured `restBelow` /
+  `restTo`, and the AI action result. Production Recovery behavior and combat
+  preflight were not weakened.
+- Focused AI tests passed 27/27. Full `npm test` passed 7,009 tests with 2
+  skipped across 253 files; `npm run typecheck`, `npm run build`,
+  `npm run check:secrets`, `node --check scripts/ai-live.mjs`, and
+  `git diff --check` passed. The build retains the existing renderer
+  chunk-size warning.
+- The next capped live run passed every listed scenario with zero harness
+  violations, 4 provider requests, 12,460 total tokens, and estimated cost
+  $0.00207375 (under the unchanged 120,000 ms / 16 request / 60,000 token /
+  $0.05 caps). Walker verified Arena arrival `1/2144` -> `1/2150`, and the
+  one-room and two-room navigation cases also passed. Two authoritative combat
+  mobs were found; no inspectable resident NPC was visible. The approved
+  exact-target combat action ended without target-death or XP evidence
+  (`outcome=ended`, `targetDeathObserved=false`, `xpVictory=false`), so no kill
+  or victory is claimed. HP was already full at the post-combat check, so the
+  low-health recovery wait was not exercised live in this run.
+
 ## Remaining work
 
-Repeated Arena arrivals verify the corrected Walker lifecycle path, but the
-exact cause of the historical server timeout cannot be proven without its
-capture. The latest exact-target live attack reached the unsafe health guard
-and was emergency-stopped; victory, death, and post-combat recovery remain
-unverified. The latest run had no inspectable room resident (`kind === 'npc'`),
-but did have two combat mobs; its one-/two-room routes were intentionally
-skipped after the unsafe combat result. Keep these as distinct limitations
-rather than treating them as navigation failures.
+Repeated Arena arrivals and the latest one-/two-room routes verify the
+corrected Walker lifecycle path, but the historical server timeout's exact
+cause remains unconfirmed without its missing capture. Combat was authorized
+against an authoritative hostile, but the latest run ended without XP or
+target-death evidence; a confirmed win and live low-health recovery remain
+unverified. The recovery timeout is now diagnostically bounded by remaining
+harness runtime, but the low-health branch still needs a live observation.
+There was no inspectable resident NPC in the latest run. Keep these as distinct
+limitations rather than treating combat or resident availability as navigation
+failures.
 
 ## Environment on a new computer
 ```powershell

@@ -3,8 +3,9 @@
 ## Automated bounded runner
 
 The repository includes an explicitly opt-in live harness. It uses the
-configured `kefka` profile, the production `SessionManager` and AI execution
-path, and only inspection plus safe navigation:
+configured `kefka` profile and production `SessionManager`/AI execution path.
+Its bounded scenarios cover inspection and navigation; exact-target PvE is
+attempted only when authoritative combat preflight and the harness limits allow:
 
 ```powershell
 npm run test:ai-live -- --live --profile kefka
@@ -418,6 +419,32 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   one-/two-room navigation itself was not tested in this run. The missing
   original failure capture still prevents confirmation of its exact
   server-side cause.
+
+### 2026-10-17 - recovery timing and bounded gameplay follow-up
+
+- The earlier 45-second low-health wait expired without capturing HP, rest
+  state, combat state, or configured thresholds. The exact failure cause is
+  unknown. Recovery notes document 2 HP per 5 seconds while resting on a
+  measured realm, so a 40/100 character can need about 50 seconds to reach the
+  harness's 60% combat threshold; this makes the former timeout plausibly short
+  but does not prove that it caused the earlier failure.
+- The harness now waits only up to the remaining configured runtime budget and
+  checks the cap while polling. Recovery readiness uses authoritative HP and
+  inactive combat, not whether the character is standing; walking naturally
+  ends rest. Timeout reports include HP/max HP, resting/meditating, combat
+  target/attackers, profile `restBelow` / `restTo`, and AI action state/result.
+  Production recovery behavior and the 60% combat preflight are unchanged.
+- Focused AI tests passed 27/27. Full tests passed 7,009 with 2 skipped across
+  253 files; typecheck, production build, secret scan, script syntax check, and
+  `git diff --check` passed.
+- The next bounded live run passed every listed scenario with no policy
+  violations, using 4 provider requests, 12,460 tokens, and about $0.00207375
+  under the existing 120-second / 16-request / 60,000-token / $0.05 ceilings.
+  Arena arrival `1/2144` -> `1/2150` and one-/two-room navigation passed.
+  Two authoritative combat mobs were found; no resident NPC was visible. The
+  approved target encounter ended with neither target-death nor XP evidence,
+  so it is not a confirmed kill or victory. HP was already full, and the
+  low-health recovery gate was not exercised by this live run.
 
 ### 2026-10-15 - first live gossip reply observed
 
