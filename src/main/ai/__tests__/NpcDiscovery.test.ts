@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomOccupant } from '../../../shared/character';
-import { findSafeCombatNpc, findSafeNpc } from '../NpcDiscovery';
+import {
+  findSafeCombatNpc,
+  findSafeNpc,
+  summarizeCombatCandidates
+} from '../NpcDiscovery';
 import { assessCombatEligibility } from '../CombatSafety';
 import { combatOutcome } from '../CombatOutcome';
 import { assessItemUse } from '../InventorySafety';
@@ -66,6 +70,35 @@ describe('safe NPC discovery', () => {
     const rats = [occupant('Rat', 'mob', false, true), occupant('rat', 'mob', false, true)];
     expect(findSafeCombatNpc(rats)).toBeNull();
     expect(findSafeCombatNpc(rats, 'Rat')).toBeNull();
+  });
+  it('explains mob exclusions without changing the conservative target gate', () => {
+    const mobs = [
+      occupant('Unknown rat', 'mob', false, false, {
+        mob: { name: 'Unknown rat' } as RoomOccupant['mob']
+      }),
+      occupant('Passive rat', 'mob', false, false, {
+        mob: { name: 'Passive rat' } as RoomOccupant['mob'],
+        disposition: 'passive'
+      }),
+      occupant('Guard', 'mob', false, true, { costly: 'always' }),
+      occupant('Charmed rat', 'mob', false, true, { charmed: true })
+    ];
+
+    expect(summarizeCombatCandidates(mobs)).toBe(
+      'visible mobs=4; eligible=0; excluded: disposition unknown=1, disposition passive=1, alignment cost=1, charmed=1'
+    );
+    expect(findSafeCombatNpc(mobs)).toBeNull();
+  });
+  it('reports ambiguous names and eligible targets separately', () => {
+    const occupants = [
+      occupant('Rat', 'mob', false, true),
+      occupant('rat', 'mob', false, true),
+      occupant('Ogre', 'mob', false, true)
+    ];
+
+    expect(summarizeCombatCandidates(occupants)).toBe(
+      'visible mobs=3; eligible=1; excluded: ambiguous name=2'
+    );
   });
 
   it('requires authoritative health but permits authorized low-health PvE', () => {

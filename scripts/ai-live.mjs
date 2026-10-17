@@ -24,7 +24,11 @@ import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
 import { roomId } from '../src/shared/world.ts';
 import { assessCombatEligibility } from '../src/main/ai/CombatSafety.ts';
-import { findSafeCombatNpc, findSafeNpc } from '../src/main/ai/NpcDiscovery.ts';
+import {
+  findSafeCombatNpc,
+  findSafeNpc,
+  summarizeCombatCandidates
+} from '../src/main/ai/NpcDiscovery.ts';
 
 const args = process.argv.slice(2);
 const has = (flag) => args.includes(flag);
@@ -209,7 +213,7 @@ const waitFor = async (predicate, timeout = 45_000) => {
   }
   return false;
 };
-const waitForRecoveryReady = () =>
+const waitForRecoveryFraction = (minimumFraction) =>
   waitForRecoveryHealth({
     vitals: () => session.character.vitals,
     combatActive: () =>
@@ -219,10 +223,11 @@ const waitForRecoveryReady = () =>
       monitor.check();
       return monitor.failed;
     },
-    minimumFraction: 0.6,
+    minimumFraction,
     timeoutMs: Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs),
     pollIntervalMs: 250
   });
+const waitForRecoveryReady = () => waitForRecoveryFraction(0.6);
 const recoveryDiagnostic = () => {
   const { hp, hpMax, resting, meditating } = session.character.vitals;
   const { engaged, target, attackers } = session.character.combat;
@@ -654,7 +659,7 @@ async function main() {
     name: 'newhaven-arena-target-discovery',
     passed: arenaNavigation && arenaInspection,
     result: arenaTargets?.length
-      ? `Observed ${arenaTargets.length} authoritative mob target(s); combat remains policy-gated`
+      ? `Observed authoritative mobs; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [])}`
       : 'No authoritative mob target visible in the arena'
   });
   const arenaNpc = findSafeNpc(arenaRoom?.occupants ?? []);
@@ -693,8 +698,8 @@ async function main() {
     name: 'newhaven-arena-combat-preflight',
     passed: arenaNavigation && arenaInspection,
     result: arenaEligibility.ok
-      ? `Eligible target ${arenaEligibility.target?.name}; health and escape route verified`
-      : `Safely refused before combat: ${arenaEligibility.reason}`
+      ? `Eligible target ${arenaEligibility.target?.name}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [])}; health and escape route verified`
+      : `Safely refused before combat: ${arenaEligibility.reason}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [])}`
   });
   if (arenaEligibility.ok && arenaEligibility.target) {
     combatVictoryEvidence = false;
@@ -794,18 +799,29 @@ async function main() {
           passed: false,
           result: 'Recovery readiness is unknown because authoritative HP is unavailable'
         });
-      } else if (hp < hpMax) {
+      } else if (hp / hpMax < profile.config.automation.health.restBelow) {
+        const commandsBeforeRecovery = monitor.events.length;
         monitor.authorizeRecovery();
         const recovery = await session.aiAction({
           name: 'recover_health',
           reason: 'bounded post-combat recovery'
         });
-        const recoveryReady = await waitForRecoveryReady();
+        const restTarget = profile.config.automation.health.restTo;
+        const recoveryReady = await waitForRecoveryFraction(restTarget);
+        const restCommandObserved = monitor.events
+          .slice(commandsBeforeRecovery)
+          .some((event) => event.kind === 'command' && /^rest$/i.test(event.value));
         recoveryBlocksNavigation = !recoveryReady;
         report.scenarios.push({
           name: 'newhaven-arena-post-combat-recovery',
-          passed: recovery.ok && recoveryReady && !monitor.failed,
-          result: `${recovery.message}; combatReadyHealth=${recoveryReady}; target=60%; ${recoveryDiagnostic()}`
+          passed: recovery.ok && restCommandObserved && recoveryReady && !monitor.failed,
+          result: `${recovery.message}; restCommandObserved=${restCommandObserved}; restTargetReached=${recoveryReady}; target=${Math.round(restTarget * 100)}%; ${recoveryDiagnostic()}`
+        });
+      } else if (hp < hpMax) {
+        report.scenarios.push({
+          name: 'newhaven-arena-post-combat-recovery',
+          passed: true,
+          result: `Rest not due; no live recovery claim. HP=${hp}/${hpMax} is above restBelow=${profile.config.automation.health.restBelow}; ${recoveryDiagnostic()}`
         });
       } else {
         report.scenarios.push({

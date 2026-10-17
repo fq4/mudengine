@@ -263,11 +263,11 @@ describe('waitForRecoveryHealth', () => {
       vitals: () => ({ hp, hpMax: 100 }),
       combatActive: () => engaged,
       wait: async () => {
-        hp = 65;
+        hp = 75;
         engaged = false;
       },
       isStopped: () => false,
-      minimumFraction: 0.6,
+      minimumFraction: 0.7,
       timeoutMs: 1_000
     });
 

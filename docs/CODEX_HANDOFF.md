@@ -65,7 +65,7 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
-- Latest offline Phase 6 verification: `npm test` passed 7,014 tests with 2
+- Latest offline Phase 6 verification: `npm test` passed 7,016 tests with 2
   skipped across 253 files; `npm run test:realm` passed 18/18;
   `npm run typecheck`, `npm run build`, `npm run check:secrets`,
   `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
@@ -167,7 +167,18 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   mob was not an eligible hostile (4 requests, 11,679 tokens, ~$0.001937,
   zero policy violations). Low-health rest recovery remains unverified because
   no run reached the configured `restBelow=0.35` threshold.
-- Latest local validation: 7,014 tests passed, 2 skipped across 253 files;
+- Latest bounded run (2026-10-17): all 27 scenarios passed with zero policy
+  violations, 4 provider requests, 11,626 tokens, and estimated cost $0.001897,
+  within the unchanged 120,000 ms / 16 / 60,000 / $0.05 limits. It verified
+  Arena and one-/two-room navigation, Corwyn inspection, and another
+  XP-confirmed exact-target victory against lashworm. Combat settled with
+  HP 43/51, no target or attackers; exact target-death evidence was not
+  observed. Two authoritative mobs were present; one was excluded for
+  uncertain realm classification and one was eligible. Recovery did not rest:
+  HP was above `restBelow=0.35`. The harness now reports this as “rest not due”
+  and only counts recovery as exercised if a `rest` command is observed and
+  HP reaches configured `restTo`.
+- Latest local validation: 7,016 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
@@ -234,11 +245,16 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
 
 ## Outstanding work
 
-1. A bounded PvE encounter with XP-confirmed victory evidence and Corwyn's
-   production inspection at `1/2147` are verified. Still exercise low-health
-   recovery live and seek exact-target death evidence. The latest run found no
-   eligible hostile and correctly issued no attack; do not manufacture a
-   target or weaken combat safeguards to force either result.
+1. Multiple bounded runs now verified XP-confirmed PvE victory, Corwyn's
+   production inspection at `1/2147`, and repeated navigation. Still exercise
+   low-health recovery live and seek exact-target death evidence. The latest
+   run had an eligible lashworm and safely excluded a second mob with
+   uncertain realm classification. Do not manufacture a target or weaken
+   combat safeguards to force either result.
+2. The supervised harness still composes navigation, NPC inspection, combat,
+   and recovery as separate bounded probes. Prove the same capabilities through
+   one coherent production objective, then improve the live demonstration's
+   progress reporting without adding scripted action sequences.
 2. Investigate the historical arena movement report further if its missing
    capture becomes available. Repeated current routes pass, but the exact
    server-side cause of the original timeout cannot be established without it.

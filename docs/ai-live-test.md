@@ -510,6 +510,19 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   Arena mob failed the conservative hostile check, so combat was refused
   without an attack. No combat or recovery behavior was exercised in this run;
   the earlier XP-confirmed victory remains separate live evidence.
+- Bounded rerun (2026-10-17): all 27 scenarios passed with zero policy
+  violations (4 requests, 11,626 tokens, ~$0.001897). The live target report
+  distinguished 2 authoritative mobs: one uncertain realm classification was
+  excluded, while lashworm passed the existing exact-target gate. Walker
+  verified Arena and one-/two-room routes and returned to `1/2147`; production
+  inspection observed Corwyn. Exact-target combat through SessionManager
+  produced XP-confirmed victory, settling at HP 43/51 with no target or
+  attackers. No target-death event was observed. Recovery did not rest because
+  HP was above `restBelow=0.35`; the harness now reports that explicitly and
+  requires a real `rest` command plus `restTo` health to call future recovery
+  live-verified. Focused AI tests passed 49/49; full tests passed 7,016 with 2
+  skipped across 253 files. Typecheck, build, secret scan, harness syntax, and
+  diff checks passed. Low-health recovery remains unverified.
 
 ### 2026-10-15 - first live gossip reply observed
 

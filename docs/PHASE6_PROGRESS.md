@@ -401,20 +401,40 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   was issued. This run did not exercise combat settlement or recovery. The
   prior XP-confirmed PvE victory remains live evidence; low-health recovery and
   exact-target death are still unverified.
+- A bounded rerun then exposed why the previous combat refusal report was too
+  coarse, without changing target selection: 2 authoritative Arena mobs were
+  visible, 1 was excluded for uncertain realm classification, and 1 eligible
+  lashworm passed the existing PvE gate. SessionManager exact-target combat
+  produced another XP-confirmed `victory`, settling at HP 43/51 with no target
+  or attackers. Exact-target death evidence was not observed. Walker again
+  verified Arena and one-/two-room routes, then returned to `1/2147` where
+  Corwyn was inspected. All 27 harness scenarios passed with zero policy
+  violations (4 requests, 11,626 tokens, estimated $0.001897), within unchanged
+  limits. Recovery was not due: HP remained above `restBelow=0.35`.
+- The harness now reports recovery as not due rather than implying a rest took
+  place when HP is above `restBelow`. If resting is due, the live recovery
+  scenario must observe a `rest` command and authoritative HP reaching
+  configured `restTo`; merely reaching the separate 60% combat-readiness gate
+  no longer counts as recovery evidence. This reporting change is covered by
+  deterministic tests and typecheck, but has not yet been exercised during a
+  live low-health recovery.
+- Focused NPC, activity-selector and live-harness tests passed 49/49; full
+  `npm test` passed 7,016 tests with 2 skipped across 253 files. Typecheck,
+  production build, secret scan, live-harness syntax check, and
+  `git diff --check` passed. The build retains the existing renderer chunk-size
+  warning.
 
 ## Remaining work
 
-Repeated Arena arrivals and the latest one-/two-room routes verify the
-corrected Walker lifecycle path, but the historical server timeout's exact
-cause remains unconfirmed without its missing capture. The latest bounded
-live run achieved an XP-confirmed PvE victory against an authoritative hostile,
-and verified route navigation, but did not observe exact-target death. That run
-settled at 37/51 HP, above both the harness's 60% recovery-ready threshold and
-the configured 35% rest threshold; no rest action occurred, so live low-health
-recovery remains unverified. The harness's false NPC-kind filter has been
-corrected, and Corwyn's live inspection is confirmed at `1/2147`. Keep
-low-health recovery and exact-target death evidence as distinct limitations
-rather than treating them as navigation or resident-discovery failures.
+Repeated Arena arrivals, one-/two-room navigation, Corwyn inspection, and three
+XP-confirmed live PvE victories are verified. Exact-target death has not been
+observed. The latest encounter settled at 43/51 HP, above the configured
+`restBelow=0.35`, so low-health resting remains unverified; the harness now
+requires an observed rest command and HP reaching `restTo` before reporting it.
+The harness still sequences navigation, NPC inspection, combat and recovery as
+separate probes; demonstrate them through one coherent production objective.
+The original Arena timeout's exact server-side cause remains unknown because
+its capture is unavailable.
 
 ## Environment on a new computer
 ```powershell
