@@ -4333,18 +4333,30 @@ export class SessionManager {
       } else return { ok: true, message: `Observed ${action.name.replaceAll('_', ' ')}` };
     if (action.name === 'wait')
       return { ok: true, message: 'Waiting for a meaningful event' };
-    if (action.name === 'recover_health')
+    if (action.name === 'recover_health') {
       if (!isPassiveRecovery('rest'))
         return { ok: false, message: 'Refused: recovery command is not passive' };
-      else
+      const { hp, hpMax } = this.tracker.current.vitals;
+      if (hp === null || hpMax === null || hpMax <= 0)
+        return { ok: false, message: 'Refused: recovery requires authoritative health' };
+      const { restBelow } = this.automationConfig.health;
+      if (restBelow <= 0 || hp / hpMax >= restBelow)
         return {
-          ok: this.queue.enqueue({
-            command: 'rest',
-            priority: 'emergency',
-            reason: `AI: ${action.reason}`
-          }),
-          message: 'Recovery delegated to CommandQueue'
+          ok: true,
+          message: `Recovery not due: HP ${hp}/${hpMax} is not below configured restBelow ${restBelow}`
         };
+      const queued = this.queue.enqueue({
+        command: 'rest',
+        priority: 'emergency',
+        reason: `AI: ${action.reason}`
+      });
+      return {
+        ok: queued,
+        message: queued
+          ? 'Recovery delegated to CommandQueue'
+          : 'Recovery command was not accepted by CommandQueue'
+      };
+    }
     if (action.name === 'manage_equipment') {
       this.aiEquipmentBaseline = JSON.stringify(this.tracker.current.inventory);
       this.gear.onCharacter(

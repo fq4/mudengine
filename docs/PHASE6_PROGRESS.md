@@ -423,6 +423,32 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   production build, secret scan, live-harness syntax check, and
   `git diff --check` passed. The build retains the existing renderer chunk-size
   warning.
+- A bounded integrated objective was added to the live harness. Its successful
+  run navigated `1/2147` -> `1/2150`, inspected the room, and completed the
+  production objective plan with zero policy violations (4 provider requests,
+  11,682 tokens, estimated cost $0.00193545). No eligible target was present,
+  so combat and result-review steps were safely skipped; HP remained above
+  `restBelow`, so no rest was due. The route summary now prints the observed
+  before/after room keys instead of incorrectly reporting `unchanged`.
+- The `recover_health` adapter now refuses when authoritative HP is unknown,
+  reports a truthful no-op when HP is at or above the configured
+  `restBelow`, and delegates `rest` only when that configured threshold says
+  recovery is due. Queue rejection is reported explicitly; queue acceptance
+  still is not treated as proof that rest occurred. Focused SessionManager
+  tests cover unknown, at/above-threshold, below-threshold, and rejected-queue
+  states. The integrated objective is also skipped when a prior encounter or
+  recovery remains unresolved.
+- Latest bounded live attempt stopped at its login/placement gate: phase was
+  `in-game`, but the authoritative room remained `unknown/unknown`; one
+  attacker was reported and no provider/objective action ran. The run had zero
+  provider requests and cannot verify the integrated scenario. Do not retry
+  live until Kefka's actual placement and combat state are confirmed.
+- Focused recovery tests passed 3/3; objective/live-harness tests passed 36/36.
+  The final full suite passed 7,019 tests with 2 skipped across 253 files.
+  An earlier concurrent run hit two `SessionLog.test.ts` cleanup `ENOTEMPTY`
+  errors; the file passed in isolation (14/14), and the final full run passed.
+  Typecheck, production build, secret scan, JavaScript syntax, and
+  `git diff --check` passed. The existing build chunk-size warning remains.
 
 ## Remaining work
 
@@ -431,10 +457,13 @@ XP-confirmed live PvE victories are verified. Exact-target death has not been
 observed. The latest encounter settled at 43/51 HP, above the configured
 `restBelow=0.35`, so low-health resting remains unverified; the harness now
 requires an observed rest command and HP reaching `restTo` before reporting it.
-The harness still sequences navigation, NPC inspection, combat and recovery as
-separate probes; demonstrate them through one coherent production objective.
-The original Arena timeout's exact server-side cause remains unknown because
-its capture is unavailable.
+The integrated production objective has now completed live once, but that run
+had no eligible hostile and recovery was not due; it does not demonstrate
+combat or resting as part of that objective. The latest bounded attempt did
+not pass the authoritative room-identity gate, so repeat the objective only
+after the character's placement/combat state is confirmed. Exact-target death
+and low-health resting remain unverified. The original Arena timeout's exact
+server-side cause remains unknown because its capture is unavailable.
 
 ## Environment on a new computer
 ```powershell

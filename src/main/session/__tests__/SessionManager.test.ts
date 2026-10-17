@@ -1029,6 +1029,8 @@ describe('AI reconnect lifecycle', () => {
     await isolated.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
     await client();
     (isolated as any).tracker.current.phase = 'in-game';
+    (isolated as any).tracker.current.vitals.hp = 20;
+    (isolated as any).tracker.current.vitals.hpMax = 100;
     const recovery = await isolated.aiAction({ name: 'recover_health', reason: 'restore health' });
     (isolated as any).aiAgent.state.objective = 'manage equipment safely';
     const equipment = await isolated.aiAction({ name: 'manage_equipment', reason: 'review gear' });
@@ -1039,6 +1041,67 @@ describe('AI reconnect lifecycle', () => {
     isolated.aiApprove(approval!.id);
     await until(() => (isolated as any).aiEquipmentBaseline !== null);
     expect(isolated.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
+    isolated.dispose();
+  });
+
+  it('reports recovery as not due above restBelow and refuses unknown health', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    await isolated.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    await client();
+    (isolated as any).tracker.current.phase = 'in-game';
+    (isolated as any).tracker.current.vitals.hp = 50;
+    (isolated as any).tracker.current.vitals.hpMax = 100;
+
+    const notDue = await isolated.aiAction({
+      name: 'recover_health',
+      reason: 'restore health'
+    });
+    expect(notDue).toEqual({
+      ok: true,
+      message: 'Recovery not due: HP 50/100 is not below configured restBelow 0.35'
+    });
+
+    (isolated as any).tracker.current.vitals.hp = 35;
+    const atThreshold = await isolated.aiAction({
+      name: 'recover_health',
+      reason: 'restore health'
+    });
+    expect(atThreshold).toEqual({
+      ok: true,
+      message: 'Recovery not due: HP 35/100 is not below configured restBelow 0.35'
+    });
+
+    (isolated as any).tracker.current.vitals.hp = null;
+    const unknown = await isolated.aiAction({
+      name: 'recover_health',
+      reason: 'restore health'
+    });
+    expect(unknown).toEqual({
+      ok: false,
+      message: 'Refused: recovery requires authoritative health'
+    });
+    isolated.dispose();
+  });
+
+  it('reports when the recovery command is rejected by CommandQueue', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    await isolated.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    await client();
+    (isolated as any).tracker.current.phase = 'in-game';
+    (isolated as any).tracker.current.vitals.hp = 20;
+    (isolated as any).tracker.current.vitals.hpMax = 100;
+    vi.spyOn((isolated as any).queue, 'enqueue').mockReturnValue(false);
+
+    const recovery = await isolated.aiAction({
+      name: 'recover_health',
+      reason: 'restore health'
+    });
+    expect(recovery).toEqual({
+      ok: false,
+      message: 'Recovery command was not accepted by CommandQueue'
+    });
     isolated.dispose();
   });
 

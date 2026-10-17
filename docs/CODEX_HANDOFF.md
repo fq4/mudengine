@@ -178,9 +178,30 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   HP was above `restBelow=0.35`. The harness now reports this as “rest not due”
   and only counts recovery as exercised if a `rest` command is observed and
   HP reaches configured `restTo`.
-- Latest local validation: 7,016 tests passed, 2 skipped across 253 files;
-  typecheck, production build, secret scan, harness syntax check, and
-  `git diff --check` passed. The renderer chunk-size warning remains.
+- The integrated live objective has since completed once: Walker moved
+  `1/2147` -> `1/2150`, the room was inspected, and the production plan
+  completed with zero policy violations (4 provider requests, 11,682 tokens,
+  estimated cost $0.00193545). No eligible target was present, so
+  combat/result-review were skipped; HP was above `restBelow`, so recovery
+  correctly did not rest. Its route report now prints the observed
+  before/after room keys.
+- `recover_health` now refuses unknown HP, reports recovery as not due at or
+  above configured `restBelow`, queues `rest` only below that threshold, and
+  reports CommandQueue rejection explicitly. Focused tests cover unknown,
+  at/above-threshold, below-threshold, and rejected-queue health states; queue
+  acceptance is not presented as completed recovery. The integrated objective
+  is skipped if an earlier encounter/recovery remains unresolved.
+- The most recent bounded attempt did not pass its room-identity gate:
+  `phase=in-game`, `room=unknown/unknown`, and one attacker were reported.
+  It made zero provider requests and did not run an objective. This is
+  inconclusive about gameplay and is not a navigation failure; do not retry
+  until Kefka's placement and combat state are confirmed.
+- Latest local validation: the final `npm test` passed 7,019 tests with 2
+  skipped across 253 files. An earlier concurrent run hit two
+  `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
+  isolation (14/14), and the final full run passed. Typecheck, production
+  build, secret scan, harness syntax check, and `git diff --check` passed. The
+  renderer chunk-size warning remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
   `node --check scripts/ai-live.mjs` / `git diff --check` passed. The live
   follow-up was blocked before gameplay as described above; no live combat
@@ -251,17 +272,18 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
    run had an eligible lashworm and safely excluded a second mob with
    uncertain realm classification. Do not manufacture a target or weaken
    combat safeguards to force either result.
-2. The supervised harness still composes navigation, NPC inspection, combat,
-   and recovery as separate bounded probes. Prove the same capabilities through
-   one coherent production objective, then improve the live demonstration's
-   progress reporting without adding scripted action sequences.
-2. Investigate the historical arena movement report further if its missing
+2. One integrated production objective now completes live, but no hostile was
+   eligible and recovery was not due in that run. After confirming Kefka's
+   placement/combat state, repeat it under the same caps and seek real
+   combat/rest evidence without manufacturing a target or weakening policy.
+   Exact-target death and low-health recovery remain unverified.
+3. Investigate the historical arena movement report further if its missing
    capture becomes available. Repeated current routes pass, but the exact
    server-side cause of the original timeout cannot be established without it.
-3. Improve general-command completion feedback beyond queue acceptance while
+4. Improve general-command completion feedback beyond queue acceptance while
    preserving CommandQueue ownership.
-4. Investigate the concurrent migration-test temporary-home race.
-5. Phase 3 is complete for the approved safe capability scope. Keep live use
+5. Investigate the concurrent migration-test temporary-home race.
+6. Phase 3 is complete for the approved safe capability scope. Keep live use
    bounded to the harness safety rules; future scope expansion requires a new
    review and explicit authorization.
 

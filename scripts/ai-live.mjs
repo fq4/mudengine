@@ -306,6 +306,96 @@ const runScenario = async (name, objective, expected) => {
   if (monitor.failed) throw new Error(monitor.violations[0].message);
   return passed;
 };
+const runIntegratedAdventureObjective = async () => {
+  const before = roomKey();
+  const objective =
+    'Navigate to 1/2150, inspect the room, engage a suitable hostile mob if available, assess the combat result, recover health, then stop.';
+  combatVictoryEvidence = false;
+  combatTargetName = null;
+  combatTargetDied = false;
+  session.aiGoal(objective);
+  const complete = await waitFor(
+    (state) => {
+      for (const approval of state.pendingApprovals) {
+        const targetName = approval.action?.args?.name;
+        if (approval.action?.name !== 'engage_enemy' || typeof targetName !== 'string') continue;
+        const room = session.character.room;
+        const escapeAvailable =
+          room?.exits.some(
+            (exit) =>
+              exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
+          ) ?? false;
+        const eligibility = assessCombatEligibility(
+          room?.occupants ?? [],
+          session.character.vitals,
+          targetName,
+          0.6,
+          escapeAvailable
+        );
+        if (!eligibility.ok || !eligibility.target) continue;
+        combatTargetName = eligibility.target.name;
+        monitor.authorizeCombatTarget(combatTargetName);
+        session.aiApprove(approval.id);
+      }
+      return (
+        state.objectiveComplete === true ||
+        state.status === 'error' ||
+        state.status === 'budget-paused'
+      );
+    },
+    Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs)
+  );
+  const after = roomKey();
+  const state = snapshot().state;
+  const plan = state.plan ?? [];
+  const planComplete =
+    plan.length > 0 &&
+    plan.every((step) => step.status === 'completed' || step.status === 'skipped');
+  const arrived = after === NEWHAVEN_ARENA;
+  const roomInspected = plan.some(
+    (step) => step.action === 'inspect_room' && step.status === 'completed'
+  );
+  const combatStep = plan.find((step) => step.action === 'engage_enemy');
+  const resultStep = plan.find((step) => step.action === 'inspect_combat_result');
+  const combatReviewed =
+    resultStep?.status === 'completed' || resultStep?.status === 'skipped';
+  const passed =
+    complete &&
+    state.objectiveComplete === true &&
+    planComplete &&
+    arrived &&
+    roomInspected &&
+    combatReviewed &&
+    !monitor.failed;
+  report.scenarios.push({
+    name: 'integrated-arena-objective',
+    passed,
+    before,
+    after,
+    objective,
+    status: state.status,
+    plan: plan.map(({ action, status }) => ({ action, status })),
+    result: [
+      state.lastActionResult,
+      `rooms=${before === after ? before : `${before} -> ${after}`}`,
+      `combat=${combatStep?.status ?? 'missing'}`,
+      `target=${combatTargetName ?? 'none'}`,
+      `xpVictory=${combatVictoryEvidence}`,
+      `targetDeathObserved=${combatTargetDied}`,
+      `HP=${session.character.vitals.hp ?? 'unknown'}/${session.character.vitals.hpMax ?? 'unknown'}`,
+      `resting=${session.character.vitals.resting}`,
+      `restBelow=${profile.config.automation.health.restBelow}`,
+      `restTo=${profile.config.automation.health.restTo}`
+    ].join('; '),
+    usage: state.usage,
+    note:
+      'One explicit objective was executed through Agent planning, Walker, and the SessionManager. Combat/result steps are skipped when no eligible target is present; recovery follows the configured threshold. Any combat requires fresh hostile, health, and escape evidence.'
+  });
+  session.aiClearGoal();
+  if (!passed)
+    throw new Error(`integrated Arena objective did not complete: ${state.lastActionResult}`);
+  return passed;
+};
 const runProviderDrivenObjective = async () => {
   const before = roomKey();
   currentRoom = before;
@@ -1001,6 +1091,16 @@ async function main() {
       skipped: true,
       result: residentSkipReason
     });
+  }
+  if (combatBlocksNavigation || recoveryBlocksNavigation || monitor.failed) {
+    report.scenarios.push({
+      name: 'integrated-arena-objective',
+      passed: !monitor.failed,
+      skipped: true,
+      result: 'Skipped because prior combat or recovery is unresolved; no objective was launched'
+    });
+  } else {
+    await runIntegratedAdventureObjective();
   }
   const invalid = await session.aiAction({
     name: 'navigate_to',

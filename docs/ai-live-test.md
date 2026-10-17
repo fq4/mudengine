@@ -552,3 +552,29 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   connected.
 - The result did not include the responder harness's request, token, cost, or
   monitor totals. No message text was retained.
+
+### 2026-10-17 — integrated objective and recovery feedback
+
+- The bounded integrated objective completed once through the production
+  planner, Walker, and SessionManager. It moved from `1/2147` to `1/2150`,
+  inspected the room, and completed its plan with zero policy violations
+  (4 provider requests, 11,682 tokens, estimated cost $0.00193545). No eligible
+  hostile was present, so combat/result review were skipped; health was above
+  `restBelow`, so rest was not due. This does not demonstrate combat or
+  low-health recovery in the same objective.
+- The harness now reports the observed before/after room keys. The recovery
+  adapter refuses unknown authoritative HP, reports a no-op at/above
+  `restBelow`, delegates `rest` only below the threshold, and explicitly
+  reports CommandQueue rejection. The integrated objective is skipped if a
+  preceding encounter or recovery remains unresolved.
+- A later bounded attempt failed the placement gate: the session phase was
+  `in-game`, but room identity was `unknown/unknown`, with one attacker
+  reported. It made zero provider requests and did not run the objective. This
+  is inconclusive about navigation and gameplay; confirm Kefka's placement and
+  combat state before another live run.
+- Focused SessionManager recovery tests passed 3/3, and objective/live-harness
+  tests passed 36/36. The final full suite passed 7,019 tests with 2 skipped
+  across 253 files. An earlier concurrent run hit two `SessionLog.test.ts`
+  cleanup errors (`ENOTEMPTY`); all 14 tests passed in isolation, and the final
+  full run passed. Typecheck, production build, secret scan, script syntax, and
+  diff checks passed.

@@ -96,6 +96,23 @@ describe('bounded objective planning', () => {
     expect(objectivePlanComplete(plan)).toBe(true);
   });
 
+  it('plans a bounded navigation, observation, optional PvE, result, and recovery objective', () => {
+    const plan = buildObjectivePlan(
+      'Navigate to 1/2150, inspect the room, engage a suitable hostile mob if available, assess the combat result, recover health, then stop.'
+    );
+
+    expect(plan.map((step) => step.action)).toEqual([
+      'navigate_to',
+      'inspect_room',
+      'engage_enemy',
+      'inspect_combat_result',
+      'recover_health'
+    ]);
+    expect(plan[0]).toMatchObject({ destination: '1/2150' });
+    expect(plan[2]?.optional).toBe(true);
+    expect(plan[3]?.optional).toBe(true);
+  });
+
   it('does not accept partially recognized quest objectives as fully schedulable intent', () => {
     expect(
       hasUnsupportedObjectiveIntent('Travel to 1/2, inspect the room, then finish the quest.')
