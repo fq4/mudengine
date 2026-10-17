@@ -117,8 +117,9 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   The next live attempt did not reach a room identity, and subsequent retries
   remained `authenticating` after credential submission; they issued no
   gameplay/provider actions. Login-timeout reporting now includes only parsed
-  phase, room, HP, and combat state. Pause further live runs until Kefka's login
-  and placement are confirmed.
+  phase, room, HP, combat state, and a capped count of parser block types (no
+  block text or raw traffic). Pause further live runs until Kefka's login and
+  placement are confirmed.
 - Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.
@@ -127,7 +128,8 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   follow-up was blocked before gameplay as described above; no live combat
   result is claimed for the longer bound. A further retry also remained in
   authentication; syntax and diff checks passed after adding parsed
-  login-state diagnostics.
+  login-state diagnostics. Parser-block-type counts were subsequently added to
+  the timeout report; syntax, Problems, secret scan, and diff checks passed.
 - Earlier full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.

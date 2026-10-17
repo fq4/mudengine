@@ -337,8 +337,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   provider or gameplay scenarios, and no raw login response was retained.
 - A later bounded retry again remained `authenticating` after credential
   submission and issued no gameplay/provider action. The harness now includes
-  only parsed phase/room/HP/combat state in login-timeout reports. Stop further
-  retries until login availability is confirmed.
+  only parsed phase/room/HP/combat state plus a capped count of parser block
+  types in login-timeout reports; it never retains block text or raw traffic.
+  Stop further retries until login availability is confirmed.
 
 ## Remaining work
 

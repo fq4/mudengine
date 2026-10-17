@@ -81,9 +81,12 @@ let combatBlocksNavigation = false;
 let recoveryBlocksNavigation = false;
 let currentRoom = null;
 let multiRoomTarget = null;
+const loginBlockCounts = new Map();
 const sink = {
   data: () => {},
   block: (block) => {
+    if (session.character.phase !== 'in-game' && loginBlockCounts.size < 12)
+      loginBlockCounts.set(block.type, (loginBlockCounts.get(block.type) ?? 0) + 1);
     if (block.type === 'user-gain-experience') combatVictoryEvidence = true;
     if (
       block.type === 'mob-dies' &&
@@ -225,7 +228,10 @@ const loginDiagnostic = () => {
     `HP=${vitals.hp ?? 'unknown'}/${vitals.hpMax ?? 'unknown'}`,
     `combatEngaged=${combat.engaged}`,
     `targetPresent=${combat.target !== null}`,
-    `attackers=${combat.attackers.length}`
+    `attackers=${combat.attackers.length}`,
+    `parsedBlockTypes=${[...loginBlockCounts]
+      .map(([type, count]) => `${type}:${count}`)
+      .join(',') || 'none'}`
   ].join('; ');
 };
 const runScenario = async (name, objective, expected) => {
