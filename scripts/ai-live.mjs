@@ -194,7 +194,39 @@ const recoveryDiagnostic = () => {
   const { engaged, target, attackers } = session.character.combat;
   const { restBelow, restTo } = profile.config.automation.health;
   const state = snapshot().state;
-  return `HP=${hp ?? 'unknown'}/${hpMax ?? 'unknown'}; resting=${resting}; meditating=${meditating}; combatEngaged=${engaged}; target=${target ?? 'none'}; attackers=${attackers.length}; restBelow=${restBelow}; restTo=${restTo}; action=${state.currentAction?.name ?? 'none'}; actionResult=${state.lastActionResult || 'none'}`;
+  return [
+    `HP=${hp ?? 'unknown'}/${hpMax ?? 'unknown'}`,
+    `resting=${resting}`,
+    `meditating=${meditating}`,
+    `combatEngaged=${engaged}`,
+    `target=${target ?? 'none'}`,
+    `attackers=${attackers.length}`,
+    `restBelow=${restBelow}`,
+    `restTo=${restTo}`,
+    `action=${state.currentAction?.name ?? 'none'}`,
+    `actionResult=${state.lastActionResult || 'none'}`
+  ].join('; ');
+};
+const combatDiagnostic = () => {
+  const { hp, hpMax } = session.character.vitals;
+  const { engaged, target, attackers } = session.character.combat;
+  return [
+    `HP=${hp ?? 'unknown'}/${hpMax ?? 'unknown'}`,
+    `engaged=${engaged}`,
+    `target=${target ?? 'none'}`,
+    `attackers=${attackers.length}`
+  ].join('; ');
+};
+const loginDiagnostic = () => {
+  const { phase, room, vitals, combat } = session.character;
+  return [
+    `phase=${phase}`,
+    `room=${room.map ?? 'unknown'}/${room.number ?? 'unknown'}`,
+    `HP=${vitals.hp ?? 'unknown'}/${vitals.hpMax ?? 'unknown'}`,
+    `combatEngaged=${combat.engaged}`,
+    `targetPresent=${combat.target !== null}`,
+    `attackers=${combat.attackers.length}`
+  ].join('; ');
 };
 const runScenario = async (name, objective, expected) => {
   const before = roomKey();
@@ -386,7 +418,16 @@ async function main() {
     return;
   }
   const roomKnown = await waitFor(() => /^\d+\/\d+$/.test(roomKey()), 30_000);
-  if (!roomKnown) throw new Error('no authoritative room identity was observed after login');
+  if (!roomKnown) {
+    const result = loginDiagnostic();
+    report.scenarios.push({
+      name: 'login-room-identity',
+      passed: false,
+      result
+    });
+    monitor.fail('stall', `No authoritative room identity was observed after login (${result})`);
+    throw new Error(monitor.violations[0].message);
+  }
   await runProviderDrivenObjective();
   session.aiClearGoal();
   session.aiEnable();
@@ -669,8 +710,11 @@ async function main() {
         combat: () => session.character.combat,
         vitals: () => session.character.vitals,
         wait,
-        isStopped: () => monitor.failed,
-        timeoutMs: 30_000
+        isStopped: () => {
+          monitor.check();
+          return monitor.failed;
+        },
+        timeoutMs: Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs)
       });
       outcome = settlement.outcome;
       if (settlement.unresolved) session.aiEmergencyStop();
@@ -682,7 +726,7 @@ async function main() {
       name: 'newhaven-arena-bounded-combat',
       passed:
         combatDispatch.ok && combatObserved && outcome !== 'unsafe' && !monitor.failed,
-      result: `${combatDispatch.message}; observed=${combatObserved}; outcome=${combatResult}; targetDeathObserved=${combatTargetDied}; xpVictory=${combatVictoryEvidence}`
+      result: `${combatDispatch.message}; observed=${combatObserved}; outcome=${combatResult}; targetDeathObserved=${combatTargetDied}; xpVictory=${combatVictoryEvidence}; ${combatDiagnostic()}`
     });
 
     if (combatObserved && outcome === 'ended') {

@@ -446,6 +446,22 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   so it is not a confirmed kill or victory. HP was already full, and the
   low-health recovery gate was not exercised by this live run.
 
+### 2026-10-17 - combat settle diagnostics and login interruption
+
+- Another bounded run reached `1/2150`, observed two authoritative mobs, and
+  passed exact-target combat preflight. The attack was issued, but combat was
+  still active when the old 30-second observation expired and the result was
+  `unsafe`; no target-death or XP evidence was seen. The report did not contain
+  the final HP needed to distinguish an active low-health fight from death.
+- The combat observer now waits only for the remaining global harness runtime
+  and records HP/max HP, engagement, target, and attacker count at settlement.
+  This retains the production combat owner and all existing policy gates; it
+  does not raise the 120-second runtime or provider budgets. The next run after
+  this edit did not reach a room identity, and a subsequent connection remained
+  `authenticating`. Neither reached provider/gameplay scenarios. Pause further
+  live attempts until the configured Kefka profile's login and server placement
+  are confirmed; no raw login traffic was recorded.
+
 ### 2026-10-15 - first live gossip reply observed
 
 - A configured sender session sent one test gossip through `CommandQueue`.

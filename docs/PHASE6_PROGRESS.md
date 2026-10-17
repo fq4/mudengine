@@ -320,6 +320,21 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   (`outcome=ended`, `targetDeathObserved=false`, `xpVictory=false`), so no kill
   or victory is claimed. HP was already full at the post-combat check, so the
   low-health recovery wait was not exercised live in this run.
+- A subsequent bounded run again reached the Arena and its two-mob discovery
+  and combat preflight passed, but the exact-target fight remained active until
+  the former 30-second settle window ended; the final classification was
+  `unsafe`, with no target-death or XP evidence. The trace confirms the attack
+  command and a later observation, but the report did not yet include final HP,
+  so death versus active combat below the 30% classifier threshold is unknown.
+  Post-combat steps and routes were correctly skipped.
+- Combat settling now uses only the remaining existing max-runtime budget,
+  with a runtime check on each poll, and reports final HP/max HP, target,
+  engagement, and attacker count. This leaves the exact-target production
+  AutoCombat owner in control longer without changing the 60% preflight, the
+  `CombatOutcome` classification, or the 120-second / request / token / cost
+  ceilings. The follow-up live invocation after this edit did not reach room
+  placement; a further connection stopped in `authenticating`. Neither reached
+  provider or gameplay scenarios, and no raw login response was retained.
 
 ## Remaining work
 
@@ -329,10 +344,13 @@ cause remains unconfirmed without its missing capture. Combat was authorized
 against an authoritative hostile, but the latest run ended without XP or
 target-death evidence; a confirmed win and live low-health recovery remain
 unverified. The recovery timeout is now diagnostically bounded by remaining
-harness runtime, but the low-health branch still needs a live observation.
-There was no inspectable resident NPC in the latest run. Keep these as distinct
-limitations rather than treating combat or resident availability as navigation
-failures.
+harness runtime, and combat settling is bounded by the same global runtime;
+both changes still need a live observation. Recent follow-up connections
+failed to acquire authoritative room state / reach in-game, so stop further
+live attempts until Kefka's current server placement and login availability
+are confirmed. There was no inspectable resident NPC in the latest placed run.
+Keep these as distinct limitations rather than treating combat or resident
+availability as navigation failures.
 
 ## Environment on a new computer
 ```powershell

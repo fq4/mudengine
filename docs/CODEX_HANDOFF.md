@@ -107,9 +107,23 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   budget and records authoritative HP, rest/combat/target state, profile
   thresholds, and action result without requiring the character to stand up.
   This does not alter production Recovery or the combat safety gate.
+- Subsequent bounded attempt: Arena arrival, two-mob discovery, and exact-target
+  preflight passed, but the fight remained active through the former 30-second
+  settle window and classified `unsafe`. No XP or target-death evidence was
+  observed, and the report lacked final HP, so death versus low positive HP
+  cannot be determined. Combat settling now uses the remaining portion of the
+  same runtime cap and records authoritative HP/target/attacker state; it does
+  not change combat policy or the global 120-second/request/token/cost limits.
+  The next live attempt did not reach a room identity, and a later one remained
+  `authenticating`; neither reached provider/gameplay scenarios. Pause further
+  live runs until Kefka's login and placement are confirmed.
 - Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.
+- After the combat-settlement change, focused AI tests passed 27/27 and
+  `node --check scripts/ai-live.mjs` / `git diff --check` passed. The live
+  follow-up was blocked before gameplay as described above; no live combat
+  result is claimed for the longer bound.
 - Earlier full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
@@ -169,9 +183,11 @@ Read `docs/ai-live-test.md` for the chronology, `docs/ai-capability-inventory.md
 ## Outstanding work
 
 1. Verify a completed bounded PvE encounter with authoritative victory evidence
-   and exercise low-health recovery live. The latest attack ended without XP or
-   target-death evidence; the recovery gate was not exercised because HP was
-   already full. Inspect an NPC only when authoritative NPC state is visible.
+   and exercise low-health recovery live, after confirming Kefka can enter the
+   game and has an authoritative room placement. The latest attack ended
+   without XP or target-death evidence; the recovery gate was not exercised
+   because HP was already full. Inspect an NPC only when authoritative NPC
+   state is visible.
 2. Investigate the historical arena movement report further if its missing
    capture becomes available. Repeated current routes pass, but the exact
    server-side cause of the original timeout cannot be established without it.
