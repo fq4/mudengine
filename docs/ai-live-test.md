@@ -470,6 +470,13 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   shared server-menu script; an unconfigured subsequent menu is a plausible,
   unconfirmed cause. The report now includes the number of configured login
   steps, not their trigger text. Do not invent a menu response.
+- A bounded diagnostic follow-up remained `authenticating` with no room,
+  vitals, provider requests, or gameplay actions. Its capped sanitized tail
+  was seven `unknown[other]` blocks followed by `unknown[choose]:flush`.
+  `choose` is a keyword category only; it does not identify the requested
+  input. The harness reports only parser type, predefined category labels,
+  and a flush marker for its final eight pre-game blocks; it never stores or
+  prints their text. Keep live retries paused pending prompt confirmation.
 
 ### 2026-10-15 - first live gossip reply observed
 

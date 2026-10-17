@@ -82,11 +82,41 @@ let recoveryBlocksNavigation = false;
 let currentRoom = null;
 let multiRoomTarget = null;
 const loginBlockCounts = new Map();
+const loginPromptSignals = new Set();
+const recentLoginBlockSummaries = [];
 const sink = {
   data: () => {},
   block: (block) => {
-    if (session.character.phase !== 'in-game' && loginBlockCounts.size < 12)
+    if (session.character.phase !== 'in-game' && loginBlockCounts.size < 12) {
       loginBlockCounts.set(block.type, (loginBlockCounts.get(block.type) ?? 0) + 1);
+      const text = block.text.toLowerCase();
+      const categories = [
+        ['account', /\baccount\b/],
+        ['character', /\bcharacter\b/],
+        ['choose', /\bchoose\b|\bselect\b|\bchoice\b/],
+        ['continue', /\bcontinue\b|\bnext\b/],
+        ['enter', /\benter\b|\btype\b|\binput\b/],
+        ['menu', /\bmenu\b|\boption\b/],
+        ['password', /\bpassword\b/],
+        ['realm', /\brealm\b|\bworld\b|\bserver\b/],
+        ['rules', /\brules?\b|\baccept\b/],
+        ['username', /\buser\s*name\b|\blogin\b/],
+        ['welcome', /\bwelcome\b/]
+      ];
+      if (loginPromptSignals.size < 12) {
+        for (const [name, pattern] of categories)
+          if (pattern.test(text)) loginPromptSignals.add(name);
+        if (block.terminator === 'flush') loginPromptSignals.add('flush-terminated');
+        if (block.terminator === 'newline') loginPromptSignals.add('newline-terminated');
+      }
+      const matchedCategories = categories
+        .filter(([, pattern]) => pattern.test(text))
+        .map(([name]) => name);
+      recentLoginBlockSummaries.push(
+        `${block.type}[${matchedCategories.join(',') || 'other'}]${block.terminator === 'flush' ? ':flush' : ''}`
+      );
+      if (recentLoginBlockSummaries.length > 8) recentLoginBlockSummaries.shift();
+    }
     if (block.type === 'user-gain-experience') combatVictoryEvidence = true;
     if (
       block.type === 'mob-dies' &&
@@ -232,7 +262,9 @@ const loginDiagnostic = () => {
     `configuredLoginStepCount=${profile.config.connection.login.steps.length}`,
     `parsedBlockTypes=${[...loginBlockCounts]
       .map(([type, count]) => `${type}:${count}`)
-      .join(',') || 'none'}`
+      .join(',') || 'none'}`,
+    `promptSignals=${[...loginPromptSignals].join(',') || 'none'}`,
+    `recentBlocks=${recentLoginBlockSummaries.join(' > ') || 'none'}`
   ].join('; ');
 };
 const runScenario = async (name, objective, expected) => {

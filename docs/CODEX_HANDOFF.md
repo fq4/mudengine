@@ -127,6 +127,13 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   unmatched post-credential prompt is plausible but unconfirmed, since its
   text is not retained. The timeout report now includes the configured login
   step count, never trigger text or credentials. Do not guess a response.
+- A subsequent diagnostic run remained `authenticating`, with no room/vitals
+  or provider/gameplay activity. Its sanitized final eight blocks were seven
+  `unknown[other]` entries and one `unknown[choose]:flush`. This is only a
+  keyword category, not a recognized prompt or evidence of a safe response.
+  Timeout output now contains only the capped parser types, predefined
+  categories, and terminator marker; do not resume live attempts until the
+  expected login prompt is confirmed.
 - Latest local validation: 7,009 tests passed, 2 skipped across 253 files;
   typecheck, production build, secret scan, harness syntax check, and
   `git diff --check` passed. The renderer chunk-size warning remains.

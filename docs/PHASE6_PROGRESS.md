@@ -347,6 +347,14 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   captured. Timeout reporting also exposes only the configured step count.
   Do not guess a menu answer or retry login further until login availability
   and the required prompts are confirmed.
+- One additional bounded diagnostic run (2026-10-17) remained at
+  `authenticating`, with no room/vitals, no provider requests, and no gameplay.
+  The capped sanitized tail contained seven `unknown[other]` blocks followed
+  by `unknown[choose]:flush`; this keyword category does not identify a menu
+  or establish what response, if any, is expected. The harness now reports
+  only the last eight parser types, predefined keyword categories, and flush
+  markers, never block text. Do not retry until login availability and the
+  expected prompt are confirmed.
 
 ## Remaining work
 
