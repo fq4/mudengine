@@ -90,7 +90,9 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   hit the unsafe-health guard and emergency-stopped; the harness skipped
   post-combat actions and further navigation. The run used 2 provider
   requests, 5,813 tokens, about $0.00095115, and had zero policy violations.
-  It exited non-zero for the combat safety result; no victory is claimed.
+  Two combat mobs were visible, but no separate inspectable room resident
+  (`kind === 'npc'`) was present. It exited non-zero for the combat safety
+  result; no victory is claimed.
 - Earlier full validation passed 250 test files (6,920 tests passed, 2 skipped),
   realm coverage 18/18, typechecks, production build, and credential scan.
 - Full application coverage previously passed 6,888 tests with one concurrency-only migration temporary-home race; that test passes in isolation. Realm coverage passed 18/18.
@@ -331,8 +333,8 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   emergency stop, and one-/two-room navigation passed. The legacy arena
   navigation scenario timed out waiting for a movement response; dependent
   arena inspection/target/combat scenarios were unavailable. No authoritative
-  hostile NPC was visible, so no live combat was attempted. This run exited
-  non-zero and is not a full live pass.
+  eligible hostile mob target was visible, so no live combat was attempted.
+  This run exited non-zero and is not a full live pass.
 - The 2026-10-17 bounded follow-up verified the single-dispatch Arena route
   again. One-/two-room routes were skipped after combat hit the unsafe-health
   guard; they need another bounded observation when safe to do so. Historical

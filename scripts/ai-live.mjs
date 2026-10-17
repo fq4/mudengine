@@ -531,7 +531,8 @@ async function main() {
     report.scenarios.push({
       name: 'newhaven-arena-npc-inspection',
       passed: true,
-      result: 'Skipped safely: no authoritative non-player NPC is visible in the arena'
+      result:
+        'Skipped safely: no inspectable room resident (occupant kind "npc") is visible; combat mobs are checked separately'
     });
   }
   const arenaTarget = findSafeCombatNpc(arenaRoom?.occupants ?? []);

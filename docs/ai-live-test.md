@@ -403,9 +403,10 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   matched the requested destination.
 - The run used 2 provider requests, 5,813 tokens, and about $0.00095115,
   within the existing 120-second, 16-request, 60,000-token, and $0.05 caps.
-  It reported zero policy violations. No authoritative non-player NPC was
-  visible; two authoritative mob targets were found and `acid slime` passed
-  the combat preflight.
+  It reported zero policy violations. No inspectable room resident
+  (`kind === 'npc'`) was visible; two authoritative combat mobs were found and
+  `acid slime` passed the combat preflight. Resident inspection and combat
+  target discovery are separate checks.
 - Exact-target combat approval dispatched the attack, then the observed
   outcome reached `unsafe` and triggered emergency stop. Post-combat actions
   and one-/two-room navigation were skipped; the harness did not claim a kill,

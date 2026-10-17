@@ -203,9 +203,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   emergency stop, and one-/two-room navigation passed. The legacy
   `newhaven-arena-navigation` scenario stalled on an unanswered move; later
   arena inspection/target/combat scenarios were consequently unavailable.
-  No authoritative hostile NPC was visible, so no live PvE engagement was
-  attempted. The harness exited non-zero; do not describe the live run as a
-  full pass.
+  No eligible authoritative hostile mob target was visible, so no live PvE
+  engagement was attempted. The harness exited non-zero; do not describe the
+  live run as a full pass.
 
 ## Live navigation stall and bounded PvE checkpoint (2026-10-16)
 
@@ -234,9 +234,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   requests, 60,000 tokens, and $0.05. It used 6 provider requests, 19,952
   tokens, and about $0.00320, with zero policy violations. Arena navigation,
   health observation, target discovery, and combat preflight passed. No
-  authoritative non-player NPC was visible in the tested rooms, so NPC
-  inspection was correctly skipped. A uniquely identified hostile `acid
-  slime` passed preflight; after exact-target approval through
+  inspectable room resident (`kind === 'npc'`) was visible; mob targets are
+  checked separately. A uniquely identified hostile `acid slime` passed
+  preflight; after exact-target approval through
   `SessionManager`, the wire trace contained `a acid slime` and authoritative
   combat state became active. The fight remained active at the 15-second
   bounded observation; no kill or victory is claimed.
@@ -274,9 +274,9 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   exact cause of the missing historical timeout capture.
 - The run used 2 provider requests, 5,813 tokens, and an estimated $0.00095115,
   within the unchanged 120-second, 16-request, 60,000-token, and $0.05 caps.
-  There were zero policy violations. No authoritative non-player NPC was
-  visible; two authoritative mob targets were discovered and `acid slime`
-  passed combat preflight.
+  There were zero policy violations. No inspectable room resident
+  (`kind === 'npc'`) was visible; two authoritative combat mobs were
+  discovered and `acid slime` passed combat preflight.
 - The approved exact-target attack was dispatched, but the bounded combat
   observation reported `unsafe` and triggered emergency stop. The harness
   correctly skipped post-combat actions and one-/two-room navigation rather
@@ -294,10 +294,10 @@ Repeated Arena arrivals verify the corrected Walker lifecycle path, but the
 exact cause of the historical server timeout cannot be proven without its
 capture. The latest exact-target live attack reached the unsafe health guard
 and was emergency-stopped; victory, death, and post-combat recovery remain
-unverified. No authoritative NPC was visible in the tested rooms, and the
-latest run's one-/two-room routes were intentionally skipped after the unsafe
-combat result. Keep these as distinct limitations rather than treating them
-as navigation failures.
+unverified. The latest run had no inspectable room resident (`kind === 'npc'`),
+but did have two combat mobs; its one-/two-room routes were intentionally
+skipped after the unsafe combat result. Keep these as distinct limitations
+rather than treating them as navigation failures.
 
 ## Environment on a new computer
 ```powershell
