@@ -498,10 +498,13 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   across 253 files.
 - One bounded follow-up used a single `SessionManager.askWhereIAm()` request
   only after the automatic entry probe failed. The call was refused because
-  the session had already retired configured `rm` as unavailable; the active
-  Kefka profile resolves its location method to `rm`, and no alternate
-  location command is verified. The room remained unknown, HP was 36/51, and
-  two attackers remained listed. The harness now reports the safe
+  the session had already retired configured `rm` as unavailable. A local
+  configuration audit found that Kefka's profile uses an inline server
+  address; `resolveServer()` assigns inline addresses the global default
+  locator (`rm`) rather than inheriting a saved server's setting. No saved
+  server entry matches the profile endpoint, and no alternate location command
+  is verified. The room remained unknown, HP was 36/51, and two attackers
+  remained listed. The harness now reports the safe
   `locationRequestState` (`available`, `disabled`, or `unavailable`) alongside
   its one-request result. No movement, combat, recovery, or provider action was
   run. Focused location-helper and SessionManager tests passed 300/300. A
@@ -510,6 +513,11 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   serial full run passed 7,035 tests with 2 skipped across 253 files.
   Typecheck, production build, secret scan, harness syntax, and diff checks
   passed.
+- To unblock safely, first confirm the exact location command this endpoint
+  supports. Then add/configure a saved server entry with that method and change
+  Kefka's profile to reference it; changing a saved entry that the inline
+  profile does not reference will not affect Kefka. Do not try an alternative
+  command or update the profile locator based only on a family guess.
 
 ## Remaining work
 

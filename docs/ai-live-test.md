@@ -638,12 +638,18 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - A second bounded attempt used one explicit `SessionManager.askWhereIAm()`
   request after the normal entry probe did not resolve coordinates. The request
   was refused because `rm` had already been marked unavailable by the session;
-  the active Kefka profile resolves its location method to `rm`, and the
-  harness did not try an unverified alternative. The result reported
+  the active Kefka profile uses an inline server address, which resolves to
+  the global default locator (`rm`) rather than inheriting a saved server's
+  locator; no saved server entry matches that profile endpoint. The harness
+  did not try an unverified alternative. The result reported
   `locationRequestState=unavailable`, room `unknown/unknown`, HP 36/51, and two
   attackers, with no provider requests or gameplay scenarios. SessionManager
   now exposes a secret-safe `locationRequestState()` diagnostic that
   distinguishes an unavailable command from a disabled setting.
+- The local configuration audit did not expose the endpoint or credentials.
+  Once a supported locator is confirmed, Kefka must reference a saved server
+  entry configured with that method; editing a different saved entry does not
+  affect the inline profile.
 - The room-location retry and diagnostic passed focused helper/SessionManager
   tests (300/300), typechecks, production build, secret scan, script syntax,
   and diff checks. The parallel full test run hit two known SessionLog cleanup

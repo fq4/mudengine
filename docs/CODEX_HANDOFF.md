@@ -232,12 +232,16 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   target state are authoritatively resolved.
 - A bounded follow-up added one request through `SessionManager.askWhereIAm()`,
   but it was safely refused because the session had already retired the
-  configured `rm` command as unavailable. The active Kefka profile's resolved
-  location method is `rm`. The attempt again had unknown room identity, HP
-  36/51, and two attackers; no alternate location command is verified, so do
-  not guess one. `SessionManager.locationRequestState()` now distinguishes
-  available, disabled-by-configuration, and server-unavailable states in the
-  secret-safe harness diagnostic.
+  configured `rm` command as unavailable. The active Kefka profile uses an
+  inline server address, so `resolveServer()` gives it the global default
+  locator (`rm`); it does not inherit a locator from a saved server entry. The
+  attempt again had unknown room identity, HP 36/51, and two attackers; no
+  alternate location command is verified, so do not guess one. Once the
+  server's supported method is confirmed, configure it on a saved server entry
+  and have Kefka reference that entry; changing an unrelated saved entry will
+  not change this inline profile. `SessionManager.locationRequestState()` now
+  distinguishes available, disabled-by-configuration, and server-unavailable
+  states in the secret-safe harness diagnostic.
 - The live combat harness matches `mob-dies` evidence to its chosen target
   using the shared `mobKey` normalization: leading articles are harmless, but
   modifiers remain part of the identity and absent names do not count.
