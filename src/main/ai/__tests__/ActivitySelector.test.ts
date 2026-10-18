@@ -253,6 +253,36 @@ describe('policy-filtered activity selection', () => {
       )
     ).toBe(false);
   });
+  it('offers an identified mob that has attacked Kefka despite uncertain disposition rows', () => {
+    const state = structuredClone(EMPTY_CHARACTER);
+    state.combat.attackers = ['kobold thief'];
+    state.room.occupants = [
+      {
+        name: 'kobold thief',
+        kind: 'mob',
+        mob: {
+          name: 'kobold thief',
+          rawName: 'kobold thief',
+          source: 'hybrid',
+          charmed: false,
+          disposition: 'hostile',
+          uncertain: true,
+          costly: 'never'
+        },
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never',
+        charmed: false,
+        hidden: false,
+        free: false
+      }
+    ];
+
+    expect(selectActivity(state, 'fight an enemy').candidate?.action).toMatchObject({
+      name: 'engage_enemy',
+      args: { name: 'kobold thief' }
+    });
+  });
 
   it('uses reachable frontiers to search for an NPC without pretending one is visible', () => {
     const state = structuredClone(EMPTY_CHARACTER);

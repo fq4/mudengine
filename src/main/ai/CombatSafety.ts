@@ -8,17 +8,22 @@ export interface CombatEligibility {
   target: RoomOccupant | null;
 }
 
-/** Conservative preflight for bounded AI PvE. Unknown health is never treated as full health. */
+/** Bounded PvE preflight; direct attacker evidence may resolve disposition, never identity. */
 export function assessCombatEligibility(
   occupants: readonly RoomOccupant[],
   vitals: Pick<Vitals, 'hp' | 'hpMax'>,
   preferred?: string,
   minimumFraction = 0.6,
-  escapeAvailable = true
+  escapeAvailable = true,
+  verifiedAttackers: readonly string[] = []
 ): CombatEligibility {
-  const target = findSafeCombatNpc(occupants, preferred);
+  const target = findSafeCombatNpc(occupants, preferred, verifiedAttackers);
   if (!target)
-    return { ok: false, reason: 'no authoritative conservative hostile NPC is visible', target };
+    return {
+      ok: false,
+      reason: 'no uniquely identified eligible realm mob is visible or attacking',
+      target
+    };
   if (vitals.hp === null || vitals.hpMax === null || vitals.hpMax <= 0)
     return { ok: false, reason: 'character health is not authoritative', target };
   if (vitals.hp / vitals.hpMax < minimumFraction)

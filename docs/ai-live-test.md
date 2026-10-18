@@ -779,3 +779,18 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   not identify one unique disposition row for either. The target refusal is
   consistent with available realm evidence and must not be bypassed by
   guessing from display names.
+- A bounded exact-attacker follow-up exercised the narrow alternative:
+  `combat.attackers` identified `nasty giant rat`, which uniquely matched a
+  currently visible realm-backed mob. The exact target was approved and
+  dispatched through SessionManager. Settlement reported `outcome=ended`,
+  HP `22/51` (starting at `20/51`), no XP, no target-death evidence, and two
+  attackers remaining; `unresolved=true`, so no victory is claimed. The run
+  used zero provider requests/tokens/cost and had zero monitor violations.
+  No movement followed.
+- Final deterministic verification for this change: focused target/activity/
+  policy/session tests passed 314/314; the full serial suite passed 7,051 tests
+  with 2 skipped across 253 files; realm tests passed 18/18. Typecheck, build,
+  secret scan, `node --check scripts/ai-live.mjs`, and `git diff --check`
+  passed. The build retains the renderer chunk-size warning. The attacker
+  count and unresolved outcome mean the next live step must remain read-only
+  until new authoritative state shows the pressure has cleared.

@@ -66,7 +66,11 @@ export function summarizeWorldState(state: CharacterState, goal = ''): string {
     ({ targetMap, targetRoom, requirement }) =>
       targetMap !== null && targetRoom !== null && requirement === null
   );
-  const hostile = findSafeCombatNpc(state.room.occupants);
+  const hostile = findSafeCombatNpc(
+    state.room.occupants,
+    undefined,
+    state.combat.attackers
+  );
   const parts = [
     hp !== null && hpMax !== null ? `HP ${hp}/${hpMax}` : 'HP unknown',
     exits.length > 0 ? `${exits.length} valid exits` : 'no valid exits',
@@ -191,7 +195,11 @@ export function selectActivity(
     candidates.push(
       observe('inspect_room', 10, `observe the current room before choosing further work (${summary})`)
     );
-  const mob = findSafeCombatNpc(state.room.occupants);
+  const mob = findSafeCombatNpc(
+    state.room.occupants,
+    undefined,
+    state.combat.attackers
+  );
   if (combatRequested && mob)
     candidates.push({
       action: {

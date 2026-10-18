@@ -43,7 +43,7 @@ describe('canonical AI action policy', () => {
         { name: 'engage_enemy', reason: 'fight', args: { name: 'unknown' } },
         { ...context, objective: 'fight enemies' }
       )
-    ).toMatch(/authoritative safe hostile NPC/);
+    ).toMatch(/uniquely identified eligible hostile mob/);
     expect(
       validateActionPolicy(
         { name: 'engage_enemy', reason: 'fight', args: { name: 'goblin' } },

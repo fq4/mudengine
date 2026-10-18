@@ -605,8 +605,30 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   realm rows; nearest-spawn resolution did not select an unambiguous row.
   This is a legitimate target-identity ambiguity, not a lack of visible mobs;
   do not weaken the combat gate to force a target.
-- Next: do not attack either uncertain mob. For now, continue only with bounded
-  read-only observation; when authoritative state shows no hostile pressure,
-  retry navigation, and attempt PvE only if the exact-target gate finds an
-  unambiguous realm-classified hostile. Low-health rest, safe escape,
-  target-death evidence, and a complete live objective remain open.
+- Target-policy follow-up: a parsed attack against Kefka can resolve
+  disposition uncertainty only when that attacker uniquely matches one
+  currently visible, realm-identified mob. Players/unknown occupants sharing
+  the name, duplicate mob names, charmed mobs, wire-only mobs, and
+  always-alignment-costly mobs remain refused. The SessionManager still asks
+  approval and delegates to AutoCombat; this evidence does not relax identity,
+  PvP, emergency-stop, budget, or action-loop safeguards.
+- One bounded provider-free follow-up selected `nasty giant rat` from the
+  authoritative attacker list and executed exact-target approval through
+  SessionManager. The observed result was `outcome=ended`, HP `22/51` (up from
+  `20/51`), no XP or target-death evidence, and two attackers still listed;
+  settlement remained unresolved, so this is not a kill or victory. There were
+  zero provider requests/tokens/cost and zero policy violations. Do not run
+  another live combat/movement/recovery attempt while those attackers remain.
+- Next: improve the underlying encounter interpretation and let hostile state
+  clear before trying Walker or Recovery. A future bounded PvE test may use
+  direct attacker evidence only with the exact identity checks above, and must
+  report target death/XP and settlement separately. Low-health rest, safe
+  escape, target-death evidence, and a complete live objective remain open.
+- Validation after this policy refinement: the focused target, activity,
+  action-policy, and SessionManager suites passed 314/314; the full serial suite
+  passed 7,051 tests with 2 skipped across 253 files; realm tests passed 18/18.
+  Typecheck, production build, secret scan, live-script syntax, and
+  `git diff --check` passed. The production build retains the existing renderer
+  chunk-size warning. No additional live gameplay was attempted because the
+  latest observation still had two attackers and the last encounter was
+  unresolved.

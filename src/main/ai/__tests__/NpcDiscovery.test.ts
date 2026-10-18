@@ -28,7 +28,20 @@ const occupant = (
   hidden: false,
   free: false,
   ...overrides,
-  ...(combat ? { mob: { name } as RoomOccupant['mob'], disposition: 'hostile' } : {})
+  ...(combat
+    ? {
+        mob: {
+          name,
+          rawName: name,
+          source: 'hybrid',
+          charmed: false,
+          disposition: 'hostile',
+          uncertain: false,
+          costly: 'never'
+        } as NonNullable<RoomOccupant['mob']>,
+        disposition: 'hostile'
+      }
+    : {})
 });
 
 describe('safe NPC discovery', () => {
@@ -71,6 +84,101 @@ describe('safe NPC discovery', () => {
     expect(findSafeCombatNpc(rats)).toBeNull();
     expect(findSafeCombatNpc(rats, 'Rat')).toBeNull();
   });
+  it('accepts a uniquely identified realm mob that has attacked this character', () => {
+    const attacker = occupant('Kobold thief', 'mob', false, false, {
+      disposition: 'hostile',
+      uncertain: true,
+      mob: {
+        name: 'Kobold thief',
+        rawName: 'Kobold thief',
+        source: 'hybrid',
+        charmed: false,
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never'
+      } as NonNullable<RoomOccupant['mob']>
+    });
+
+    expect(findSafeCombatNpc([attacker])).toBeNull();
+    expect(findSafeCombatNpc([attacker], undefined, ['the kobold thief'])).toBe(attacker);
+    expect(
+      assessCombatEligibility(
+        [attacker],
+        { hp: 20, hpMax: 51 },
+        attacker.name,
+        0,
+        true,
+        ['Kobold thief']
+      )
+    ).toMatchObject({ ok: true, target: attacker });
+  });
+  it('does not use attacker evidence for players, unknown names, or ambiguous occupants', () => {
+    const attacker = occupant('Rat', 'mob', false, false, {
+      disposition: 'hostile',
+      uncertain: true,
+      mob: {
+        name: 'Rat',
+        rawName: 'Rat',
+        source: 'hybrid',
+        charmed: false,
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never'
+      } as NonNullable<RoomOccupant['mob']>
+    });
+
+    expect(
+      findSafeCombatNpc([attacker, occupant('Rat', 'player')], undefined, ['Rat'])
+    ).toBeNull();
+    expect(
+      findSafeCombatNpc(
+        [
+          attacker,
+          occupant('the rat', 'mob', false, false, {
+            disposition: 'hostile',
+            uncertain: true,
+            mob: attacker.mob
+          })
+        ],
+        undefined,
+        ['Rat']
+      )
+    ).toBeNull();
+    expect(findSafeCombatNpc([attacker], undefined, ['unknown name'])).toBeNull();
+  });
+  it('retains charmed, unidentified, and always-costly refusals for attackers', () => {
+    const known = occupant('Rat', 'mob', false, false, {
+      disposition: 'hostile',
+      uncertain: true,
+      mob: {
+        name: 'Rat',
+        rawName: 'Rat',
+        source: 'hybrid',
+        charmed: false,
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never'
+      } as NonNullable<RoomOccupant['mob']>
+    });
+
+    expect(
+      findSafeCombatNpc([{ ...known, charmed: true }], undefined, ['Rat'])
+    ).toBeNull();
+    expect(
+      findSafeCombatNpc(
+        [{ ...known, costly: 'always', mob: { ...known.mob!, costly: 'always' } }],
+        undefined,
+        ['Rat']
+      )
+    ).toBeNull();
+    expect(
+      findSafeCombatNpc(
+        [{ ...known, mob: { ...known.mob!, source: 'wire' } }],
+        undefined,
+        ['Rat']
+      )
+    ).toBeNull();
+  });
   it('explains mob exclusions without changing the conservative target gate', () => {
     const mobs = [
       occupant('Unknown rat', 'mob', false, false, {
@@ -88,6 +196,25 @@ describe('safe NPC discovery', () => {
       'visible mobs=4; eligible=0; excluded: disposition unknown=1, disposition passive=1, alignment cost=1, charmed=1'
     );
     expect(findSafeCombatNpc(mobs)).toBeNull();
+  });
+  it('reports when verified attack evidence resolves an uncertain realm disposition', () => {
+    const attacker = occupant('Kobold thief', 'mob', false, false, {
+      disposition: 'hostile',
+      uncertain: true,
+      mob: {
+        name: 'Kobold thief',
+        rawName: 'Kobold thief',
+        source: 'hybrid',
+        charmed: false,
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never'
+      } as NonNullable<RoomOccupant['mob']>
+    });
+
+    expect(summarizeCombatCandidates([attacker], ['Kobold thief'])).toBe(
+      'visible mobs=1; eligible=1; verified attacker evidence=1'
+    );
   });
   it('reports ambiguous names and eligible targets separately', () => {
     const occupants = [

@@ -728,13 +728,18 @@ async function main() {
       const beforeRoom = roomKey();
       const state = session.character;
       const room = state.room;
-      const target = findSafeCombatNpc(room?.occupants ?? []);
+      const target = findSafeCombatNpc(
+        room?.occupants ?? [],
+        undefined,
+        state.combat.attackers
+      );
       const eligibility = assessCombatEligibility(
         room?.occupants ?? [],
         state.vitals,
         target?.name,
         0,
-        true
+        true,
+        state.combat.attackers
       );
       if (!responseObserved || roomKey() === '') {
         pveProbe = {
@@ -758,7 +763,7 @@ async function main() {
       } else if (!eligibility.ok || !eligibility.target) {
         pveProbe = {
           passed: false,
-          result: `Safely refused before combat: ${eligibility.reason}; ${summarizeCombatCandidates(room?.occupants ?? [])}`
+          result: `Safely refused before combat: ${eligibility.reason}; ${summarizeCombatCandidates(room?.occupants ?? [], state.combat.attackers)}`
         };
       } else {
         session.configure(
@@ -859,10 +864,11 @@ async function main() {
           unresolved,
           finalHp: finalVitals.hp,
           finalHpMax: finalVitals.hpMax,
+          target: combatTargetName,
           combatEngaged: finalCombat.engaged,
           activeTargetPresent: finalCombat.target !== null,
           attackerCount: finalCombat.attackers.length,
-          result: `${dispatch.message}; outcome=${outcome}; targetDeath=${combatTargetDied}; XP=${combatVictoryEvidence}; HP=${finalVitals.hp ?? 'unknown'}/${finalVitals.hpMax ?? 'unknown'}; engaged=${finalCombat.engaged}; activeTargetPresent=${finalCombat.target !== null}; attackers=${finalCombat.attackers.length}; room=${beforeRoom}->${afterRoom}; ${summarizeCombatCandidates(room?.occupants ?? [])}`
+          result: `${dispatch.message}; outcome=${outcome}; target=${combatTargetName}; targetDeath=${combatTargetDied}; XP=${combatVictoryEvidence}; HP=${finalVitals.hp ?? 'unknown'}/${finalVitals.hpMax ?? 'unknown'}; engaged=${finalCombat.engaged}; activeTargetPresent=${finalCombat.target !== null}; attackers=${finalCombat.attackers.length}; room=${beforeRoom}->${afterRoom}; ${summarizeCombatCandidates(room?.occupants ?? [], finalCombat.attackers)}`
         };
       }
       report.scenarios.push({
@@ -1107,7 +1113,7 @@ async function main() {
     name: 'newhaven-arena-target-discovery',
     passed: arenaNavigation && arenaInspection,
     result: arenaTargets?.length
-      ? `Observed authoritative mobs; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [])}`
+      ? `Observed authoritative mobs; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}`
       : 'No authoritative mob target visible in the arena'
   });
   const arenaNpc = findSafeNpc(arenaRoom?.occupants ?? []);
@@ -1140,14 +1146,15 @@ async function main() {
     session.character.vitals,
     arenaTarget?.name,
     0.6,
-    arenaEscapeAvailable
+    arenaEscapeAvailable,
+    session.character.combat.attackers
   );
   report.scenarios.push({
     name: 'newhaven-arena-combat-preflight',
     passed: arenaNavigation && arenaInspection,
     result: arenaEligibility.ok
-      ? `Eligible target ${arenaEligibility.target?.name}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [])}; health and escape route verified`
-      : `Safely refused before combat: ${arenaEligibility.reason}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [])}`
+      ? `Eligible target ${arenaEligibility.target?.name}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}; health and escape route verified`
+      : `Safely refused before combat: ${arenaEligibility.reason}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}`
   });
   if (arenaEligibility.ok && arenaEligibility.target) {
     combatVictoryEvidence = false;

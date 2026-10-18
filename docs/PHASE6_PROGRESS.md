@@ -659,3 +659,25 @@ npm run check:secrets
   refusal, not evidence that the room lacks monsters or that the target gate is
   broken. A future run needs an unambiguous target or stronger authoritative
   row evidence; do not infer it from the mobs' display names.
+- Gameplay-policy refinement: direct combat parser evidence that a named mob
+  attacked Kefka may resolve uncertain disposition only if the same name
+  uniquely matches one currently visible, realm-identified mob. Name collisions
+  with players/unknown occupants, duplicate mobs, charmed mobs, wire-only
+  mobs, and always-costly alignment targets remain ineligible. Activity
+  selection, the central SessionManager action policy, and the bounded harness
+  share this evidence; exact-target approval and AutoCombat ownership remain.
+- The bounded provider-free follow-up selected `nasty giant rat` from the
+  attacker list and executed exact-target approval through SessionManager.
+  Combat was no longer active at settlement, but two attackers remained; HP
+  was `22/51`, and neither XP nor target-death evidence was observed. The
+  harness classified the encounter unresolved and reported no victory. It used
+  zero provider requests/tokens/cost with zero policy violations. Do not repeat
+  combat, move, or attempt recovery while hostile pressure remains. Investigate
+  why combat ended without verified victory before another bounded encounter.
+- Validation after the attacker-evidence refinement: focused target/activity/
+  policy/session tests passed 314/314; the full serial suite passed 7,051 tests
+  with 2 skipped across 253 files; realm tests passed 18/18. Typecheck,
+  production build, secret scan, `node --check scripts/ai-live.mjs`, and
+  `git diff --check` passed. The build reports the existing renderer
+  chunk-size warning. No new live actions were sent while the two attackers
+  remain.

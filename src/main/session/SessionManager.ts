@@ -4259,7 +4259,14 @@ export class SessionManager {
         .filter((occupant) => findSafeNpc([occupant]) !== null)
         .map((occupant) => occupant.name),
       safeCombatTargetNames: state.room.occupants
-        .filter((occupant) => findSafeCombatNpc([occupant]) !== null)
+        .filter(
+          (occupant) =>
+            findSafeCombatNpc(
+              state.room.occupants,
+              occupant.name,
+              state.combat.attackers
+            ) !== null
+        )
         .map((occupant) => occupant.name),
       usableItemNames: state.inventory.items
         .filter((item) => assessItemUse(state.inventory.items, item.name).ok)

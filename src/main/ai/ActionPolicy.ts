@@ -142,7 +142,7 @@ export const AI_ACTION_POLICIES: Readonly<Record<AiActionName, ActionPolicy>> = 
     authorizationScope: 'capability',
     summary: 'Delegate an ordinary NPC engagement to AutoCombat',
     failure:
-      'Require explicit PvE intent, an active session, and one uniquely identified safe hostile NPC; ask first and refuse player or ambiguous targets.',
+      'Require explicit PvE intent, an active session, and one uniquely identified eligible mob; ask first and refuse player or ambiguous targets.',
     audit: 'ai.engage_enemy.delegated',
     completion: 'delegated',
     validate: (action, context) => {
@@ -155,7 +155,7 @@ export const AI_ACTION_POLICIES: Readonly<Record<AiActionName, ActionPolicy>> = 
       if (sessionError) return sessionError;
       return listedName(context.safeCombatTargetNames, name)
         ? null
-        : 'No authoritative safe hostile NPC matches the requested target';
+        : 'No uniquely identified eligible hostile mob matches the requested target';
     }
   },
   manage_equipment: {

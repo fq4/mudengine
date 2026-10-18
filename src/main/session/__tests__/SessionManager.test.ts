@@ -273,6 +273,54 @@ describe('AI reconnect lifecycle', () => {
     await until(() => wire.includes('north\r\n'));
   });
 
+  it('offers a uniquely identified attacking mob through exact-target approval', async () => {
+    const { sink } = collect();
+    const automation: AutomationConfig = {
+      ...DEFAULT_CONFIG.automation,
+      enabled: true,
+      combat: { ...DEFAULT_CONFIG.automation.combat, enabled: false }
+    };
+    manager = new SessionManager(sink, undefined, automation);
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const target: RoomOccupant = {
+      name: 'kobold thief',
+      kind: 'mob',
+      disposition: 'hostile',
+      uncertain: true,
+      costly: 'never',
+      charmed: false,
+      hidden: false,
+      free: false,
+      mob: {
+        name: 'kobold thief',
+        rawName: 'kobold thief',
+        source: 'hybrid',
+        charmed: false,
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never'
+      }
+    };
+    const current = (manager as any).tracker.current as CharacterState;
+    current.phase = 'in-game';
+    current.vitals = { ...current.vitals, hp: 20, hpMax: 51 };
+    current.room.occupants = [target];
+    current.combat.attackers = ['kobold thief'];
+    (manager as any).aiAgent.state.objective = 'Engage the hostile NPC kobold thief';
+
+    const pending = await manager.aiAction({
+      name: 'engage_enemy',
+      args: { name: 'kobold thief' },
+      reason: 'respond to the verified attacking mob'
+    });
+
+    expect(pending).toMatchObject({ ok: false, pendingApproval: true });
+    expect(manager.aiSnapshot.state.pendingApprovals[0]?.action).toMatchObject({
+      name: 'engage_enemy',
+      args: { name: 'kobold thief' }
+    });
+  });
+
   it('routes a supported broad objective through its bounded scheduler plan', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);
