@@ -836,11 +836,81 @@ This checkpoint was developed on `development` from prior pushed commit
   final rerun. The production build has its pre-existing renderer chunk-size
   warning.
 
-Next: run final validation and commit/push this checkpoint. For live work, start
-with `node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live
---profile kefka --room-probe-only --max-ms 60000 --max-moves 0`. Current state
-is above the configured 60% combat floor but below full health; do not repeat
-the ambiguous Arena encounter. First establish a safe recovery path or a fresh
-controlled encounter, then capture post-engagement combat telemetry and
-exact-target terminal evidence. Rest/recovery at low health, exact-target
-death, and the connected multi-step gameplay loop remain unverified.
+The retreat and movement-accounting checkpoint was validated and pushed as
+`ea520e7`. The recovery follow-up below is the current work. Combat through
+exact-target death and a connected multi-step gameplay loop remain unverified.
+
+## Continuation checkpoint: live recovery progress
+
+- Fresh read-only preflight found `1/2146`, `39/51` HP, not resting or
+  meditating, no combat/target/attackers, and no visible occupants. It made no
+  movement or provider call.
+- The first temporary rest attempt exposed a harness-only gap: the live monitor
+  flagged the dispatched `rest` as unsafe because the probe did not call its
+  existing `authorizeRecovery()`. That attempt did not produce recovery
+  evidence; subsequent read-only state remained `39/51`. The probe now uses the
+  existing recovery authorization before temporary configuration.
+- With the monitor authorization corrected, the bounded provider-free live
+  probe observed `39/51` before, dispatched one `rest`, observed health,
+  remained in `1/2146`, and reached `49/51` with `resting=true`. Runtime was
+  capped at 60 seconds; it reached 96% but not the then-required full-health
+  threshold. This is direct live recovery progress, not evidence of full
+  recovery or automatic resumption. There were zero provider requests,
+  movement, or violations on this corrected run.
+- After the disconnect, a read-only probe showed `49/51` and `resting=false`.
+  The subsequent recovery probe saw `51/51` before acting and safely refused
+  without a gameplay command because HP was above its temporary 98% threshold.
+  The full-health state is confirmed; the last two HP are not attributed to
+  Recovery.
+- The bounded `--recovery-probe-only` mode now uses an in-memory 98%-to-100%
+  rest band, allows only an empty-room rest, requires known positive health,
+  and has a 60-second/zero-movement limit. No saved Kefka settings were changed.
+- The focused LiveHarness tests passed 47/47. After the recovery-only harness
+  changes, the full serial suite passed 7,067 with 2 skipped, production
+  build/typecheck passed, and the secret scan found no configured password in
+  45 user-scoped files. Realm tests previously passed 18/18; the recovery
+  probe does not change realm code. Script syntax and `git diff --check` pass.
+  Build retains the existing renderer chunk-size warning.
+
+## Continuation checkpoint: exact-target combat progress, outcome unresolved
+
+- Added a bounded PVE probe option to route through Walker to one of the two
+  known Newhaven test rooms and request an exact target name. Walker must verify
+  arrival; combat still requires that name to uniquely resolve to an
+  eligible realm-backed room occupant. A missing or ambiguous target is
+  refused. The probe remains provider-free and capped by `--max-moves`.
+- The live run started at `1/2146`, `51/51` HP, no attackers, and no visible
+  occupants. Walker verified the single `d` step to Arena `1/2150`. It resolved
+  `big carrion beast` to hybrid entity id 4, classified hostile, certain,
+  uncharmed, and not costly; exact-target SessionManager approval executed.
+- Bounded combat telemetry recorded a matching user hit for 14 damage and
+  `You gain 850 experience`, then `Combat Off`. At about 18.3 seconds the
+  selected target and engagement were gone, but `nasty lashworm` remained as
+  an attacker. During the 30-second post-timeout observation it missed
+  repeatedly, hit for 3 damage once, and Kefka ended at `48/51` HP. The exact
+  target death event was absent (`targetDied=false`); the run is unresolved,
+  not a claimed kill. It made zero provider requests and recorded zero policy
+  violations. The sanitized artifact is persisted at
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-03-30-685Z-25960.json`.
+- A read-only follow-up confirmed `1/2150`, `48/51` HP, and one authoritative
+  attacker (`nasty lashworm`). The existing one-move escape probe then matched
+  that exact realm-backed attacker, sent `u`, verified arrival at `1/2146`,
+  and confirmed no attackers at `48` HP. It used no provider and had zero
+  violations.
+- This was an operator-selected exact-target diagnostic, not proof that the
+  autonomous agent chose that target. Combat mechanics and damage are now
+  live-confirmed; exact-target death, sustained autonomous target progression,
+  and the full multi-step objective remain unverified. Do not repeat the same
+  two-hostile Arena encounter without changing the experiment.
+
+The recovery probe and exact-target navigation/PvE probe are still local
+changes after pushed commit `ea520e7`. A fresh read-only check reconfirmed
+`1/2146`, `48/51` HP, no active combat or attackers, and no visible occupants.
+Full validation now passes: 7,068 serial tests with 2 skipped, 18/18 realm
+tests, production build/typecheck, secret scan (46 files under the two
+resolved roots; no configured password found), harness syntax, and
+`git diff --check`. Next, commit/push these verified changes. The next combat
+experiment should use a room with a single eligible hostile and retain
+exact-death telemetry; if no such safe live room is available, preserve the
+present evidence and report the environmental limit rather than repeat the
+same Arena fight.

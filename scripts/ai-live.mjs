@@ -9,6 +9,10 @@
  *   node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --navigation-probe-only --max-ms 60000 --max-moves 4
  * The bounded combat diagnostic uses one exact hostile target without a provider:
  *   node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --max-ms 60000 --max-moves 0
+ * A known room and target can be requested; both are checked against live Walker/realm evidence:
+ *   node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --destination 1/2150 --target "big carrion beast" --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 4
+ * The recovery diagnostic permits only a guarded rest in an empty room:
+ *   node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --recovery-probe-only --max-ms 60000 --max-moves 0
  *
  * The runner never prints credentials or raw login traffic, and exits as soon
  * as a safety limit is reached.
@@ -24,6 +28,7 @@ import {
   navigateToWithWalker,
   requestRoomIdentity,
   createEscapeProbeAutomation,
+  createRecoveryProbeAutomation,
   createRoomProbeAutomation,
   readOnlyNavigationPreflight,
   roomIdentityKey,
@@ -65,20 +70,40 @@ if (profileId !== 'kefka')
 const navigationProbeOnly = has('--navigation-probe-only');
 const pveProbeOnly = has('--pve-probe-only');
 const escapeProbeOnly = has('--escape-probe-only');
+const recoveryProbeOnly = has('--recovery-probe-only');
 const roomProbeOnly =
-  has('--room-probe-only') || navigationProbeOnly || pveProbeOnly || escapeProbeOnly;
+  has('--room-probe-only') ||
+  navigationProbeOnly ||
+  pveProbeOnly ||
+  escapeProbeOnly ||
+  recoveryProbeOnly;
 if (
-  [has('--room-probe-only'), navigationProbeOnly, pveProbeOnly, escapeProbeOnly].filter(Boolean)
-    .length > 1
+  [
+    has('--room-probe-only'),
+    navigationProbeOnly,
+    pveProbeOnly,
+    escapeProbeOnly,
+    recoveryProbeOnly
+  ].filter(Boolean).length > 1
 )
-  throw new Error('Choose only one room, navigation, PvE, or escape probe mode');
+  throw new Error('Choose only one room, navigation, PvE, escape, or recovery probe mode');
 const gossipReplyTest = has('--gossip-reply-test');
 const requestedRuntimeMs = Number(valueOf('--max-ms') ?? 120_000);
 const requestedMaxMoves = Number(
-  valueOf('--max-moves') ?? (escapeProbeOnly ? 1 : navigationProbeOnly || pveProbeOnly ? 0 : 12)
+  valueOf('--max-moves') ??
+    (escapeProbeOnly ? 1 : navigationProbeOnly || pveProbeOnly || recoveryProbeOnly ? 0 : 12)
 );
 if (escapeProbeOnly && requestedMaxMoves !== 1)
   throw new Error('--escape-probe-only requires --max-moves 1');
+if (recoveryProbeOnly && requestedMaxMoves !== 0)
+  throw new Error('--recovery-probe-only requires --max-moves 0');
+if (
+  recoveryProbeOnly &&
+  (!Number.isInteger(requestedRuntimeMs) ||
+    requestedRuntimeMs < 1 ||
+    requestedRuntimeMs > 60_000)
+)
+  throw new Error('--recovery-probe-only requires --max-ms from 1 through 60000');
 const postTimeoutObserveMs = Number(valueOf('--post-timeout-observe-ms') ?? 0);
 if (
   !Number.isInteger(postTimeoutObserveMs) ||
@@ -107,6 +132,29 @@ if (!roomProbeOnly && !process.env.OPENROUTER_API_KEY)
 
 const NEWHAVEN_ARENA = '1/2150';
 const NEWHAVEN_ADVENTURERS_GUILD = '1/2147';
+const requestedDestination = valueOf('--destination');
+const requestedCombatTarget = valueOf('--target')?.trim();
+if (
+  requestedDestination !== undefined &&
+  !navigationProbeOnly &&
+  !pveProbeOnly
+)
+  throw new Error('--destination is only available with --navigation-probe-only or --pve-probe-only');
+if (
+  requestedDestination !== undefined &&
+  ![NEWHAVEN_ARENA, NEWHAVEN_ADVENTURERS_GUILD].includes(requestedDestination)
+)
+  throw new Error('--destination must be a known Newhaven probe room (1/2147 or 1/2150)');
+if (pveProbeOnly && requestedDestination !== undefined && requestedMaxMoves < 1)
+  throw new Error('PvE navigation requires --max-moves of at least 1');
+if (has('--target') && !pveProbeOnly)
+  throw new Error('--target is only available with --pve-probe-only');
+if (has('--target') && !requestedCombatTarget)
+  throw new Error('--target requires an exact non-empty hostile name');
+const navigationDestination =
+  requestedDestination ?? (navigationProbeOnly ? NEWHAVEN_ADVENTURERS_GUILD : undefined);
+const runNavigationProbe =
+  navigationProbeOnly || (pveProbeOnly && requestedDestination !== undefined);
 const MINIMUM_COMBAT_HEALTH_FRACTION = 0.6;
 const roomProbeAutomation = createRoomProbeAutomation();
 
@@ -809,6 +857,8 @@ async function main() {
       phase: healthState.phase,
       hp: healthState.vitals.hp,
       hpMax: healthState.vitals.hpMax,
+      resting: healthState.vitals.resting,
+      meditating: healthState.vitals.meditating,
       lives: healthState.progress.lives,
       mortallyWounded: healthState.mortallyWounded,
       lastDeath: healthState.lastDeath,
@@ -962,16 +1012,136 @@ async function main() {
         };
       }
     }
+    let recoveryProbe = null;
+    if (recoveryProbeOnly) {
+      const state = session.character;
+      const beforeRoom = roomKey();
+      const beforeHp = state.vitals.hp;
+      const hpMax = state.vitals.hpMax;
+      const refusal = !responseObserved
+        ? 'No authoritative room identity was resolved'
+        : state.phase !== 'in-game'
+          ? 'The character is not in-game'
+          : beforeHp === null || hpMax === null || hpMax <= 0 || beforeHp <= 0
+            ? 'Positive current and maximum health are required'
+            : beforeHp / hpMax >= 0.98
+              ? 'Health is not below the temporary 98% recovery threshold'
+              : state.combat.engaged ||
+                  state.combat.target !== null ||
+                  state.combat.attackers.length > 0
+                ? 'Combat or hostile attention is active'
+                : state.room.occupants.length > 0
+                  ? 'The room is occupied; recovery probe requires an empty room'
+                  : state.vitals.resting || state.vitals.meditating
+                    ? 'Recovery is already active; no new rest command will be tested'
+                    : null;
+      if (refusal !== null) {
+        recoveryProbe = {
+          passed: false,
+          attempted: false,
+          result: `Refused without gameplay action: ${refusal}`
+        };
+      } else {
+        const observationsBefore = healthObservationCount;
+        const eventOffset = monitor.events.length;
+        monitor.authorizeRecovery();
+        session.configure(
+          createRecoveryProbeAutomation(),
+          profile.config.connection.login,
+          profile.config.ui.rewrites,
+          profile.config.connection.locate
+        );
+        const requestAccepted = session.ask('health', true);
+        const healthObserved =
+          requestAccepted &&
+          (await waitFor(
+            () => healthObservationCount > observationsBefore,
+            Math.min(5_000, Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs))
+          ));
+        const recoveryReady =
+          healthObserved &&
+          (await waitForRecoveryHealth({
+            vitals: () => session.character.vitals,
+            combatActive: () =>
+              session.character.combat.engaged ||
+              session.character.combat.target !== null ||
+              session.character.combat.attackers.length > 0,
+            wait,
+            isStopped: () => {
+              monitor.check();
+              return monitor.failed;
+            },
+            minimumFraction: 1,
+            timeoutMs: Math.max(
+              0,
+              monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs
+            ),
+            pollIntervalMs: 500
+          }));
+        session.configure(
+          roomProbeAutomation,
+          profile.config.connection.login,
+          profile.config.ui.rewrites,
+          profile.config.connection.locate
+        );
+        const afterState = session.character;
+        const restCommandObserved = monitor.events
+          .slice(eventOffset)
+          .some((event) => event.kind === 'command' && /^rest$/i.test(event.value));
+        const hpIncreased =
+          afterState.vitals.hp !== null &&
+          beforeHp !== null &&
+          afterState.vitals.hp > beforeHp;
+        recoveryProbe = {
+          passed:
+            requestAccepted &&
+            healthObserved &&
+            restCommandObserved &&
+            recoveryReady &&
+            hpIncreased &&
+            roomKey() === beforeRoom &&
+            !monitor.failed,
+          attempted: true,
+          beforeRoom,
+          afterRoom: roomKey(),
+          beforeHp,
+          afterHp: afterState.vitals.hp,
+          hpMax: afterState.vitals.hpMax,
+          resting: afterState.vitals.resting,
+          temporaryRestThreshold: 0.98,
+          temporaryRestTo: 1,
+          recoveryReadyFraction: 1,
+          requestAccepted,
+          healthObserved,
+          restCommandObserved,
+          recoveryReady,
+          result:
+            recoveryReady && hpIncreased
+              ? `Recovery reached ${afterState.vitals.hp}/${afterState.vitals.hpMax} HP without leaving ${beforeRoom}`
+              : `Recovery was not verified to full health before the bounded wait ended at ${afterState.vitals.hp}/${afterState.vitals.hpMax} HP`
+        };
+      }
+    }
     let navigation = null;
-    if (navigationProbeOnly) {
+    if (runNavigationProbe) {
       const state = session.character;
       const preflight = readOnlyNavigationPreflight(state);
+      const pveHealthReady =
+        !pveProbeOnly ||
+        (state.vitals.hp !== null &&
+          state.vitals.hpMax !== null &&
+          state.vitals.hp / state.vitals.hpMax >= MINIMUM_COMBAT_HEALTH_FRACTION);
       if (!responseObserved) {
         navigation = { arrived: false, result: 'No authoritative starting room was resolved' };
       } else if (!preflight.allowed) {
         navigation = { arrived: false, result: preflight.reason };
+      } else if (!pveHealthReady) {
+        navigation = {
+          arrived: false,
+          result: 'PvE navigation requires known health at or above the 60% combat floor'
+        };
       } else {
-        const route = world.route(roomKey(), NEWHAVEN_ADVENTURERS_GUILD);
+        const route = world.route(roomKey(), navigationDestination);
         if (route.blocked) {
           navigation = { arrived: false, result: route.reason };
         } else if (route.steps.length > monitor.limits.maxMoves) {
@@ -987,7 +1157,7 @@ async function main() {
             profile.config.connection.locate
           );
           const walk = await navigateToWithWalker({
-            destination: NEWHAVEN_ADVENTURERS_GUILD,
+            destination: navigationDestination,
             roomKey,
             progress: () => session.walker.progress,
             dispatch: async () => {
@@ -1007,10 +1177,7 @@ async function main() {
           monitor.room(walk.after);
           navigation = {
             ...walk,
-            arrived:
-              walk.arrived &&
-              !monitor.failed &&
-              walk.after === NEWHAVEN_ADVENTURERS_GUILD
+            arrived: walk.arrived && !monitor.failed && walk.after === navigationDestination
           };
         }
       }
@@ -1022,7 +1189,7 @@ async function main() {
       const room = state.room;
       const target = findSafeCombatNpc(
         room?.occupants ?? [],
-        undefined,
+        requestedCombatTarget,
         state.combat.attackers
       );
       const eligibility = assessCombatEligibility(
@@ -1033,7 +1200,13 @@ async function main() {
         hasMappedCombatEscape(room),
         state.combat.attackers
       );
-      if (!responseObserved || roomKey() === '') {
+      if (requestedDestination !== undefined && navigation?.arrived !== true) {
+        pveProbe = {
+          passed: false,
+          requestedTarget: requestedCombatTarget ?? null,
+          result: `Walker did not verify arrival at ${navigationDestination}; combat was not initiated`
+        };
+      } else if (!responseObserved || roomKey() === '') {
         pveProbe = {
           passed: false,
           result: 'No authoritative room identity was resolved; combat was not initiated'
@@ -1101,7 +1274,10 @@ async function main() {
           eligibilityReason: combatEligibilityReason,
           startingRoom: beforeRoom,
           startingHp: state.vitals.hp,
-          startingHpMax: state.vitals.hpMax
+          startingHpMax: state.vitals.hpMax,
+          ...(requestedCombatTarget === undefined
+            ? {}
+            : { requestedTarget: requestedCombatTarget })
         });
         session.aiAgent.state.objective = `Engage the verified PvE enemy ${combatTargetName}`;
         let dispatch = await session.aiAction({
@@ -1374,26 +1550,38 @@ async function main() {
       locationProbeAttempts,
       healthProbe,
       ...(escapeProbeOnly ? { escapeProbe } : {}),
+      ...(recoveryProbeOnly ? { recoveryProbe } : {}),
       providerRequests: monitor.providerRequests,
       result: responseObserved
         ? pveProbeOnly
           ? 'Authoritative coordinates were resolved before the separate bounded PvE probe'
-          : navigationProbeOnly
-            ? 'Authoritative coordinates were resolved before the separate Walker navigation probe'
-            : 'A configured or documented read-only profile probe returned authoritative coordinates; no gameplay scenario was run'
+          : recoveryProbeOnly
+            ? 'Authoritative coordinates were resolved before the temporary provider-free recovery probe'
+            : navigationProbeOnly
+              ? 'Authoritative coordinates were resolved before the separate Walker navigation probe'
+              : 'A configured or documented read-only profile probe returned authoritative coordinates; no gameplay scenario was run'
         : 'Configured and documented read-only profile probes did not return authoritative coordinates; no AI or gameplay scenario was run'
     });
-    if (navigationProbeOnly) {
+    if (runNavigationProbe) {
       report.scenarios.push({
-        name: 'walker-navigation-only',
+        name: navigationProbeOnly
+          ? 'walker-navigation-only'
+          : 'walker-navigation-before-pve',
         passed: navigation?.arrived === true,
         ...(navigation === null ? {} : navigation),
-        destination: NEWHAVEN_ADVENTURERS_GUILD,
+        destination: navigationDestination,
         result:
           navigation?.result ??
           (navigation?.arrived
-            ? `Walker verified arrival at ${NEWHAVEN_ADVENTURERS_GUILD}`
+            ? `Walker verified arrival at ${navigationDestination}`
             : navigation?.reason ?? 'Walker did not verify destination arrival')
+      });
+    }
+    if (recoveryProbeOnly) {
+      report.scenarios.push({
+        name: 'bounded-provider-free-recovery-probe',
+        passed: recoveryProbe?.passed === true,
+        ...(recoveryProbe === null ? {} : recoveryProbe)
       });
     }
     report.violations = monitor.violations;
@@ -1402,7 +1590,9 @@ async function main() {
     if (
       !responseObserved ||
       monitor.violations.length > 0 ||
-      (navigationProbeOnly && navigation?.arrived !== true)
+      (runNavigationProbe && navigation?.arrived !== true) ||
+      (pveProbeOnly && pveProbe?.passed !== true) ||
+      (recoveryProbeOnly && recoveryProbe?.passed !== true)
     ) {
       process.exitCode = 1;
     }

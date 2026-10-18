@@ -69,6 +69,19 @@ export function createEscapeProbeAutomation(base: AutomationConfig): AutomationC
   };
 }
 
+/** Temporarily enable health-only resting in a bounded recovery probe. */
+export function createRecoveryProbeAutomation(): AutomationConfig {
+  const automation = createRoomProbeAutomation(true);
+  return {
+    ...automation,
+    health: {
+      ...automation.health,
+      restBelow: 0.98,
+      restTo: 1
+    }
+  };
+}
+
 /** Show coordinates only when both are authoritative; otherwise retain the parsed room name. */
 export function roomIdentityKey(room: Pick<Room, 'map' | 'number' | 'name'>): string {
   if (room.map !== null && room.number !== null) return `${room.map}/${room.number}`;

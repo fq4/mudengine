@@ -84,6 +84,15 @@ describe('safe NPC discovery', () => {
     expect(findSafeCombatNpc(rats)).toBeNull();
     expect(findSafeCombatNpc(rats, 'Rat')).toBeNull();
   });
+  it('restricts a preferred combat target to one exact eligible occupant', () => {
+    const rat = occupant('Rat', 'mob', false, true);
+    const wolf = occupant('Wolf', 'mob', false, true);
+    const room = [rat, wolf];
+
+    expect(findSafeCombatNpc(room, 'Wolf')).toBe(wolf);
+    expect(findSafeCombatNpc(room, 'Unknown')).toBeNull();
+    expect(findSafeCombatNpc([rat, wolf, occupant('wolf', 'mob', false, true)], 'Wolf')).toBeNull();
+  });
   it('accepts a uniquely identified realm mob that has attacked this character', () => {
     const attacker = occupant('Kobold thief', 'mob', false, false, {
       disposition: 'hostile',

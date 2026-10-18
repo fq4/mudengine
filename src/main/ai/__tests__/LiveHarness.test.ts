@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createEscapeProbeAutomation,
+  createRecoveryProbeAutomation,
   createRoomProbeAutomation,
   exactCombatApproval,
   isExactCombatTargetDeath,
@@ -105,6 +106,24 @@ describe('createRoomProbeAutomation', () => {
     });
     expect(automation.combat).toMatchObject({ engage: 'none', retaliate: false });
     expect(automation.movement.fightOnArrival).toBe(false);
+  });
+
+  it('enables only health recovery in the recovery probe', () => {
+    const automation = createRecoveryProbeAutomation();
+
+    expect(automation.enabled).toBe(true);
+    expect(automation.health).toMatchObject({
+      restBelow: 0.98,
+      restTo: 1,
+      meditateBelow: 0,
+      potions: [],
+      useWards: false
+    });
+    expect(automation.combat).toMatchObject({ engage: 'none', retaliate: false });
+    expect(automation.movement.fightOnArrival).toBe(false);
+    expect(automation.rules).toEqual([]);
+    expect(automation.loops).toEqual([]);
+    expect(DEFAULT_CONFIG.automation.health.restBelow).toBe(0.35);
   });
 });
 

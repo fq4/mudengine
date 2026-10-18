@@ -24,6 +24,16 @@ OpenRouter requests:
 node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only --max-ms 60000 --max-moves 0
 node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --navigation-probe-only --max-ms 60000 --max-moves 4
 node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --max-ms 60000 --max-moves 0
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --recovery-probe-only --max-ms 60000 --max-moves 0
+```
+
+A controlled PvE probe may route to one of the two known Newhaven rooms and
+request an exact target name. Walker must verify arrival, and the requested
+name must still resolve to one unique eligible realm-backed occupant in the
+live room; otherwise combat is refused:
+
+```powershell
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --destination 1/2150 --target "big carrion beast" --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 4
 ```
 
 - The room probe tries the configured locator, then the documented `pro`
@@ -34,6 +44,12 @@ node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile ke
   to move when health is unknown/dead or combat, a target, or attackers are
   present. Its queue-enabled configuration disables unrelated automation,
   automatic combat, and door bashing.
+- The recovery probe is provider-free and permits only a `rest` in an
+  authoritative, empty room with known positive health below 98%, no active
+  combat/target/attackers, and no existing rest/meditation. Its temporary
+  in-memory health band starts resting below 98% and targets full health; it
+  has a 60-second ceiling and a zero-move limit. It does not edit the saved
+  profile. At/above 98% it refuses without issuing a gameplay command.
 - The PvE probe asks for health before acting, then requires at least 60% of
   maximum health, one uniquely identified, realm-classified hostile, and a
   mapped exit without a key requirement. Any attack goes through exact-target
@@ -966,3 +982,81 @@ fight. Establish safe recovery or a controlled encounter and make the next run
 distinguish exact-target progress and terminal evidence. Low-health recovery,
 exact-target death, and a complete autonomous gameplay loop are still
 unverified.
+
+### Bounded live recovery result (2026-10-18)
+
+- Read-only preflight at `1/2146` found HP `39/51`, no resting/meditating
+  state, no attackers, no active target, and no visible occupants. Provider use
+  and movement were zero.
+- The first recovery-probe attempt exposed a harness monitor mismatch:
+  `rest` was dispatched but not authorized in `LiveHarnessMonitor`, which
+  raised an `unsafe-command` violation and stopped observation. A follow-up
+  read-only probe still showed `39/51`; the failed attempt is not recovery
+  evidence. The probe now calls the monitor's existing `authorizeRecovery()`
+  before configuring the temporary Recovery automation.
+- With that correction, a provider-free probe started at `39/51`, sent one
+  authorized `rest`, observed the health response, and ended at `49/51` with
+  `resting=true`, same room, zero movement, zero provider use, and zero
+  violations. It reached 96% HP but did not reach the then-configured full
+  health completion target within the 60-second total runtime.
+- A later read-only probe showed `49/51`, `resting=false`; the next bounded
+  probe observed `51/51` before acting and safely refused because the
+  character was already above its temporary 98% rest threshold. It issued no
+  gameplay command. This later full-health reading is confirmed state, but its
+  final two HP are not attributed to the prior Recovery action.
+- The final probe threshold is 98%, with `restTo=100%`, because the live run
+  demonstrated that recovery was working and the next bounded check should only
+  perform a near-full top-off. The persistent Kefka profile remains unchanged.
+  The live test demonstrates recovery progress through 49/51; one continuous
+  in-probe recovery to full and automatic resumption are not demonstrated.
+
+At this recovery checkpoint, read-only status was `1/2146`, `51/51`, no
+attackers or active target. Subsequent combat evidence is recorded below.
+
+After the recovery-probe change, the full serial suite passed 7,067 tests with
+2 skipped; the focused LiveHarness suite passed 47/47, build/typecheck and
+secret scan passed, and the script syntax/diff checks passed. Realm tests
+previously passed 18/18; this harness-only change does not affect realm
+conversion.
+
+### Exact-target Arena probe and verified retreat (2026-10-18)
+
+Command:
+
+```powershell
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --destination 1/2150 --target "big carrion beast" --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 4
+```
+
+- Initial read-only state was `1/2146`, `51/51`, no attackers/target, and an
+  empty room. Walker verified the single `d` move to `1/2150`.
+- The requested target resolved uniquely to hybrid entity id `4`, with
+  authoritative hostile disposition, no uncertainty/charm/alignment cost.
+  The exact action was approved and dispatched through SessionManager.
+- Parsed telemetry: the target missed before a matching user hit dealt 14
+  damage; XP `850` followed. `Combat Off` arrived at about 18 seconds, the
+  selected target and engagement cleared, but `nasty lashworm` remained an
+  attacker. That mob missed repeatedly and hit for 3 damage once. Final HP was
+  `48/51`; after the bounded 30-second post-timeout observation, combat was
+  still unresolved because the attacker remained. No exact-target `mob-dies`
+  event was observed. **No victory is claimed.**
+- The monitor recorded zero policy violations, zero provider requests, and one
+  movement. The bounded structured diagnostic is
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-03-30-685Z-25960.json`;
+  it contains no raw server lines.
+- A fresh read-only probe confirmed `1/2150`, `48/51`, and a single
+  realm-backed hostile attacker (`nasty lashworm`). The bounded escape probe
+  matched that attacker to the room entity, sent exactly one `u`, and verified
+  arrival at `1/2146` with no attackers, unchanged HP, zero provider requests,
+  and zero violations.
+
+Current verified state after the retreat: `1/2146`, `48/51`, no attackers.
+A fresh read-only probe reconfirmed the same state and found no visible
+occupants. The selected exact-target experiment demonstrated live damage and
+XP but not death; the chosen target was explicit test input, so this is not
+autonomous target-selection evidence. Next test should use a controlled room
+with one eligible hostile, avoiding the multi-attacker ambiguity.
+
+Post-change validation passed: full serial suite 7,068 passed with 2 skipped,
+realm suite 18/18, production build/typecheck, `node --check
+scripts/ai-live.mjs`, `git diff --check`, and secret scan (46 files checked
+under the resolved output/home roots; no configured password found).

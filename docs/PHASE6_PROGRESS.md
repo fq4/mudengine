@@ -868,8 +868,73 @@ npm run check:secrets
   46/46, SessionManager passed 275/275, and typecheck passed. Build, realm
   tests (18/18), secret scan, syntax, and diff checks need the final rerun.
 
-Next highest-value task: re-establish safe health/recovery or use a controlled
-encounter, then capture sustained combat telemetry through exact-target death
-or a specific documented timeout. Do not repeat the Arena fight without
-changing the evidence available. Recovery, exact-target victory, and a
-connected multi-step live objective remain unverified.
+The stationary-retreat and movement-accounting checkpoint was pushed as
+`ea520e7`.
+
+## Continuation checkpoint: bounded live recovery (2026-10-18)
+
+- Read-only preflight at `1/2146`: HP `39/51`, no target or attackers, not
+  resting/meditating, and no visible occupants.
+- The initial recovery attempt found that the harness monitor was not told to
+  authorize the existing `rest` action. It emitted one `unsafe-command`
+  violation and stopped observing; follow-up read-only state remained `39/51`.
+  This was a diagnostic harness mismatch. The recovery probe now calls
+  `authorizeRecovery()` before enabling temporary Recovery settings.
+- In the corrected bounded live run, the production Recovery path sent one
+  `rest`, observed health, kept the character in the same room, and recovered
+  from `39/51` to `49/51` with `resting=true`. It used zero provider requests,
+  zero moves, and zero policy violations. The 60-second bound elapsed before
+  the full-health target, so only recovery progress—not completion in that
+  probe—is claimed.
+- A later read-only probe observed `49/51` and not resting; the next probe
+  observed `51/51` before acting and refused without a game command because
+  HP was above its temporary 98% threshold. Full health is now observed, but
+  its last two HP are not attributed to the Recovery action.
+- Added a provider-free `--recovery-probe-only` mode. It refuses unless health
+  is known, positive, below 98%, room identity is authoritative, the room has
+  no occupants, and there is no active combat, target, attacker, rest, or
+  meditation. It caps runtime at 60 seconds and movement at zero, temporarily
+  uses a 98%-to-100% rest band, and does not edit Kefka's profile.
+- The focused LiveHarness suite passed 47/47. After the recovery-mode changes,
+  the full serial suite passed 7,067 with 2 skipped; production build/typecheck
+  and secret scan passed. The secret scan found no configured password in 45
+  user-scoped files. Realm tests previously passed 18/18 and are unaffected;
+  script syntax and `git diff --check` pass. Build retains the existing
+  renderer chunk-size warning.
+
+## Continuation checkpoint: exact-target combat progress, unresolved death
+
+- Added a provider-free PVE probe path that can route with Walker to the
+  whitelisted Newhaven Arena/Guild and request an exact target. The path runs
+  only after an authoritative route arrival, a 60%+ known-health check, and a
+  unique eligible realm-backed match. Missing/ambiguous names are refused.
+- Live preflight was `1/2146`, `51/51`, with no active combat or visible mobs.
+  Walker verified one `d` move to `1/2150`. `big carrion beast` resolved to
+  hybrid entity id 4, realm-classified hostile/certain, uncharmed and not
+  costly. SessionManager approved the exact combat action.
+- Telemetry recorded a hit on `big carrion beast` for 14 damage, XP `850`,
+  and `Combat Off`. At about 18.3s the selected target/engagement disappeared,
+  but `nasty lashworm` remained in the authoritative attacker list. It missed
+  repeatedly, hit for 3 damage once, and health ended `48/51`. No exact-target
+  `mob-dies` event was observed, so victory remains unverified and settlement
+  unresolved. The sanitized diagnostic was saved under
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-03-30-685Z-25960.json`.
+  Provider requests: zero; policy violations: zero.
+- Read-only follow-up saw `nasty lashworm` as the sole attacker. The existing
+  one-move temporary retreat sent `u`, verified `1/2150` -> `1/2146`, and
+  confirmed the attacker list cleared at `48` HP, with zero provider calls and
+  zero violations. This protects the character but does not prove the target's
+  death.
+- Focused tests for LiveHarness/NpcDiscovery passed 64/64 and the post-change
+  full serial suite passed 7,068 with 2 skipped; realm tests passed 18/18.
+  Production build/typecheck, secret scan (46 files under the two resolved
+  roots; no configured password found), `node --check scripts/ai-live.mjs`,
+  and `git diff --check` all passed.
+
+Fresh read-only preflight again found `1/2146`, `48/51`, no attackers or active
+target, and no visible occupants. The recovery and exact-target probe changes
+remain local after `ea520e7`. Next: commit/push, then seek a controlled room
+with one eligible hostile and no second attacker. Preserve exact death
+telemetry; do not repeat the same multi-hostile Arena fight. Autonomous target
+selection, exact-target death, and a complete multi-step objective remain
+unverified.
