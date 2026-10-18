@@ -1203,6 +1203,11 @@ recovery/resumption and a subsequent objective in one bounded live session.
   three; no eligible hostile was found. All probes used zero provider
   requests/tokens and reported zero policy violations. Current read-only
   state: `1/2142`, `45/51`, no target/attackers, passive Betram.
+- The bounded scan continued through the remaining pre-approved Guild room:
+  Walker reached `1/2147` via `n,w,w,n`, and a read-only probe found passive
+  Corwyn, `45/51`, and no target or attackers. Final live state is
+  `1/2147`, `45/51`, no target/attackers. The approved Newhaven scan found no
+  eligible single hostile outside the two-attacker Arena group.
 - The current obstacle is now concrete: the observed Arena hostiles arrive
   together and trigger the saved outnumbered retreat before combat progress;
   the other inspected, approved Newhaven rooms contain no eligible hostile.

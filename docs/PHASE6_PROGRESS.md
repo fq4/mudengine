@@ -1202,6 +1202,11 @@ weakening identity, hostility, or combat policy.
   hostile was observed in those rooms. All current probes were provider-free
   and reported zero policy violations. Current state is `1/2142`, `45/51`,
   no target/attackers, passive Betram.
+- The scan continued to `1/2147` using `n,w,w,n`; that room contained passive
+  Corwyn at `45/51` with no target or attackers. The final state is
+  `1/2147`, `45/51`, no target/attackers. All pre-approved Newhaven probe
+  rooms have now been checked; no eligible single hostile was found outside
+  the two-attacker Arena group.
 - This narrows the live limitation to a target opportunity: the only hostile
   encounter observed in the approved area had two simultaneous attackers and
   correctly triggered retreat; other inspected rooms were empty or passive.

@@ -1343,6 +1343,11 @@ entities.
   Ferryman, `1/2141` passive Nathaniel, and `1/2142` passive Betram. Provider
   use was zero and policy violations were zero. Current state:
   `1/2142`, `45/51`, no target/attackers, passive Betram.
+- The final pre-approved Guild-room scan verified Walker arrival at `1/2147`
+  through `n,w,w,n`; read-only observation found passive Corwyn at `45/51`
+  and no attackers. Final live state: `1/2147`, `45/51`, no target/attackers.
+  All documented Newhaven probe rooms have now been inspected without finding
+  an eligible single hostile outside the two-attacker Arena group.
 - The live blocker is the lack of an eligible single-hostile opportunity in
   the inspected, approved Newhaven rooms. The Arena's two attackers trigger
   the preserved retreat before measurable combat progress; do not weaken
