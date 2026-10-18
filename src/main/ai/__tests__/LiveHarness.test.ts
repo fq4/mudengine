@@ -10,6 +10,7 @@ import {
   readOnlyNavigationPreflight,
   roomIdentityKey,
   summarizeCombatEvidence,
+  summarizeCombatState,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../LiveHarness';
@@ -492,6 +493,41 @@ describe('navigateToWithWalker', () => {
   });
 });
 
+describe('summarizeCombatState', () => {
+  it('captures bounded structured progress without retaining unapproved state fields', () => {
+    const summary = summarizeCombatState({
+      elapsedMs: 5_000,
+      room: '1/2150',
+      vitals: { hp: 18, hpMax: 51 },
+      combat: {
+        engaged: true,
+        target: 'large filthbug',
+        attackers: ['large filthbug', 'small kobold thief']
+      },
+      scheduler: {
+        status: 'active',
+        activity: 'combat',
+        currentAction: { name: 'engage_enemy', phase: 'running' }
+      }
+    });
+
+    expect(summary).toEqual({
+      elapsedMs: 5_000,
+      room: '1/2150',
+      hp: 18,
+      hpMax: 51,
+      engaged: true,
+      target: 'large filthbug',
+      attackers: ['large filthbug', 'small kobold thief'],
+      schedulerStatus: 'active',
+      schedulerActivity: 'combat',
+      currentAction: { name: 'engage_enemy', phase: 'running' }
+    });
+    expect(summary).not.toHaveProperty('raw');
+    expect(summary).not.toHaveProperty('credentials');
+  });
+});
+
 describe('waitForCombatSettlement', () => {
   it('allows an active low-health fight to settle through the combat owner', async () => {
     let engaged = true;
@@ -523,6 +559,24 @@ describe('waitForCombatSettlement', () => {
     });
 
     expect(result).toEqual({ outcome: 'unsafe', unresolved: true });
+  });
+
+  it('samples state during the bounded combat wait', async () => {
+    let engaged = true;
+    let polls = 0;
+    const result = await waitForCombatSettlement({
+      combat: () => ({ engaged, target: engaged ? 'acid slime' : null, attackers: [] }),
+      vitals: () => ({ hp: 20, hpMax: 100 }),
+      wait: async () => {
+        engaged = false;
+      },
+      isStopped: () => false,
+      timeoutMs: 1_000,
+      onPoll: () => polls++
+    });
+
+    expect(result).toEqual({ outcome: 'ended', unresolved: false });
+    expect(polls).toBe(1);
   });
 
   it('does not report settlement while attackers remain after the target clears', async () => {

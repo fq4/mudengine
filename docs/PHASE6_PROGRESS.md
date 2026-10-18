@@ -768,3 +768,38 @@ npm run check:secrets
   arrange a separate disposable/controlled encounter with supervised timeout
   handling that can preserve the session; then use the new capped telemetry to
   distinguish attack hit/miss/damage/refusal and verify a terminal outcome.
+
+## Sustained combat and timeout diagnostics (2026-10-18)
+
+- Preflight was read-only and provider-free: room `1/2150`, HP `24/51`, no
+  active target, and two authoritative hostile mobs (`small kobold thief`,
+  `large filthbug`). The bounded attempt selected `large filthbug` and
+  dispatched `a large filthbug` through the live harness.
+- The attempt exposed a harness report-path error after dispatch:
+  `selectedTargetEvidence` was scoped in the Walker navigation branch but
+  referenced by the PvE report. The process exited before emitting or
+  persisting combat telemetry. The only retained live action evidence is the
+  exact attack command and two `st` probes; no hit/miss, damage, XP, exact
+  death, or terminal outcome can be claimed.
+- Post-run read-only state was HP `5/51`, room `1/2150`, no active target or
+  engagement, with two visible certain hybrid hostiles (`thin carrion beast`,
+  `small kobold thief`). Health fell from `24/51` during the encounter window,
+  but the lost telemetry prevents attributing its source or deciding whether
+  the original target died. This is not a verified win.
+- The runner fix moves target evidence into PvE scope, stages the PvE report
+  before dispatch, and preserves sanitized partial state when an exception
+  occurs. Opt-in `--post-timeout-observe-ms` reserves 0–30 seconds within the
+  total runtime for continued exact-target observation before emergency stop.
+  Structured diagnostics are bounded and written under the active MudEngine
+  home at `state/live-diagnostics/`; raw server/login text is excluded.
+- No production combat behavior was changed. Focused tests passed 44/44; the
+  serial full suite passed 7,062 with 2 skipped (253 files), realm tests 18/18,
+  and typecheck/build/secret scan/syntax/diff checks passed. One
+  earlier parallel run had a transient `SessionLog.test.ts` temp-directory
+  cleanup error; its isolated retry and the serial full suite passed.
+- Live combat progression remains unverified, and the corrected error path
+  has not been exercised live. Do not repeat PvE at `5/51` while two
+  attackers remain. The next discriminating run is
+  `node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 0`
+  only after a fresh read-only preflight shows a suitable state or a separate
+  controlled disposable character is available.

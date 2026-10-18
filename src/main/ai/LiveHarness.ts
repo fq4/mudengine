@@ -236,6 +236,44 @@ export function summarizeCombatEvidence(
   }
 }
 
+export function summarizeCombatState(state: {
+  elapsedMs: number;
+  room: string;
+  vitals: Pick<Vitals, 'hp' | 'hpMax'>;
+  combat: Pick<Combat, 'engaged' | 'target' | 'attackers'>;
+  scheduler: {
+    status: string;
+    activity: string;
+    currentAction: { name: string; phase: string } | null;
+  };
+}): {
+  elapsedMs: number;
+  room: string;
+  hp: number | null;
+  hpMax: number | null;
+  engaged: boolean;
+  target: string | null;
+  attackers: string[];
+  schedulerStatus: string;
+  schedulerActivity: string;
+  currentAction: { name: string; phase: string } | null;
+} {
+  return {
+    elapsedMs: state.elapsedMs,
+    room: state.room,
+    hp: state.vitals.hp,
+    hpMax: state.vitals.hpMax,
+    engaged: state.combat.engaged,
+    target: state.combat.target,
+    attackers: [...state.combat.attackers],
+    schedulerStatus: state.scheduler.status,
+    schedulerActivity: state.scheduler.activity,
+    currentAction: state.scheduler.currentAction
+      ? { name: state.scheduler.currentAction.name, phase: state.scheduler.currentAction.phase }
+      : null
+  };
+}
+
 export interface RoomIdentityRequestResult {
   resolved: boolean;
   requestSent: boolean;
@@ -261,6 +299,7 @@ export async function waitForCombatSettlement(options: {
   isStopped: () => boolean;
   timeoutMs: number;
   pollIntervalMs?: number;
+  onPoll?: () => void;
 }): Promise<CombatSettlementResult> {
   const stillFighting = () => {
     const combat = options.combat();
@@ -274,6 +313,7 @@ export async function waitForCombatSettlement(options: {
     Date.now() < deadline &&
     !options.isStopped()
   ) {
+    options.onPoll?.();
     await options.wait(pollIntervalMs);
   }
   const combat = options.combat();

@@ -868,3 +868,47 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   they do not prove live damage or victory. Next live experiment requires an
   attacker-free recheck or a separate disposable/controlled setup with
   supervised timeout handling that preserves the session.
+
+## Combat timeout evidence preservation (2026-10-18)
+
+The PvE probe accepts an optional bounded observation tail. It reserves that
+time from `--max-ms`, keeps the exact-target combat owner connected after the
+main combat deadline, records the last state and parsed events, then
+emergency-stops unresolved automation before disconnecting. The setting is
+valid only with `--pve-probe-only` and is capped at 30 seconds:
+
+```powershell
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 0
+```
+
+Combat diagnostics are structured and bounded: up to 40 command summaries, 20
+parsed combat events, and 24 state snapshots. Snapshots include elapsed time,
+authoritative room, HP, exact target, attackers, and scheduler status/action.
+No raw server lines or login commands are written to the artifact. Completed
+and interrupted combat reports are persisted under
+`$MudEngineHome/state/live-diagnostics/`.
+
+### Follow-up live attempt and limitation
+
+- Read-only preflight resolved room `1/2150`, HP `24/51`, no active target,
+  and two visible, certain hybrid hostiles (`small kobold thief`,
+  `large filthbug`). The bounded run dispatched the exact
+  `a large filthbug` command and issued two `st` probes.
+- A report assembly error (`selectedTargetEvidence is not defined`) then
+  aborted the run. The target summary had been placed in the Walker branch,
+  not the PvE branch. No parsed combat events or exact terminal outcome were
+  emitted or persisted by that attempt.
+- The subsequent read-only probe found HP `5/51`, no active target/engagement,
+  and two different visible hybrid hostiles (`thin carrion beast`,
+  `small kobold thief`). The health change does not establish a hit source or
+  target death. No victory is claimed.
+- The variable scope is corrected, PvE evidence is staged before dispatch,
+  and the top-level error path now persists the current sanitized combat
+  summary before `finally` disconnects. Focused tests, full serial tests,
+  realm tests, typecheck, build, secret scan, syntax, and diff checks pass.
+  The corrected report/error path still needs live verification.
+- Do not rerun combat while health is `5/51` and hostile pressure remains.
+  First obtain a new read-only preflight showing a suitable condition or use
+  another controlled disposable character. Then run the bounded command above
+  and inspect the generated JSON artifact; exact target death, XP, sustained
+  progress, recovery, and attacker settlement remain unverified.

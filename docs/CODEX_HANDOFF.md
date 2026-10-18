@@ -656,6 +656,54 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   The existing renderer chunk-size warning remains. Low-health recovery,
   verified exact-target death, safe escape under pressure, and a complete live
   objective remain unverified.
+
+## Sustained-combat diagnostic follow-up (2026-10-18)
+
+- Fresh provider-free preflight before the next bounded attempt found room
+  `1/2150`, HP `24/51`, no active target, and two visible, certain,
+  realm-backed hostile attackers (`small kobold thief`, `large filthbug`).
+  The run used the authorized disposable `kefka` character and no provider.
+- The attempted harness run dispatched the exact command `a large filthbug`
+  and issued two production `st` status probes. It then threw
+  `selectedTargetEvidence is not defined` while assembling the result. That
+  variable had accidentally been declared in the navigation branch rather
+  than the PvE branch. The exception occurred after combat dispatch; no parsed
+  hit/miss, damage, XP, exact death, or terminal outcome was retained. This
+  run is not evidence of either a win or a combat-system defect.
+- A fresh read-only probe afterward found HP `5/51`, no active combat target,
+  and two different visible authoritative hostiles (`thin carrion beast`,
+  `small kobold thief`). HP fell during the attempted encounter window, but
+  without the lost parsed telemetry the damage source and the filthbug's
+  outcome cannot be established. The current pressure and low health make a
+  second live encounter inappropriate; no recovery, movement, or further
+  combat was attempted.
+- The live runner now reserves an explicitly requested post-deadline
+  observation tail (0–30 seconds, only for `--pve-probe-only`), keeps the
+  exact-target combat owner connected during that tail, then emergency-stops
+  unresolved automation. It records a bounded set of structured health,
+  room, target, attacker, scheduler, command-interval, and parsed combat
+  snapshots, and persists a secret-safe artifact under
+  `$MudEngineHome/state/live-diagnostics/` before disconnect. The exception
+  path also saves its current structured state. No raw server lines or login
+  commands are put in that artifact.
+- The scoping error is corrected and the PvE scenario is now staged in the
+  output before dispatch, so a later runner exception leaves the selected
+  target and starting state visible. No production combat, eligibility,
+  approval, recovery, or navigation behavior was changed.
+- Validation: focused LiveHarness tests passed 44/44; the full deterministic
+  suite passed 7,062 tests with 2 skipped across 253 files and realm tests
+  passed 18/18. Typecheck, production build, secret scan, script syntax, and
+  diff checks passed. The first parallel full-suite run had one
+  intermittent `SessionLog.test.ts` Windows temp-directory cleanup failure;
+  the isolated file passed 14/14 and the full serial rerun passed. The
+  existing renderer chunk-size warning remains.
+- The corrected PvE report/persistence path has not yet been exercised live.
+  Do not repeat combat at `5/51` while attackers remain. Next: obtain a fresh
+  read-only preflight showing a suitable safe state (or use another
+  controlled disposable character), then run the documented 100-second PvE
+  budget with a 30-second post-deadline observation window and inspect the
+  persisted artifact. A verified target death, XP, and resolved attacker
+  state remain unproven.
 - Final zero-movement recheck after validation again resolved `1/2150` through
   `pro`: HP `22/51`, no active target/engagement, and the same two visible
   hostiles (`small kobold thief`, `large filthbug`) in the attacker list. It

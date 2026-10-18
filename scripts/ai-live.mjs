@@ -27,6 +27,7 @@ import {
   readOnlyNavigationPreflight,
   roomIdentityKey,
   summarizeCombatEvidence,
+  summarizeCombatState,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
@@ -34,7 +35,7 @@ import { homePaths } from './lib/home.mjs';
 import fs from 'node:fs';
 import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
-import { roomId } from '../src/shared/world.ts';
+import { mobKey, roomId } from '../src/shared/world.ts';
 import { assessCombatEligibility } from '../src/main/ai/CombatSafety.ts';
 import {
   findSafeCombatNpc,
@@ -64,6 +65,17 @@ if ([has('--room-probe-only'), navigationProbeOnly, pveProbeOnly].filter(Boolean
   throw new Error('Choose only one room, navigation, or PvE probe mode');
 const gossipReplyTest = has('--gossip-reply-test');
 const requestedRuntimeMs = Number(valueOf('--max-ms') ?? 120_000);
+const postTimeoutObserveMs = Number(valueOf('--post-timeout-observe-ms') ?? 0);
+if (
+  !Number.isInteger(postTimeoutObserveMs) ||
+  postTimeoutObserveMs < 0 ||
+  postTimeoutObserveMs > 30_000
+)
+  throw new Error('--post-timeout-observe-ms must be an integer from 0 through 30000');
+if (postTimeoutObserveMs > 0 && !pveProbeOnly)
+  throw new Error('--post-timeout-observe-ms is only available with --pve-probe-only');
+if (postTimeoutObserveMs >= requestedRuntimeMs)
+  throw new Error('--post-timeout-observe-ms must be shorter than --max-ms');
 if (gossipReplyTest && requestedRuntimeMs > 300_000)
   throw new Error('The bounded gossip-reply test cannot run longer than five minutes');
 const configuredHome = homePaths();
@@ -101,8 +113,38 @@ const monitor = new LiveHarnessMonitor({
 });
 let combatVictoryEvidence = false;
 let combatTargetName = null;
+let combatTargetIdentity = null;
+let combatEligibilityReason = null;
 let combatTargetDied = false;
+let combatStartedAt = null;
+let pveScenarioIndex = null;
 const combatEvidenceEvents = [];
+const combatCommands = [];
+const combatSnapshots = [];
+const captureCombatSnapshot = () => {
+  if (combatStartedAt === null) return;
+  const aiState = snapshot().state;
+  const elapsedMs = Date.now() - combatStartedAt;
+  const entry = summarizeCombatState({
+    elapsedMs,
+    room: roomKey(),
+    vitals: session.character.vitals,
+    combat: session.character.combat,
+    scheduler: {
+      status: aiState.status,
+      activity: aiState.activity,
+      currentAction: aiState.currentAction
+        ? { name: aiState.currentAction.name, phase: aiState.currentAction.phase }
+        : null
+    }
+  });
+  const prior = combatSnapshots.at(-1);
+  const comparable = JSON.stringify({ ...entry, elapsedMs: 0 });
+  const priorComparable = prior ? JSON.stringify({ ...prior, elapsedMs: 0 }) : null;
+  if (prior && comparable === priorComparable && elapsedMs - prior.elapsedMs < 5_000) return;
+  combatSnapshots.push(entry);
+  if (combatSnapshots.length > 24) combatSnapshots.shift();
+};
 let combatBlocksNavigation = false;
 let recoveryBlocksNavigation = false;
 let currentRoom = null;
@@ -184,7 +226,13 @@ const sink = {
   telnet: () => {},
   notice: () => {},
   line: () => {},
-  command: (command) => monitor.command(command)
+  command: (command) => {
+    monitor.command(command);
+    if (combatStartedAt !== null && combatCommands.length < 40) {
+      const value = command.trim().replace(/\s+/g, ' ').slice(0, 120);
+      if (value) combatCommands.push({ elapsedMs: Date.now() - combatStartedAt, value });
+    }
+  }
 };
 
 const home = configuredHome;
@@ -238,6 +286,36 @@ const roomKey = () => {
   return roomIdentityKey(session.character.room);
 };
 const snapshot = () => session.aiSnapshot;
+const currentCombatSnapshot = () => {
+  const aiState = snapshot().state;
+  return summarizeCombatState({
+    elapsedMs: combatStartedAt === null ? 0 : Date.now() - combatStartedAt,
+    room: roomKey(),
+    vitals: session.character.vitals,
+    combat: session.character.combat,
+    scheduler: {
+      status: aiState.status,
+      activity: aiState.activity,
+      currentAction: aiState.currentAction
+        ? { name: aiState.currentAction.name, phase: aiState.currentAction.phase }
+        : null
+    }
+  });
+};
+const persistCombatDiagnostic = (diagnostic) => {
+  const diagnosticDirectory = path.join(home.root, 'state', 'live-diagnostics');
+  const diagnosticFile = path.join(
+    diagnosticDirectory,
+    `combat-${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}.json`
+  );
+  fs.mkdirSync(diagnosticDirectory, { recursive: true });
+  fs.writeFileSync(diagnosticFile, JSON.stringify(diagnostic, null, 2), {
+    encoding: 'utf8',
+    flag: 'wx',
+    mode: 0o600
+  });
+  return path.relative(home.root, diagnosticFile).split(path.sep).join('/');
+};
 const waitFor = async (predicate, timeout = 45_000) => {
   const end = Date.now() + timeout;
   while (Date.now() < end && !monitor.failed) {
@@ -785,6 +863,20 @@ async function main() {
           result: `Safely refused before combat: ${eligibility.reason}; ${summarizeCombatCandidates(room?.occupants ?? [], state.combat.attackers)}`
         };
       } else {
+        combatTargetIdentity = {
+          name: eligibility.target.name,
+          entityIds: [...(eligibility.target.mob?.ids ?? [])],
+          entitySource: eligibility.target.mob?.source ?? null,
+          entityRow: eligibility.target.mob?.row ?? null,
+          disposition: eligibility.target.disposition ?? null,
+          uncertain: eligibility.target.uncertain,
+          charmed: eligibility.target.charmed,
+          costly: eligibility.target.costly,
+          verifiedAttacker: state.combat.attackers.some(
+            (attacker) => mobKey(attacker) === mobKey(eligibility.target.name)
+          )
+        };
+        combatEligibilityReason = eligibility.reason;
         session.configure(
           createRoomProbeAutomation(true),
           profile.config.connection.login,
@@ -800,7 +892,23 @@ async function main() {
         combatTargetName = eligibility.target.name;
         combatTargetDied = false;
         combatEvidenceEvents.length = 0;
+        combatCommands.length = 0;
+        combatSnapshots.length = 0;
+        combatStartedAt = Date.now();
         monitor.authorizeCombatTarget(combatTargetName);
+        captureCombatSnapshot();
+        pveScenarioIndex = report.scenarios.length;
+        report.scenarios.push({
+          name: 'bounded-provider-free-pve-probe',
+          passed: false,
+          phase: 'exact-target-engagement-requested',
+          target: combatTargetName,
+          targetIdentity: combatTargetIdentity,
+          eligibilityReason: combatEligibilityReason,
+          startingRoom: beforeRoom,
+          startingHp: state.vitals.hp,
+          startingHpMax: state.vitals.hpMax
+        });
         session.aiAgent.state.objective = `Engage the verified PvE enemy ${combatTargetName}`;
         let dispatch = await session.aiAction({
           name: 'engage_enemy',
@@ -840,6 +948,8 @@ async function main() {
         }
         let outcome = 'not-started';
         let unresolved = false;
+        let combatDeadlineUnresolved = false;
+        let postTimeoutObservationCompletedMs = 0;
         if (dispatch.ok) {
           const engageDeadline = Date.now() + 5_000;
           while (
@@ -860,12 +970,53 @@ async function main() {
               monitor.check();
               return monitor.failed;
             },
-            timeoutMs: Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs),
-            pollIntervalMs: 250
+            timeoutMs: Math.max(
+              0,
+              requestedRuntimeMs - postTimeoutObserveMs - monitor.elapsedRuntimeMs
+            ),
+            pollIntervalMs: 250,
+            onPoll: captureCombatSnapshot
           });
           outcome = settlement.outcome;
           unresolved = settlement.unresolved;
+          combatDeadlineUnresolved = unresolved;
+          if (unresolved && postTimeoutObserveMs > 0) {
+            const observationStartedAt = Date.now();
+            const observationDeadline =
+              observationStartedAt +
+              Math.min(
+                postTimeoutObserveMs,
+                Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs)
+              );
+            while (Date.now() < observationDeadline && !monitor.failed) {
+              monitor.check();
+              captureCombatSnapshot();
+              const combat = session.character.combat;
+              const terminalVictory =
+                combatTargetDied &&
+                combatVictoryEvidence &&
+                !combat.engaged &&
+                combat.target === null &&
+                combat.attackers.length === 0;
+              if (terminalVictory || session.character.vitals.hp === 0) break;
+              await wait(Math.min(250, observationDeadline - Date.now()));
+            }
+            postTimeoutObservationCompletedMs = Math.min(
+              Date.now() - observationStartedAt,
+              postTimeoutObserveMs
+            );
+          }
+          const finalSettlement = await waitForCombatSettlement({
+            combat: () => session.character.combat,
+            vitals: () => session.character.vitals,
+            wait,
+            isStopped: () => monitor.failed,
+            timeoutMs: 0
+          });
+          outcome = finalSettlement.outcome;
+          unresolved = finalSettlement.unresolved;
           if (unresolved) session.aiEmergencyStop();
+          captureCombatSnapshot();
         }
         const verifiedVictory = combatTargetDied && combatVictoryEvidence && !unresolved;
         const afterRoom = roomKey();
@@ -881,9 +1032,16 @@ async function main() {
           afterRoom,
           roomChanged: afterRoom !== beforeRoom,
           target: combatTargetName,
+          targetIdentity: combatTargetIdentity,
+          eligibilityReason: combatEligibilityReason,
           targetDied: combatTargetDied,
           experienceObserved: combatVictoryEvidence,
           combatEvidenceEvents: [...combatEvidenceEvents],
+          combatCommands: [...combatCommands],
+          combatSnapshots: [...combatSnapshots],
+          combatDeadlineUnresolved,
+          postTimeoutObserveMs,
+          postTimeoutObservationCompletedMs,
           outcome,
           unresolved,
           finalHp: finalVitals.hp,
@@ -894,14 +1052,53 @@ async function main() {
           attackers: finalCombat.attackers,
           result: `${dispatch.message}; outcome=${outcome}; target=${combatTargetName}; targetDeath=${combatTargetDied}; XP=${combatVictoryEvidence}; HP=${finalVitals.hp ?? 'unknown'}/${finalVitals.hpMax ?? 'unknown'}; engaged=${finalCombat.engaged}; activeTargetPresent=${finalCombat.target !== null}; attackers=${finalCombat.attackers.length}; room=${beforeRoom}->${afterRoom}; ${summarizeCombatCandidates(room?.occupants ?? [], finalCombat.attackers)}`
         };
+        if (pveProbeOnly && pveProbe.target) {
+          try {
+            pveProbe.diagnosticArtifact = persistCombatDiagnostic({
+              profile: profile.id,
+              scenario: 'bounded-provider-free-pve-probe',
+              target: pveProbe.target,
+              targetIdentity: pveProbe.targetIdentity,
+              eligibilityReason: pveProbe.eligibilityReason,
+              dispatch: dispatch.message,
+              beforeRoom: pveProbe.beforeRoom,
+              afterRoom: pveProbe.afterRoom,
+              combatDeadlineUnresolved: pveProbe.combatDeadlineUnresolved,
+              postTimeoutObserveMs: pveProbe.postTimeoutObserveMs,
+              postTimeoutObservationCompletedMs: pveProbe.postTimeoutObservationCompletedMs,
+              combatCommands: pveProbe.combatCommands,
+              combatEvidenceEvents: pveProbe.combatEvidenceEvents,
+              combatSnapshots: pveProbe.combatSnapshots,
+              targetDied: pveProbe.targetDied,
+              experienceObserved: pveProbe.experienceObserved,
+              outcome: pveProbe.outcome,
+              unresolved: pveProbe.unresolved,
+              finalHp: pveProbe.finalHp,
+              finalHpMax: pveProbe.finalHpMax,
+              combatEngaged: pveProbe.combatEngaged,
+              activeTargetPresent: pveProbe.activeTargetPresent,
+              attackers: pveProbe.attackers
+            });
+          } catch (error) {
+            pveProbe.diagnosticArtifactError =
+              error instanceof Error ? error.message : String(error);
+            pveProbe.passed = false;
+          }
+        }
+        combatStartedAt = null;
+        combatTargetName = null;
+        combatTargetIdentity = null;
+        combatEligibilityReason = null;
       }
-      report.scenarios.push({
+      const pveScenario = {
         name: 'bounded-provider-free-pve-probe',
         ...pveProbe,
         providerRequests: monitor.providerRequests
-      });
-      const combatSettled =
-        pveProbe?.outcome === 'ended' && pveProbe?.unresolved === false;
+      };
+      if (pveScenarioIndex === null) report.scenarios.push(pveScenario);
+      else report.scenarios[pveScenarioIndex] = pveScenario;
+      pveScenarioIndex = null;
+      const combatSettled = pveProbe?.outcome === 'ended' && pveProbe?.unresolved === false;
       const hpFraction =
         pveProbe?.finalHp !== null &&
         pveProbe?.finalHp !== undefined &&
@@ -1630,6 +1827,39 @@ try {
     code: 'stall',
     message: error instanceof Error ? error.message : String(error)
   });
+  if (combatStartedAt !== null && combatTargetName !== null) {
+    const diagnostic = {
+      profile: profile.id,
+      scenario: 'bounded-provider-free-pve-probe',
+      phase: 'harness-error-before-cleanup',
+      target: combatTargetName,
+      targetIdentity: combatTargetIdentity,
+      eligibilityReason: combatEligibilityReason,
+      combatCommands: [...combatCommands],
+      combatEvidenceEvents: [...combatEvidenceEvents],
+      combatSnapshots: [...combatSnapshots, currentCombatSnapshot()].slice(-24),
+      targetDied: combatTargetDied,
+      experienceObserved: combatVictoryEvidence,
+      currentState: currentCombatSnapshot()
+    };
+    report.combatDiagnostic = diagnostic;
+    if (pveScenarioIndex !== null) {
+      report.scenarios[pveScenarioIndex] = {
+        ...report.scenarios[pveScenarioIndex],
+        phase: 'harness-error-before-cleanup',
+        targetDied: combatTargetDied,
+        experienceObserved: combatVictoryEvidence,
+        currentState: diagnostic.currentState,
+        combatEvidenceEvents: diagnostic.combatEvidenceEvents
+      };
+    }
+    try {
+      diagnostic.diagnosticArtifact = persistCombatDiagnostic(diagnostic);
+    } catch (diagnosticError) {
+      report.combatDiagnosticPersistenceError =
+        diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError);
+    }
+  }
   console.log(JSON.stringify(report, null, 2));
   process.exitCode = 1;
 } finally {
