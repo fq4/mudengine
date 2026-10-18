@@ -4,6 +4,7 @@ import {
   isExactCombatTargetDeath,
   LiveHarnessMonitor,
   navigateToWithWalker,
+  requestRoomIdentity,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../LiveHarness';
@@ -82,6 +83,72 @@ describe('isExactCombatTargetDeath', () => {
     expect(isExactCombatTargetDeath('lashworm', null)).toBe(false);
     expect(isExactCombatTargetDeath('', 'lashworm')).toBe(false);
     expect(isExactCombatTargetDeath('   ', '   ')).toBe(false);
+  });
+});
+
+describe('requestRoomIdentity', () => {
+  it('does not send a location request when a room is already known', async () => {
+    let requests = 0;
+    const result = await requestRoomIdentity({
+      roomKey: () => '1/2150',
+      request: () => {
+        requests += 1;
+        return true;
+      },
+      waitFor: async () => true,
+      timeoutMs: 1_000
+    });
+
+    expect(result).toEqual({ resolved: true, requestSent: false });
+    expect(requests).toBe(0);
+  });
+
+  it('waits for authoritative coordinates after one accepted configured request', async () => {
+    let room = '';
+    let requests = 0;
+    const result = await requestRoomIdentity({
+      roomKey: () => room,
+      request: () => {
+        requests += 1;
+        return true;
+      },
+      waitFor: async (timeoutMs) => {
+        expect(timeoutMs).toBe(500);
+        room = '1/2150';
+        return true;
+      },
+      timeoutMs: 500
+    });
+
+    expect(result).toEqual({ resolved: true, requestSent: true });
+    expect(requests).toBe(1);
+  });
+
+  it('does not wait or retry when the configured location request is refused', async () => {
+    let waits = 0;
+    const result = await requestRoomIdentity({
+      roomKey: () => '',
+      request: () => false,
+      waitFor: async () => {
+        waits += 1;
+        return true;
+      },
+      timeoutMs: 500
+    });
+
+    expect(result).toEqual({ resolved: false, requestSent: false });
+    expect(waits).toBe(0);
+  });
+
+  it('does not accept an unlocated room observation as coordinates', async () => {
+    const result = await requestRoomIdentity({
+      roomKey: () => 'Arena',
+      request: () => true,
+      waitFor: async () => true,
+      timeoutMs: 500
+    });
+
+    expect(result).toEqual({ resolved: false, requestSent: true });
   });
 });
 

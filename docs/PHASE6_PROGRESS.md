@@ -496,6 +496,19 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   tokens, and cost, and no gameplay objective ran. This remains inconclusive;
   the full suite including this matcher passes 7,031 tests with 2 skipped
   across 253 files.
+- One bounded follow-up used a single `SessionManager.askWhereIAm()` request
+  only after the automatic entry probe failed. The call was refused because
+  the session had already retired configured `rm` as unavailable; no alternate
+  location command is verified. The room remained unknown, HP was 36/51, and
+  two attackers remained listed. The harness now reports the safe
+  `locationRequestState` (`available`, `disabled`, or `unavailable`) alongside
+  its one-request result. No movement, combat, recovery, or provider action was
+  run. Focused location-helper and SessionManager tests passed 300/300. A
+  parallel full-suite run reproduced the known two `SessionLog.test.ts`
+  cleanup `ENOTEMPTY` failures; that file passed 14/14 in isolation, and the
+  serial full run passed 7,035 tests with 2 skipped across 253 files.
+  Typecheck, production build, secret scan, harness syntax, and diff checks
+  passed.
 
 ## Remaining work
 

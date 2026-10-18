@@ -111,6 +111,24 @@ export function isExactCombatTargetDeath(deathName: string, targetName: string |
   return deathKey.length > 0 && deathKey === mobKey(targetName);
 }
 
+export interface RoomIdentityRequestResult {
+  resolved: boolean;
+  requestSent: boolean;
+}
+
+/** Request one configured authoritative location response when entry probes leave room unknown. */
+export async function requestRoomIdentity(options: {
+  roomKey: () => string;
+  request: () => boolean;
+  waitFor: (timeoutMs: number) => Promise<boolean>;
+  timeoutMs: number;
+}): Promise<RoomIdentityRequestResult> {
+  if (/^\d+\/\d+$/.test(options.roomKey())) return { resolved: true, requestSent: false };
+  if (!options.request()) return { resolved: false, requestSent: false };
+  const resolved = await options.waitFor(options.timeoutMs);
+  return { resolved: resolved && /^\d+\/\d+$/.test(options.roomKey()), requestSent: true };
+}
+
 export async function waitForCombatSettlement(options: {
   combat: () => Pick<Combat, 'engaged' | 'target' | 'attackers'>;
   vitals: () => Pick<Vitals, 'hp' | 'hpMax'>;

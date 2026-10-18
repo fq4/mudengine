@@ -16,6 +16,7 @@ import {
   isExactCombatTargetDeath,
   LiveHarnessMonitor,
   navigateToWithWalker,
+  requestRoomIdentity,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
@@ -560,13 +561,31 @@ async function main() {
     await runGossipReplyTest();
     return;
   }
-  const roomKnown = await waitFor(() => /^\d+\/\d+$/.test(roomKey()), 30_000);
+  let roomKnown = await waitFor(() => /^\d+\/\d+$/.test(roomKey()), 30_000);
+  let roomProbe = { resolved: roomKnown, requestSent: false };
+  if (!roomKnown) {
+    roomProbe = await requestRoomIdentity({
+      roomKey,
+      request: () => session.askWhereIAm(),
+      waitFor: (timeoutMs) => waitFor(() => /^\d+\/\d+$/.test(roomKey()), timeoutMs),
+      timeoutMs: Math.min(
+        5_000,
+        Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs)
+      )
+    });
+    roomKnown = roomProbe.resolved;
+  }
   if (!roomKnown) {
     const result = loginDiagnostic();
+    const locationProbeDiagnostic = [
+      `configuredLocationProbe=${roomProbe.requestSent ? 'sent' : 'not-sent'}`,
+      `locationRequestState=${session.locationRequestState()}`,
+      `locationResolved=${roomProbe.resolved}`
+    ].join('; ');
     report.scenarios.push({
       name: 'login-room-identity',
       passed: false,
-      result
+      result: `${result}; ${locationProbeDiagnostic}`
     });
     monitor.fail('stall', `No authoritative room identity was observed after login (${result})`);
     throw new Error(monitor.violations[0].message);

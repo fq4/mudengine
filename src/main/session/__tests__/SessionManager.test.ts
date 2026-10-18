@@ -6957,6 +6957,7 @@ describe('a command this realm has no word for', () => {
     const retired = t('session.loop.locateUnavailable', { command: 'rm' });
     socket.write('You say "rm"\r\n');
     await until(() => notices.includes(retired));
+    expect(manager.locationRequestState()).toBe('unavailable');
     expect(notices.filter((line) => line === retired)).toHaveLength(1);
 
     /*
@@ -7187,6 +7188,7 @@ describe('the locate setting', () => {
     await until(() => manager!.character.phase === 'in-game');
 
     expect(manager.askWhereIAm()).toBe(true);
+    expect(manager.locationRequestState()).toBe('available');
     await until(() => /(^|\n)sys status\r\n/.test(Buffer.concat(received).toString('latin1')));
   });
 
@@ -7204,6 +7206,7 @@ describe('the locate setting', () => {
     socket.write('[HP=100/MA=50]:' + PROMPT_REPAINT);
     await until(() => manager!.character.phase === 'in-game');
 
+    expect(manager.locationRequestState()).toBe('disabled');
     expect(manager.askWhereIAm()).toBe(false);
   });
 

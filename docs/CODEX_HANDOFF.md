@@ -230,24 +230,32 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   objective/combat/recovery scenario. This is inconclusive about gameplay and
   is not a navigation failure. Do not continue live activity until room and
   target state are authoritatively resolved.
+- A bounded follow-up added one request through `SessionManager.askWhereIAm()`,
+  but it was safely refused because the session had already retired the
+  configured `rm` command as unavailable. The attempt again had unknown room
+  identity, HP 36/51, and two attackers; no alternate location command is
+  verified, so do not guess one. `SessionManager.locationRequestState()` now
+  distinguishes available, disabled-by-configuration, and server-unavailable
+  states in the secret-safe harness diagnostic.
 - The live combat harness matches `mob-dies` evidence to its chosen target
   using the shared `mobKey` normalization: leading articles are harmless, but
   modifiers remain part of the identity and absent names do not count.
   Focused deterministic tests cover this matcher. It does not establish a live
   target death. The current full suite includes those regressions and passes
   7,031 tests with 2 skipped across 253 files.
-- Latest local validation after the exact-target death matcher:
-  `npm test` passed 7,031 tests with 2
-  skipped across 253 files. An earlier concurrent run hit two
-  `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
-  isolation (14/14), and the final full run passed. The configured-threshold
+- Latest local validation after the bounded room-location retry and diagnostic:
+  `npm test -- --maxWorkers=1 --minWorkers=1` passed 7,035 tests with 2 skipped
+  across 253 files. A parallel full-suite run reproduced two
+  `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed 14/14 in
+  isolation, and the serial full run passed. The configured-threshold
   and repeatable-recovery changes passed focused SessionManager, selector, and
   scheduler tests (303/303); blocked-scheduler recovery guards passed focused
   scheduler and SessionManager tests (289/289). Regressions cover retaining
   the blocked state on duplicate evidence and dispatching recovery even when
-  another candidate is listed first. Typecheck, production build, secret scan,
-  harness syntax check, and `git diff --check` passed. The renderer chunk-size
-  warning remains.
+  another candidate is listed first. The room-location retry/helper and
+  SessionManager integration tests passed 300/300. Typecheck, production
+  build, secret scan, harness syntax check, and `git diff --check` passed. The
+  renderer chunk-size warning remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
   `node --check scripts/ai-live.mjs` / `git diff --check` passed. The live
   follow-up was blocked before gameplay as described above; no live combat

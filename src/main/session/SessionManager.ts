@@ -1301,6 +1301,11 @@ export class SessionManager {
     });
   }
 
+  locationRequestState(): 'available' | 'disabled' | 'unavailable' {
+    if (this.locateMethod === 'none') return 'disabled';
+    return this.locateWord === null ? 'unavailable' : 'available';
+  }
+
   /**
    * Resolves the character's own room before something that needs it plans
    * from it, when it is not already known.

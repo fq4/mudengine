@@ -635,3 +635,16 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - This does not establish a navigation failure, room placement, or current
   hostile identity. No further live action is justified until the room and
   target state can be confirmed authoritatively.
+- A second bounded attempt used one explicit `SessionManager.askWhereIAm()`
+  request after the normal entry probe did not resolve coordinates. The request
+  was refused because `rm` had already been marked unavailable by the session;
+  the harness did not try an unverified alternative. The result reported
+  `locationRequestState=unavailable`, room `unknown/unknown`, HP 36/51, and two
+  attackers, with no provider requests or gameplay scenarios. SessionManager
+  now exposes a secret-safe `locationRequestState()` diagnostic that
+  distinguishes an unavailable command from a disabled setting.
+- The room-location retry and diagnostic passed focused helper/SessionManager
+  tests (300/300), typechecks, production build, secret scan, script syntax,
+  and diff checks. The parallel full test run hit two known SessionLog cleanup
+  failures (`ENOTEMPTY`); `SessionLog.test.ts` passed 14/14 in isolation, and
+  the serial full run passed 7,035 tests with 2 skipped across 253 files.
