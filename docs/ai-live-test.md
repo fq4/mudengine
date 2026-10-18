@@ -1285,3 +1285,33 @@ entities.
   legitimate bounded encounter that causes actual damage to verify recovery
   and subsequent objective selection in one connected session, without
   weakening retreat or target policy.
+
+## Follow-up: retreat reason and recovery after real damage (2026-10-18)
+
+- The bounded provider-free PvE artifact
+  `state/live-diagnostics/combat-2026-10-18T22-52-45-789Z-16612.json`
+  records the exact selected hostile `big giant rat` hybrid entity (IDs
+  `[1,109,1116]`) matched against current attacker evidence and dispatched
+  after SessionManager approval. The bounded safety trace records
+  `retreat`, reason `2 attackers — u (retrace)`, and `acted=true`. Combat
+  transitioned Engaged then Off; Kefka moved from `1/2150` to `1/2146` and HP
+  fell from `51/51` to `45/51`. No hit/miss, exact death, or XP was observed;
+  this was not a victory.
+- A subsequent read-only probe confirmed `1/2146`, `45/51`, no target or
+  attackers. A separate provider-free recovery probe temporarily set
+  in-memory `restBelow=0.98` and `restTo=1.0`, issued `rest`, and observed
+  `51/51` in the same room. No saved setting changed, provider call occurred,
+  or policy violation was reported. Because `45/51` exceeds the saved
+  `restBelow=0.70`, this does not prove production-threshold automatic
+  recovery.
+- The safety summary is bounded to eight structured decisions and retains no
+  raw server lines. Focused tests passed; full validation passed with 7,088
+  unit tests, 2 skipped across 253 files, realm tests 18/18, typecheck/build,
+  and secret scan (55 user-scoped files, no configured password). Script
+  syntax and diff checks passed. The existing renderer chunk-size warning
+  remains.
+- Recovery and retreat were separate probes. Production-threshold recovery
+  and a subsequent objective in the same connected session remain unverified.
+  Next: use a legitimate encounter that crosses the saved recovery trigger,
+  keep the existing retreat and target/approval protections, then test
+  recovery and resumed objective selection in one bounded session.

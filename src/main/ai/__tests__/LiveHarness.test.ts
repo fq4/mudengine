@@ -17,6 +17,7 @@ import {
   summarizeCombatFightRecord,
   summarizeCombatEvidence,
   summarizeCombatOccupants,
+  summarizeCombatSafetyDecisions,
   summarizeCombatState,
   shouldObserveForVerifiedAttacker,
   shouldRequestDocumentedRoomFallback,
@@ -538,6 +539,47 @@ describe('summarizeCombatOccupants', () => {
         charmed: false,
         costly: 'sometimes',
         verifiedAttacker: true
+      }
+    ]);
+  });
+});
+
+describe('summarizeCombatSafetyDecisions', () => {
+  it('keeps bounded decisions from the current probe without raw server lines', () => {
+    const decisions = Array.from({ length: 10 }, (_, index) => ({
+      at: 100 - index,
+      action: 'retreat',
+      because: `condition ${index}`,
+      acted: true
+    }));
+
+    expect(summarizeCombatSafetyDecisions(decisions, 92)).toEqual(
+      decisions.slice(0, 8)
+    );
+  });
+
+  it('omits decisions that predate the combat probe', () => {
+    expect(
+      summarizeCombatSafetyDecisions(
+        [
+          { at: 9, action: 'retreat', because: 'old decision', acted: true },
+          {
+            at: 10,
+            action: 'retreat',
+            because: 'two attackers',
+            acted: false,
+            refused: 'manual priority'
+          }
+        ],
+        10
+      )
+    ).toEqual([
+      {
+        at: 10,
+        action: 'retreat',
+        because: 'two attackers',
+        acted: false,
+        refused: 'manual priority'
       }
     ]);
   });

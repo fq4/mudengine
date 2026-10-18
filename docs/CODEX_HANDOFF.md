@@ -6,8 +6,10 @@ Read it together with this handoff before making changes.
 ## Current state
 
 - Branch: `development`
-- Latest pushed commit: run `git log -1 --oneline` (Phase 6 work is in `docs/PHASE6_PROGRESS.md`)
-- Working tree: clean for tracked files; local untracked `.npm-cache/` remains
+- Latest pushed commit: check `git log -1 --oneline` (Phase 6 work is in
+  `docs/PHASE6_PROGRESS.md`)
+- Working tree: check `git status`; pre-existing untracked `.npm-cache/` is
+  preserved
 - Repository: `https://github.com/fq4/mudengine.git`
 - Phase 4 implementation and bounded live verification are complete on
   `development`; Phase 5 work is tracked in `docs/PHASE5_PROGRESS.md`. Phase 2
@@ -65,12 +67,12 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
-- Latest offline Phase 6 verification: `npm test` passed 7,075 tests with 2
+- Latest offline Phase 6 verification: `npm test` passed 7,088 tests with 2
   skipped across 253 files; `npm run test:realm` passed 18/18;
   `npm run typecheck`, `npm run build`, `npm run check:secrets`,
   `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
   retains the existing renderer chunk-size warning; the secret scan found no
-  configured password in 51 user-scoped files.
+  configured password in 55 user-scoped files.
 - AI suite and planner regressions pass, including ordered-plan and
   same-observation reassessment coverage.
 - Focused AutoCombat and SessionManager suites: 497 tests passed, including
@@ -1142,6 +1144,36 @@ recovery/resumption and a subsequent objective in one bounded live session.
   demonstrate recovery and selection of a subsequent objective in one
   connected session. Do not disable retreat or claim recovery from the
   full-health no-op.
+
+## Current checkpoint: retreat reason and recovery after real damage (2026-10-18)
+
+- The provider-free combat artifact
+  `state/live-diagnostics/combat-2026-10-18T22-52-45-789Z-16612.json`
+  identifies the selected `big giant rat` hybrid entity (IDs `[1,109,1116]`)
+  as hostile and matched against the live attacker list. SessionManager
+  approved and dispatched the exact target. Its bounded safety trace records
+  `action=retreat`, `because="2 attackers — u (retrace)"`, `acted=true`.
+  Combat transitioned Engaged then Off; Kefka moved from `1/2150` to `1/2146`
+  and HP fell from `51/51` to `45/51`. No hit/miss, exact death, or XP was
+  observed, so this was a withdrawal, not a victory.
+- A separate read-only probe confirmed `1/2146`, `45/51`, and no target or
+  attackers. A bounded provider-free recovery probe used temporary in-memory
+  `restBelow=0.98` / `restTo=1.0`, issued `rest`, and observed `51/51` in the
+  same room. The saved profile was not modified. Since `45/51` is above the
+  saved `restBelow=0.70` threshold, production-threshold automatic recovery
+  remains unverified. The separate probes also do not establish an
+  integrated combat → recovery → subsequent-objective loop.
+- The code change adds only a bounded summary of at most eight structured
+  safety decisions to provider-free output/artifacts; raw server lines are
+  not retained and policy is unchanged. Validation passed: 7,088 unit tests,
+  2 skipped across 253 files; realm suite 18/18; typecheck and production
+  build; secret scan (55 user-scoped files, no configured password); script
+  syntax; and diff checks. The build retains the existing renderer chunk-size
+  warning.
+- Next objective: use a legitimate bounded encounter that crosses the saved
+  recovery trigger, then demonstrate automatic recovery and selection of a
+  subsequent objective in the same connected session. Keep retreat and all
+  target/approval checks enabled.
 
 Resume with a fresh read-only probe, then the bounded provider-driven run only
 if its state remains appropriate:

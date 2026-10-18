@@ -1147,3 +1147,32 @@ weakening identity, hostility, or combat policy.
   retreat policy, add/verify bounded reason telemetry, and wait for a fresh
   legitimate target opportunity before testing damage, recovery, and
   subsequent objective selection.
+
+## Current checkpoint: retreat reason and recovery after real damage (2026-10-18)
+
+- Added bounded structured safety-decision summaries to the provider-free
+  combat result/artifact. The summary is capped at eight entries and omits raw
+  server lines. It does not alter combat eligibility, approvals, or retreat.
+- Artifact
+  `state/live-diagnostics/combat-2026-10-18T22-52-45-789Z-16612.json`
+  records the exact hostile hybrid target `big giant rat` (IDs
+  `[1,109,1116]`), verified by current attacker evidence and approved by
+  SessionManager. The safety decision was `retreat` because of
+  `2 attackers — u (retrace)` and acted. Combat transitioned Engaged then Off;
+  Kefka moved from `1/2150` to `1/2146` and HP changed from `51/51` to
+  `45/51`. No hit/miss, death, or XP evidence occurred; this is not a victory.
+- A separate read-only probe observed `45/51` in `1/2146` with no target or
+  attackers. A separate provider-free recovery probe used temporary in-memory
+  `restBelow=0.98` / `restTo=1.0`, issued `rest`, and observed `51/51` in the
+  same room. The saved profile was not modified, and `45/51` is above the
+  saved `restBelow=0.70` trigger. This proves recovery from live damage under
+  the probe threshold only, not production-threshold recovery.
+- Validation: 7,088 unit tests passed, 2 skipped across 253 files; realm
+  tests 18/18; typecheck and production build passed; secret scan checked 55
+  user-scoped files with no configured password; script syntax and diff checks
+  passed. The existing renderer chunk-size warning remains.
+- Next: demonstrate saved-threshold recovery after a legitimate encounter
+  crosses `0.70`, then confirm that the same connected session resumes a
+  subsequent objective. Retreat, authoritative target identity, and approval
+  gates remain enabled. The overall connected gameplay loop remains
+  unverified.

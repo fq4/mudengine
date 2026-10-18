@@ -9,6 +9,7 @@ import {
 import type { FightRecord } from '../../shared/fights';
 import type { RealmFamily } from '../../shared/realm';
 import type { WalkProgress } from '../../shared/walk';
+import type { SafetyDecision } from '../../shared/automation';
 import { mobKey } from '../../shared/world';
 import { combatOutcome, type CombatOutcome } from './CombatOutcome';
 
@@ -345,6 +346,22 @@ export function summarizeCombatOccupants(
       verifiedAttacker: attackers.some(
         (attacker) => mobKey(attacker) === mobKey(occupant.name)
       )
+    }));
+}
+
+export function summarizeCombatSafetyDecisions(
+  decisions: readonly SafetyDecision[],
+  since: number
+): Pick<SafetyDecision, 'at' | 'action' | 'because' | 'acted' | 'refused'>[] {
+  return decisions
+    .filter((decision) => decision.at >= since)
+    .slice(0, 8)
+    .map(({ at, action, because, acted, refused }) => ({
+      at,
+      action,
+      because,
+      acted,
+      ...(refused === undefined ? {} : { refused })
     }));
 }
 

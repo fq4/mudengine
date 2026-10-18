@@ -38,6 +38,7 @@ import {
   summarizeCombatFightRecord,
   summarizeCombatEvidence,
   summarizeCombatOccupants,
+  summarizeCombatSafetyDecisions,
   summarizeCombatState,
   shouldObserveForVerifiedAttacker,
   shouldRequestDocumentedRoomFallback,
@@ -1495,6 +1496,10 @@ async function main() {
         const afterRoom = roomKey();
         const finalCombat = session.character.combat;
         const finalVitals = session.character.vitals;
+        const safetyDecisions = summarizeCombatSafetyDecisions(
+          session.automation.safety,
+          combatStartedAt
+        );
         pveProbe = {
           passed:
             verifiedVictory &&
@@ -1511,6 +1516,7 @@ async function main() {
           experienceObserved: combatVictoryEvidence,
           combatEvidenceEvents: [...combatEvidenceEvents],
           combatFightEvidence: [...combatFightEvidence],
+          safetyDecisions,
           combatCommands: [...combatCommands],
           combatSnapshots: [...combatSnapshots],
           combatDeadlineUnresolved,
@@ -1556,6 +1562,7 @@ async function main() {
               combatEvidenceEvents: pveProbe.combatEvidenceEvents,
               combatSnapshots: pveProbe.combatSnapshots,
               combatFightEvidence: pveProbe.combatFightEvidence,
+              safetyDecisions: pveProbe.safetyDecisions,
               attackerEvidenceWaitMs: pveProbe.attackerEvidenceWaitMs,
               verifiedTargetAttackerObserved: pveProbe.verifiedTargetAttackerObserved,
               targetCandidates: pveProbe.targetCandidates,
