@@ -681,3 +681,8 @@ npm run check:secrets
   `git diff --check` passed. The build reports the existing renderer
   chunk-size warning. No new live actions were sent while the two attackers
   remain.
+- Post-push read-only observation: `pro` returned authoritative room `1/2150`;
+  `sys status` remained unparsed. Health was `22/51`, with no active combat or
+  target and two attackers. The probe sent no movement, attack, or recovery
+  command and used zero provider requests/tokens/cost with zero violations.
+  Hostile pressure therefore remains a live blocker.

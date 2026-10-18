@@ -794,3 +794,9 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   passed. The build retains the renderer chunk-size warning. The attacker
   count and unresolved outcome mean the next live step must remain read-only
   until new authoritative state shows the pressure has cleared.
+- Post-push `--room-probe-only --max-ms 60000 --max-moves 0` observation:
+  `pro` resolved GreaterMUD room `1/2150`; `sys status` was accepted but had
+  no parsed response. Health was `22/51`, combat was not engaged, and two
+  attackers remained. Only status/location/health reads were sent; usage was
+  zero provider requests/tokens/cost, with no violations. No gameplay action
+  was attempted.

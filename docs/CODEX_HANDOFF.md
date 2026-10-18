@@ -632,3 +632,10 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   chunk-size warning. No additional live gameplay was attempted because the
   latest observation still had two attackers and the last encounter was
   unresolved.
+- Fresh read-only probe after the push: authoritative `pro` output located
+  Kefka in `1/2150`; the configured `sys status` produced no response. Health
+  was `22/51`, combat was not engaged, and two attackers remained. The probe
+  issued only `sys status`, `pro`, and `health`, with zero provider usage and
+  zero violations. Do not start combat, navigation, or recovery yet; recheck
+  with this zero-movement probe before deciding whether hostile pressure has
+  cleared.
