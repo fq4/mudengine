@@ -7193,6 +7193,29 @@ describe('the locate setting', () => {
     await until(() => /(^|\n)sys status\r\n/.test(Buffer.concat(received).toString('latin1')));
   });
 
+  it('allows explicit read-only probes at user priority while automation is disabled', async () => {
+    const { sink } = collect();
+    manager = new SessionManager(sink);
+    manager.configure(
+      { ...DEFAULT_CONFIG.automation, enabled: false, onEnterRealm: [] },
+      DEFAULT_CONFIG.connection.login
+    );
+    await manager.connect(dial());
+    const socket = await client();
+    const received: Buffer[] = [];
+    socket.on('data', (chunk) => received.push(chunk));
+    socket.write('[HP=100/MA=50]:' + PROMPT_REPAINT);
+    await until(() => manager!.character.phase === 'in-game');
+
+    expect(manager.ask('pro')).toBe(false);
+    expect(manager.ask('pro', true)).toBe(true);
+    expect(manager.ask('health')).toBe(false);
+    expect(manager.ask('health', true)).toBe(true);
+    expect(manager.ask('kill guard', true)).toBe(false);
+    await until(() => /(^|\n)pro\r\n/.test(Buffer.concat(received).toString('latin1')));
+    await until(() => /(^|\n)health\r\n/.test(Buffer.concat(received).toString('latin1')));
+  });
+
   it('asks nothing, and says so by refusing, when configured to none', async () => {
     const { sink } = collect();
     manager = new SessionManager(sink);

@@ -526,7 +526,7 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   It verifies the production baseline, not persisted frontier selection.
 - Run `git log -1 --oneline` on `development` for the latest commit.
 
-## Latest locator checkpoint (2026-10-18)
+## Initial inline locator checkpoint (2026-10-18)
 
 - Inline profile locator overrides are implemented in settings. The active
   Kefka profile uses `sys-status`, but the live server has not confirmed that
@@ -555,3 +555,42 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   one unrelated flaky `ConfigStore.test.ts` watcher timeout. Its focused test
   passed 1/1 on retry; do not attribute this to the locator changes (no
   ConfigStore files were modified).
+
+## Latest provider-free probe checkpoint (2026-10-18)
+
+- Current branch/HEAD at session start: `development` / `1a44afd`.
+  The workspace already contained uncommitted changes in the live harness,
+  `LiveHarness`, and `SessionManager` from the locator/probe continuation. Keep
+  those changes; `.npm-cache/` is unrelated and must remain untracked.
+- A command-local Git `safe.directory` override was used because the checkout
+  is owned by `BUILTIN\\Administrators`; no global Git trust setting was
+  changed.
+- Live `pro` resolved room `1/2150` on GreaterMUD; `sys status` did not yield a
+  location block. The read-only health probe later showed HP `20/51`, no
+  current combat target/engagement, and one attacker. The latest listed mob
+  was uncertain by realm classification, so combat was correctly refused.
+- Walker navigation was also refused while attackers were present. A separate
+  exact-target PvE run did engage `fat kobold thief` via SessionManager and
+  observed XP, but no exact target-death evidence; it ended at HP `22/51` with
+  one attacker. Do not report this as a kill or victory. The queue-enabled
+  Walker probe disables all unrelated automation and door bashing.
+- The provider-free PvE probe exposed a movement-monitor false positive:
+  production `Routines` sent the exact `st` status-sheet query, which the
+  generic monitor counts as a possible movement alias. The PvE mode now
+  authorizes only that exact status query; ordinary movement remains capped.
+  This change has focused deterministic tests but is not yet live-reverified.
+- Every live probe used zero provider requests/tokens/cost. No character
+  movement occurred in the navigation-refusal runs. Low-health recovery,
+  escape from an unresolved/uncertain attacker, target death, and complete
+  autonomous live objectives remain unverified.
+- Final validation: the first full serial run had one unrelated
+  `ConfigStore.test.ts` watcher timeout; its focused 12-test rerun passed, and
+  the subsequent full serial suite passed 7,045 tests with 2 skipped across
+  253 files. Typecheck, build, realm tests, secret scan, script syntax, and
+  diff checks passed. The build retains its existing renderer chunk-size
+  warning.
+- Next: do not launch another live probe while an attacker remains and the
+  visible mob is uncertain. Once a fresh bounded observation shows no hostile
+  pressure, resume navigation; only run exact-target PvE when the authoritative
+  target gate passes. Low-health rest, safe escape, target-death evidence, and
+  a complete live objective remain open.

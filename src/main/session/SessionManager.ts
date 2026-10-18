@@ -5625,12 +5625,15 @@ export class SessionManager {
    *
    * Through the queue and not `send`, deliberately: that is what makes it an
    * automation command — paced by the prompt, held while the player is
-   * typing, and quiet in the console when `internal.yaml` names it.
+   * typing, and quiet in the console when `internal.yaml` names it. An
+   * explicit caller may mark a probe as user-initiated, which lets a person
+   * request read-only information while background automation is disabled.
    */
-  ask(command: string): boolean {
+  ask(command: string, userInitiated = false): boolean {
+    if (userInitiated && !['health', 'pro'].includes(command.trim().toLowerCase())) return false;
     return this.queue.enqueue({
       command,
-      priority: 'probe',
+      priority: userInitiated ? 'user' : 'probe',
       coalesceKey: `ask:${command}`,
       reason: t('session.probe.askedFromCard')
     });

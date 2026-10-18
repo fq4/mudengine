@@ -6,6 +6,7 @@ import {
   LiveHarnessMonitor,
   navigateToWithWalker,
   requestRoomIdentity,
+  readOnlyNavigationPreflight,
   roomIdentityKey,
   waitForCombatSettlement,
   waitForRecoveryHealth
@@ -48,6 +49,39 @@ describe('createRoomProbeAutomation', () => {
     expect(DEFAULT_CONFIG.automation.enabled).toBe(true);
     expect(DEFAULT_CONFIG.automation.onEnterRealm.length).toBeGreaterThan(0);
   });
+
+  it('can enable the queue without enabling unrelated play automation', () => {
+    const config = createRoomProbeAutomation(true);
+    const enabledFlags: string[] = [];
+    const visit = (value: unknown, path: string) => {
+      if (value === null || typeof value !== 'object') return;
+      for (const [key, child] of Object.entries(value)) {
+        const childPath = `${path}.${key}`;
+        if (key === 'enabled' && child === true) enabledFlags.push(childPath);
+        visit(child, childPath);
+      }
+    };
+    visit(config, 'automation');
+
+    expect(config.enabled).toBe(true);
+    expect(enabledFlags).toEqual(['automation.enabled']);
+    expect(config.health).toMatchObject({
+      restBelow: 0,
+      restTo: 0,
+      meditateBelow: 0,
+      meditateTo: 0,
+      potions: [],
+      useWards: false
+    });
+    expect(config.combat).toMatchObject({ engage: 'none', retaliate: false });
+    expect(config.movement).toMatchObject({
+      provideLight: false,
+      bashDoors: false,
+      fightOnArrival: false,
+      collectKeys: false
+    });
+    expect(config.party.requestPartyHealth).toBe(false);
+  });
 });
 
 describe('roomIdentityKey', () => {
@@ -55,6 +89,48 @@ describe('roomIdentityKey', () => {
     expect(roomIdentityKey({ map: 1, number: 2150, name: 'Arena' })).toBe('1/2150');
     expect(roomIdentityKey({ map: null, number: null, name: 'Arena' })).toBe('Arena');
     expect(roomIdentityKey({ map: null, number: null, name: null })).toBe('');
+  });
+});
+
+describe('readOnlyNavigationPreflight', () => {
+  const state = {
+    phase: 'in-game' as const,
+    vitals: { hp: 50 },
+    combat: { engaged: false, target: null, attackers: [] }
+  };
+
+  it('allows a living character with no combat or attackers', () => {
+    expect(readOnlyNavigationPreflight(state)).toMatchObject({ allowed: true });
+  });
+
+  it('refuses when health is unknown or zero', () => {
+    expect(
+      readOnlyNavigationPreflight({ ...state, vitals: { hp: null } })
+    ).toMatchObject({ allowed: false, reason: 'Current health is unknown or zero' });
+    expect(
+      readOnlyNavigationPreflight({ ...state, vitals: { hp: 0 } })
+    ).toMatchObject({ allowed: false, reason: 'Current health is unknown or zero' });
+  });
+
+  it('refuses active combat and any listed attacker', () => {
+    expect(
+      readOnlyNavigationPreflight({ ...state, combat: { ...state.combat, engaged: true } })
+    ).toMatchObject({ allowed: false, reason: 'Combat or hostile attention is active' });
+    expect(
+      readOnlyNavigationPreflight({ ...state, combat: { ...state.combat, target: 'rat' } })
+    ).toMatchObject({ allowed: false, reason: 'Combat or hostile attention is active' });
+    expect(
+      readOnlyNavigationPreflight({
+        ...state,
+        combat: { ...state.combat, attackers: ['rat'] }
+      })
+    ).toMatchObject({ allowed: false, reason: 'Combat or hostile attention is active' });
+  });
+
+  it('refuses a session that is not in game', () => {
+    expect(
+      readOnlyNavigationPreflight({ ...state, phase: 'authenticating' as const })
+    ).toMatchObject({ allowed: false, reason: 'Not in game' });
   });
 });
 
@@ -439,6 +515,18 @@ describe('LiveHarnessMonitor', () => {
       'unsafe-command'
     ]);
     expect(monitor.moveCount).toBe(1);
+  });
+
+  it('allows a production status-sheet probe without exempting actual directions', () => {
+    const monitor = new LiveHarnessMonitor({ ...limits, maxMoves: 0 });
+    monitor.authorizeStatusProbe();
+    monitor.command('st');
+    expect(monitor.moveCount).toBe(0);
+    expect(monitor.failed).toBe(false);
+
+    monitor.command('south');
+    expect(monitor.moveCount).toBe(1);
+    expect(monitor.violations.map(({ code }) => code)).toEqual(['moves']);
   });
 
   it('allows combat commands only for an explicitly authorized target', () => {

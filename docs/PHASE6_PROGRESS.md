@@ -601,3 +601,44 @@ npm run check:secrets
   (under the user's app-data `mudengine` directory); recreate via the UI.
   `npm run check:secrets` scans that directory against configured passwords.
 - Do not commit `.env`, `.npm-cache/`, `out/`, `dist/`, captures or logs.
+
+## Provider-free Arena follow-up (2026-10-18)
+
+- Kefka's configured `sys status` locator still produced no parsed coordinates,
+  but the documented `pro` profile query produced authoritative `1/2150`
+  coordinates. A user-priority `health` read produced fresh HP and combat
+  evidence without enabling profile automation or contacting a provider.
+- The Walker-only probe again refused movement because the tracker listed
+  attackers. No direction command was issued; this is a hostile-state refusal,
+  not a reproduced movement stall. The navigation probe's short-lived
+  queue-enabled configuration now disables unrelated rest, party, combat,
+  light, auto-get, and door-bashing behavior; only Walker owns the route.
+- A separate provider-free PvE probe selected the uniquely identified
+  authoritative hostile `fat kobold thief`, obtained exact-target approval,
+  and delegated to production SessionManager/AutoCombat. One bounded attempt
+  remained active through the 60-second window. A later attempt observed XP,
+  but not exact target-death; the outcome ended with HP `22/51` and one
+  attacker, so no victory is claimed.
+- The combat monitor initially counted production `Routines`' exact `st`
+  status-sheet probe as movement, prematurely stopping that later attempt.
+  The PvE-only monitor now has a narrowly scoped authorization for this exact
+  status command; ordinary directional commands remain movement-limited, and
+  default harness behavior still counts `st` conservatively. Regression tests
+  cover both paths.
+- On the latest fresh probe, the remaining visible mob was realm-classified
+  uncertain, so no second attack was issued. Health was `20/51`, with no
+  active target/engagement and one listed attacker. Recovery was not attempted:
+  the character was above the configured `restBelow=0.35` floor, and hostile
+  attention remains. Reconnect/live recovery and safe escape are still
+  unverified.
+- All probes used zero provider requests, tokens, and cost. One earlier
+  attempt was prematurely stopped by the `st` movement classification and
+  recorded that monitor violation; no policy violation occurred. Live victory,
+  low-health resting, and a complete multi-step live objective remain
+  outstanding.
+- Final validation for this checkpoint: the first full serial suite run had one
+  unrelated `ConfigStore.test.ts` watcher timeout. That file passed 12/12 in
+  isolation, and the subsequent full serial rerun passed 7,045 tests with 2
+  skipped across 253 files. Typecheck, production build, realm tests, secret
+  scan, script syntax, and diff checks passed. The build retains its existing
+  renderer chunk-size warning.

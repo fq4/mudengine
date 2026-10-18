@@ -1,19 +1,51 @@
 import type { AiApproval } from '../../shared/ai';
-import type { Combat, Room, Vitals } from '../../shared/character';
+import type { CharacterState, Combat, Room, Vitals } from '../../shared/character';
 import { DEFAULT_CONFIG, type AutomationConfig } from '../../shared/config';
 import type { WalkProgress } from '../../shared/walk';
 import { mobKey } from '../../shared/world';
 import { combatOutcome, type CombatOutcome } from './CombatOutcome';
 
 /** Isolate a room diagnostic session from all background automation. */
-export function createRoomProbeAutomation(): AutomationConfig {
+export function createRoomProbeAutomation(enableQueue = false): AutomationConfig {
   return {
     ...DEFAULT_CONFIG.automation,
-    enabled: false,
+    enabled: enableQueue,
     onEnterRealm: [],
     onPartyChange: '',
     idle: { ...DEFAULT_CONFIG.automation.idle, enabled: false },
     supplies: { ...DEFAULT_CONFIG.automation.supplies, enabled: false },
+    party: {
+      ...DEFAULT_CONFIG.automation.party,
+      assistLeader: false,
+      defendParty: false,
+      restWithLeader: false,
+      requestPartyHealth: false,
+      parEverySeconds: 0,
+      parAfterRound: false
+    },
+    health: {
+      ...DEFAULT_CONFIG.automation.health,
+      restBelow: 0,
+      restTo: 0,
+      meditateBelow: 0,
+      meditateTo: 0,
+      potions: [],
+      useWards: false
+    },
+    combat: {
+      ...DEFAULT_CONFIG.automation.combat,
+      engage: 'none',
+      retaliate: false
+    },
+    movement: {
+      ...DEFAULT_CONFIG.automation.movement,
+      provideLight: false,
+      lightDimRooms: false,
+      extinguishInLight: false,
+      bashDoors: false,
+      fightOnArrival: false,
+      collectKeys: false
+    },
     loops: [],
     events: [],
     rules: []
@@ -24,6 +56,25 @@ export function createRoomProbeAutomation(): AutomationConfig {
 export function roomIdentityKey(room: Pick<Room, 'map' | 'number' | 'name'>): string {
   if (room.map !== null && room.number !== null) return `${room.map}/${room.number}`;
   return room.name ?? '';
+}
+
+export function readOnlyNavigationPreflight(
+  state: Pick<CharacterState, 'phase'> & {
+    vitals: Pick<Vitals, 'hp'>;
+    combat: Pick<Combat, 'engaged' | 'target' | 'attackers'>;
+  }
+): { allowed: boolean; reason: string } {
+  if (state.phase !== 'in-game') return { allowed: false, reason: 'Not in game' };
+  if (state.vitals.hp === null || state.vitals.hp <= 0)
+    return { allowed: false, reason: 'Current health is unknown or zero' };
+  if (
+    state.combat.engaged ||
+    state.combat.target !== null ||
+    state.combat.attackers.length > 0
+  ) {
+    return { allowed: false, reason: 'Combat or hostile attention is active' };
+  }
+  return { allowed: true, reason: 'In-game, alive, and not engaged or under attack' };
 }
 
 export interface LiveHarnessLimits {
@@ -230,6 +281,7 @@ export class LiveHarnessMonitor {
   private readonly authorizedCombatTargets = new Set<string>();
   private recoveryAuthorized = false;
   private equipmentAuthorized = false;
+  private statusProbeAuthorized = false;
 
   constructor(readonly limits: LiveHarnessLimits) {}
 
@@ -248,6 +300,10 @@ export class LiveHarnessMonitor {
 
   authorizeEquipmentChanges(): void {
     this.equipmentAuthorized = true;
+  }
+
+  authorizeStatusProbe(): void {
+    this.statusProbeAuthorized = true;
   }
 
   authorizeGossipReplies(): void {
@@ -335,7 +391,7 @@ export class LiveHarnessMonitor {
             })`
           : `Unsafe live-test command: ${value}`
       );
-    if (movement.test(value)) {
+    if (movement.test(value) && !(this.statusProbeAuthorized && value.toLowerCase() === 'st')) {
       this.moves += 1;
       if (this.moves > this.limits.maxMoves)
         this.fail('moves', `Movement limit reached: ${this.moves}`);

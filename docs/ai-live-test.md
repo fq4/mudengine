@@ -15,6 +15,37 @@ The runner enforces runtime, movement, request, token, cost, repetition, and
 unsafe-command limits. It reports structured, secret-safe traces and exits
 nonzero on a failed scenario. It never runs as part of `npm test`.
 
+## Provider-free diagnostics
+
+These bounded probes use the production `SessionManager`, but make no
+OpenRouter requests:
+
+```powershell
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only --max-ms 60000 --max-moves 0
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --navigation-probe-only --max-ms 60000 --max-moves 4
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --max-ms 60000 --max-moves 0
+```
+
+- The room probe tries the configured locator, then the documented `pro`
+  profile query, and asks for authoritative health once. It reports coordinates,
+  parsed health, combat engagement, and attacker count without retaining raw
+  login or server text.
+- The navigation probe delegates only a verified route to Walker. It refuses
+  to move when health is unknown/dead or combat, a target, or attackers are
+  present. Its queue-enabled configuration disables unrelated automation,
+  automatic combat, and door bashing.
+- The PvE probe asks for health before acting, then requires positive parsed
+  health and one uniquely identified, realm-classified hostile. Any attack goes
+  through exact-target SessionManager approval and AutoCombat; the bounded
+  monitor requires no movement and emergency-stops an unresolved encounter.
+  The harness treats the production-owned exact `st` sheet request as a status
+  probe in this mode; all actual directional commands still count against the
+  movement limit. A passed combat result requires both exact target-death and
+  XP evidence; XP alone is not called a kill.
+
+These are diagnostics, not a replacement for the capped provider-driven
+session below. Do not run more than one probe session concurrently for Kefka.
+
 If the profile is not available in the current MudEngine home, it fails with a
 clear configuration error rather than guessing credentials. The runner is
 restricted to the explicitly authorized `kefka` profile. The source-based
@@ -657,7 +688,7 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   failures (`ENOTEMPTY`); `SessionLog.test.ts` passed 14/14 in isolation, and
   the serial full run passed 7,035 tests with 2 skipped across 253 files.
 
-## Inline locator follow-up (2026-10-18)
+## Initial inline locator follow-up (2026-10-18)
 
 - Inline profiles now expose and persist their own locator setting; Kefka's
   active profile was set to `sys-status` based on existing MajorMUD test
@@ -699,3 +730,37 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   broader ConfigStore file had failed once in isolation before that retry.
   The earlier serial full run passed before this final helper test was added.
   No ConfigStore code was changed.
+
+## Provider-free Arena follow-up (2026-10-18)
+
+- The documented `pro` query resolved Kefka to authoritative room `1/2150`
+  (`GreaterMUD`); the configured `sys status` query returned no location
+  block. A follow-up status probe observed health `20/51` and two attackers.
+  Both probes used zero provider requests/tokens/cost and recorded no policy
+  violations.
+- `--navigation-probe-only` refused Walker movement because hostile attention
+  was active. It issued no movement command. This is a current-state refusal,
+  not a reproduced Walker route stall.
+- The provider-free PvE probe found two mobs (one eligible, one uncertain),
+  received exact-target approval for `fat kobold thief`, and delegated combat
+  through SessionManager. One attempt remained active at the 60-second bound;
+  a later observation showed `XP=true`, `targetDeath=false`, HP `22/51`, and
+  one attacker. No kill or victory is claimed.
+- The later attempt was prematurely stopped because the live monitor counted
+  the production `st` status-sheet probe as a movement. The probe-specific
+  monitor now explicitly recognizes that exact status request; its movement
+  limit still counts directions, and a regression test preserves the default
+  conservative treatment of `st` in other harness modes. This monitor fix has
+  deterministic verification only so far.
+- On the next fresh observation the only remaining visible mob was classified
+  uncertain, so the PvE probe refused it. Health was `20/51`, combat was not
+  engaged, and one attacker remained. The character was not rested or moved.
+  Live recovery remains unverified; the character was above the configured
+  `restBelow=0.35` floor and hostile attention persisted.
+- Validation after the probe changes: the first full serial run had one
+  unrelated `ConfigStore.test.ts` watcher timeout; that focused suite passed
+  12/12, and a complete serial rerun passed 7,045 tests with 2 skipped across
+  253 files. Typecheck, build, realm tests, secret scan, `node --check
+  scripts/ai-live.mjs`, and `git diff --check` passed. No additional live
+  attempt was made because the latest observation still showed an attacker
+  and no confidently classified target.
