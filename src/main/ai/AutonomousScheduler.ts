@@ -201,19 +201,24 @@ export class AutonomousScheduler {
       if (!recovery || observation === this.state.lastObservation) return null;
       this.state.status = 'idle';
     }
-    if (this.state.status === 'blocked') {
+    const recoveryAfterBlock = this.state.status === 'blocked';
+    if (recoveryAfterBlock) {
       if (!recovery || this.blockedRecoveryAttempted) return null;
-      this.state.status = 'idle';
-      this.blockedRecoveryAttempted = true;
     }
     if (this.state.status === 'interrupted') return null;
     if (observation === this.state.lastObservation && this.state.current === null) return null;
+    if (recoveryAfterBlock) {
+      this.state.status = 'idle';
+      this.blockedRecoveryAttempted = true;
+    }
     this.state.lastObservation = observation;
-    const next = candidates.find(
-      ({ action }) =>
-        (action.name === 'recover_health' || !this.state.completed.includes(action.name)) &&
-        !this.journal.avoided.includes(action.name)
-    );
+    const next = recoveryAfterBlock
+      ? recovery
+      : candidates.find(
+          ({ action }) =>
+            (action.name === 'recover_health' || !this.state.completed.includes(action.name)) &&
+            !this.journal.avoided.includes(action.name)
+        );
     if (!next) {
       this.state.status = 'completed';
       return null;

@@ -124,10 +124,15 @@ describe('AutonomousScheduler', () => {
       const scheduler = new AutonomousScheduler(1);
 
       expect(scheduler.choose(inspect, 'room-observation')?.name).toBe('inspect_room');
-      scheduler.finish(false, progress('1/1', null, 0.4));
+      const failedProgress = progress('1/1', null, 0.4);
+      scheduler.finish(false, failedProgress);
       expect(scheduler.state.status).toBe('blocked');
 
-      expect(scheduler.choose(recovery, 'hurt-observation')?.name).toBe('recover_health');
+      expect(scheduler.choose(recovery, JSON.stringify(failedProgress))).toBeNull();
+      expect(scheduler.state.status).toBe('blocked');
+      expect(
+        scheduler.choose([...inspect, ...recovery], 'hurt-observation')?.name
+      ).toBe('recover_health');
       scheduler.finish(false, progress('1/1', null, 0.4));
       expect(scheduler.state.status).toBe('blocked');
       expect(scheduler.choose(recovery, 'new-authoritative-observation')).toBeNull();

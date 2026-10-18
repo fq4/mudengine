@@ -217,24 +217,29 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   and the same completed observation cannot trigger a repeated action. This
   preserves retry/failure limits and keeps live recovery unverified.
 - If repeated failures have blocked autonomous scheduling, a newly eligible
-  recovery candidate may get one bounded attempt. If that attempt fails, the
-  scheduler remains blocked; subsequent observations do not turn the recovery
-  override into an unbounded retry path. Resetting or replacing the objective
-  starts a new failure window.
+  recovery candidate may get one bounded attempt, and only after a changed
+  observation; the scheduler stays blocked on duplicate evidence. That
+  exception dispatches recovery specifically, not an earlier candidate in the
+  list. If recovery fails, the scheduler remains blocked; subsequent
+  observations do not turn the override into an unbounded retry path. A
+  successful recovery re-arms it for a later failure cycle.
 - The most recent bounded attempt did not pass its room-identity gate:
   `phase=in-game`, `room=unknown/unknown`, and one attacker were reported.
   It made zero provider requests and did not run an objective. This is
   inconclusive about gameplay and is not a navigation failure; do not retry
   until Kefka's placement and combat state are confirmed.
-- Latest local validation: the final `npm test` passed 7,029 tests with 2
+- Latest local validation after the blocked-recovery edge-case regression:
+  `npm test` passed 7,029 tests with 2
   skipped across 253 files. An earlier concurrent run hit two
   `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
   isolation (14/14), and the final full run passed. The configured-threshold
   and repeatable-recovery changes passed focused SessionManager, selector, and
-  scheduler tests (303/303); the blocked-scheduler recovery guards passed
-  focused scheduler and SessionManager tests (289/289). Typecheck, production
-  build, secret scan, harness syntax check, and `git diff --check` passed. The
-  renderer chunk-size warning remains.
+  scheduler tests (303/303); blocked-scheduler recovery guards passed focused
+  scheduler and SessionManager tests (289/289). Regressions cover retaining
+  the blocked state on duplicate evidence and dispatching recovery even when
+  another candidate is listed first. Typecheck, production build, secret scan,
+  harness syntax check, and `git diff --check` passed. The renderer chunk-size
+  warning remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
   `node --check scripts/ai-live.mjs` / `git diff --check` passed. The live
   follow-up was blocked before gameplay as described above; no live combat
