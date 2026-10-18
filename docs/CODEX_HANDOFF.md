@@ -1175,6 +1175,42 @@ recovery/resumption and a subsequent objective in one bounded live session.
   subsequent objective in the same connected session. Keep retreat and all
   target/approval checks enabled.
 
+## Current checkpoint: bounded room search, exact refusal, and safe withdrawal (2026-10-18)
+
+- From a fresh read-only state at `1/2146`, `51/51`, no target/attackers,
+  Walker verified the route to `1/2150`. A request for the documented
+  `big carrion beast` was refused before combat: two visible mobs had
+  uncertain realm classification and there was no unique eligible target.
+  A later read-only probe in `1/2150` observed `41/51` and two attackers,
+  `big giant rat` and `angry giant rat`; both remained uncertain hybrid
+  identities, with combat not yet engaged.
+- The bounded escape probe confirmed an authorized retreat: the
+  `angry giant rat` matched realm and attacker evidence, positive HP was
+  observed, and one `u` moved Kefka from `1/2150` to `1/2146`, clearing the
+  attacker list. The probe reported no policy violations.
+- A subsequent exact-target PvE probe waited 2,078 ms for attacker evidence,
+  then SessionManager approved and dispatched only `a big giant rat`
+  (hybrid IDs `[1,109,1116]`, hostile, verified attacker). The structured
+  safety reason was again `2 attackers — u (retrace)`; retreat issued one
+  `u` and settled in `1/2146`. There were no hit/miss, death, or XP records.
+  HP ended `45/51` (starting `43/51`), so no damage-driven recovery was due at
+  the saved `restBelow=0.70`. The probe correctly reported no victory. Its
+  parsed artifact is
+  `state/live-diagnostics/combat-2026-10-18T23-05-25-815Z-15436.json`.
+- Walker then verified exploration of `1/2143`, `1/2140`, `1/2148`, `1/2149`,
+  `1/2141`, and `1/2142`. The observed occupants were absent in the first
+  three rooms and passive (`ferryman`, `Nathaniel`, `Betram`) in the latter
+  three; no eligible hostile was found. All probes used zero provider
+  requests/tokens and reported zero policy violations. Current read-only
+  state: `1/2142`, `45/51`, no target/attackers, passive Betram.
+- The current obstacle is now concrete: the observed Arena hostiles arrive
+  together and trigger the saved outnumbered retreat before combat progress;
+  the other inspected, approved Newhaven rooms contain no eligible hostile.
+  Do not weaken retreat or classify uncertain mobs as safe targets. Next,
+  inspect another legitimately reachable area or wait for an authoritative
+  single-hostile opportunity, then verify saved-threshold recovery and resumed
+  objective selection if actual damage crosses the trigger.
+
 Resume with a fresh read-only probe, then the bounded provider-driven run only
 if its state remains appropriate:
 

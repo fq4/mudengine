@@ -1315,3 +1315,38 @@ entities.
   Next: use a legitimate encounter that crosses the saved recovery trigger,
   keep the existing retreat and target/approval protections, then test
   recovery and resumed objective selection in one bounded session.
+
+## Follow-up: exact target refusal, verified retreat, and nearby-room search (2026-10-18)
+
+- A fresh probe began at `1/2146`, `51/51`, no target or attackers. Walker
+  verified arrival at `1/2150`. The exact requested `big carrion beast` was
+  not visible; two visible mobs were uncertain hybrid classifications and no
+  attacker-backed eligible target existed, so the harness safely refused
+  without dispatch.
+- The next read-only room observation reported `1/2150`, `41/51`, no active
+  combat, and two attackers (`big giant rat`, `angry giant rat`), both still
+  uncertain hybrid identities. The one-move escape probe matched the
+  `angry giant rat` to realm and attacker evidence, then sent `u` and verified
+  return to `1/2146` with attackers cleared. No violations were reported.
+- A later exact-target probe waited 2,078 ms for attacker evidence, verified
+  `big giant rat` (IDs `[1,109,1116]`) as hostile/current attacker, passed
+  SessionManager approval, and dispatched `a big giant rat`. The same
+  two-attacker retreat reason fired; `u` returned Kefka to `1/2146`. The
+  artifact
+  `state/live-diagnostics/combat-2026-10-18T23-05-25-815Z-15436.json`
+  records the parsed evidence. No hit/miss, exact death, or XP was recorded.
+  HP ended `45/51` from `43/51`; saved-threshold recovery correctly reported
+  not due at `restBelow=0.70`.
+- Subsequent bounded navigation and read-only probes verified rooms
+  `1/2143`, `1/2140`, `1/2148`, `1/2149`, `1/2141`, and `1/2142`.
+  `1/2143`, `1/2140`, and `1/2148` were empty; `1/2149` contained passive
+  Ferryman, `1/2141` passive Nathaniel, and `1/2142` passive Betram. Provider
+  use was zero and policy violations were zero. Current state:
+  `1/2142`, `45/51`, no target/attackers, passive Betram.
+- The live blocker is the lack of an eligible single-hostile opportunity in
+  the inspected, approved Newhaven rooms. The Arena's two attackers trigger
+  the preserved retreat before measurable combat progress; do not weaken
+  retreat or target validation. Next, inspect another legitimately reachable
+  area or wait for an authoritative single-hostile opportunity, then test
+  production-threshold recovery and a subsequent objective in one connected
+  session.

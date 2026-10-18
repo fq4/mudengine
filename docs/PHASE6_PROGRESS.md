@@ -1176,3 +1176,35 @@ weakening identity, hostility, or combat policy.
   subsequent objective. Retreat, authoritative target identity, and approval
   gates remain enabled. The overall connected gameplay loop remains
   unverified.
+
+## Current checkpoint: bounded exploration and attacker-backed retreat (2026-10-18)
+
+- Starting from a read-only `1/2146`, `51/51` state with no threats, Walker
+  reached `1/2150`. The requested `big carrion beast` was absent; with two
+  visible mobs classified as uncertain hybrid entities and no current
+  attacker evidence, the PvE harness refused combat before dispatch.
+- A later read-only observation found `big giant rat` and `angry giant rat`
+  in the attacker list at `1/2150`, HP `41/51`, but combat was not active.
+  The bounded escape probe matched `angry giant rat` to realm and attacker
+  evidence and issued exactly one `u`, returning to `1/2146` and clearing
+  attackers without policy violations.
+- An exact `big giant rat` probe then verified the hostile hybrid identity
+  `[1,109,1116]` against the live attacker list, obtained SessionManager
+  approval, and dispatched the exact target. The existing two-attacker
+  retreat fired (`2 attackers — u (retrace)`); it ended at `1/2146`,
+  `45/51`, without hit/miss, death, or XP evidence. Since HP was above the
+  saved `0.70` recovery trigger, the same probe correctly reported recovery
+  not due. Diagnostic artifact:
+  `state/live-diagnostics/combat-2026-10-18T23-05-25-815Z-15436.json`.
+- Bounded Walker probes verified arrival at `1/2143`, `1/2140`, `1/2148`,
+  `1/2149`, `1/2141`, and `1/2142`. The first three were empty; the latter
+  rooms showed only passive Ferryman, Nathaniel, and Betram. No eligible
+  hostile was observed in those rooms. All current probes were provider-free
+  and reported zero policy violations. Current state is `1/2142`, `45/51`,
+  no target/attackers, passive Betram.
+- This narrows the live limitation to a target opportunity: the only hostile
+  encounter observed in the approved area had two simultaneous attackers and
+  correctly triggered retreat; other inspected rooms were empty or passive.
+  Next, seek a legitimate single-hostile encounter in a reachable room.
+  Preserve the outnumbered retreat and authoritative target gate; do not count
+  the temporary-threshold recovery probe as saved-threshold recovery.
