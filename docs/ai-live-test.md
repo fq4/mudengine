@@ -40,6 +40,9 @@ node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile ke
   profile query, and asks for authoritative health once. It reports coordinates,
   parsed health, combat engagement, and attacker count without retaining raw
   login or server text.
+- The full provider-driven runner follows the same location policy at startup:
+  for GreaterMUD only, it tries one read-only `pro` fallback if the configured
+  locator yields no numeric coordinates. It never plans from a room name alone.
 - The navigation probe delegates only a verified route to Walker. It refuses
   to move when health is unknown/dead or combat, a target, or attackers are
   present. Its queue-enabled configuration disables unrelated automation,
@@ -1150,10 +1153,56 @@ retains its pre-existing chunk-size warning.
   configured password in 48 files; script syntax and diff checks passed. The
   existing renderer chunk-size warning remains.
 
-Current live state: `1/2150`, `51/51`, no target or attackers. One explicit
-provider-free exact-target victory is now confirmed. Autonomous target choice,
+At that checkpoint the live state was `1/2150`, `51/51`, no target or attackers.
+One explicit provider-free exact-target victory was confirmed. Autonomous target choice,
 repeatable combat, low-health recovery, and a connected multi-step live
 objective remain unverified. Next, use read-only observation to find another
 legitimate target before repeating combat; then test a bounded provider-driven
 objective that connects exploration, NPC inspection, combat, recovery, and a
 subsequent objective.
+
+### Later 2026-10-18 — full-session fallback and connected objective
+
+- The full provider-driven runner initially stopped before AI activity because
+  the configured GreaterMUD `sys status` locator produced no numeric
+  coordinates. The provider-free room probe showed that one documented
+  `pro` profile query resolves the room. Full startup now tries that read-only
+  fallback once after the configured query; a focused test verifies fallback
+  after the first accepted request yields no location.
+- After the fix, the capped full harness passed. The broad objective and
+  autonomous scheduler both selected `inspect_room`; Walker verified Arena
+  arrival, one-room and two-room exploration passed, and Corwyn was inspected
+  in the mapped resident room. The integrated objective completed navigation,
+  room inspection, and its recovery decision. It skipped combat/result because
+  the only visible mob had uncertain realm classification and no verified
+  attacker evidence; the refusal was safe. At `51/51`, recovery was correctly
+  a no-op under configured `restBelow=0.35`. Usage was 4 provider requests,
+  12,051 tokens, estimated `$0.0019908`, with no policy violations.
+- A prior full run killed `fierce acid slime` with exact-target death and XP
+  evidence, but another attacker remained at `45/51`; the harness marked the
+  encounter unresolved and skipped recovery/navigation. Later exact-target
+  probes verified named-sentence deaths for `thin kobold thief` (650 XP),
+  `angry giant rat` (450 XP), and `large lashworm` (17 tracker damage, 600 XP).
+  Each attack was approved by SessionManager. The rat fight left a separate
+  lashworm attacker; that target was killed separately and combat settled
+  with zero attackers. New uncertain rats later appeared; they were not
+  attacked without current eligibility evidence.
+- Recovery/escape evidence: from `36/51`, the first guarded recovery attempt
+  raised HP to `46/51` within 60 seconds but did not meet the full-health goal.
+  A second 60-second attempt from `46/51` reached `51/51`; a later `49/51`
+  attempt also reached full health. SessionManager retreated from
+  `1/2150` to `1/2146` using exactly one `u`, with HP unchanged and attackers
+  cleared. No saved health thresholds were modified.
+- Final offline validation after the fallback change: focused suites 71/71;
+  full suite 7,075 passed / 2 skipped across 253 files; realm 18/18; typecheck,
+  production build, secret scan (51 files, no configured password), syntax,
+  and diff checks passed. Existing renderer chunk-size warning remains.
+
+Latest confirmed live state: `1/2146`, `51/51`, no active target or attackers.
+The connected objective and exact-target kills are demonstrated, but the
+integrated provider-driven run did not choose combat because no eligible target
+was present. Repeatable autonomous target selection, production-threshold
+recovery after combat, and completion of a subsequent objective remain
+unverified. The next step is to have a bounded live objective continue with a
+verified target when one is available, preserving the refusal for uncertain
+entities.

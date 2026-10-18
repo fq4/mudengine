@@ -65,12 +65,12 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
-- Latest offline Phase 6 verification: `npm test` passed 7,074 tests with 2
+- Latest offline Phase 6 verification: `npm test` passed 7,075 tests with 2
   skipped across 253 files; `npm run test:realm` passed 18/18;
   `npm run typecheck`, `npm run build`, `npm run check:secrets`,
   `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
   retains the existing renderer chunk-size warning; the secret scan found no
-  configured password in 48 user-scoped files.
+  configured password in 51 user-scoped files.
 - AI suite and planner regressions pass, including ordered-plan and
   same-observation reassessment coverage.
 - Focused AutoCombat and SessionManager suites: 497 tests passed, including
@@ -995,11 +995,69 @@ exact-target death and a connected multi-step gameplay loop remain unverified.
   found no configured password in 48 files; script syntax and `git diff
   --check` passed. The existing renderer chunk-size warning remains.
 
-Current live state: `1/2150`, `51/51`, no target or attackers. One
-provider-free, explicitly targeted exact kill is now live-confirmed; this does
+At that checkpoint the live state was `1/2150`, `51/51`, no target or attackers.
+One provider-free, explicitly targeted exact kill was live-confirmed; this does
 not establish repeatability, autonomous target choice, low-health recovery, or
 a connected multi-step objective. Next, repeat the core demonstration only
 when a fresh room observation finds a legitimate eligible target, then run a
 bounded provider-driven multi-step objective and verify discovery, inspection,
 combat, recovery/resumption, and a subsequent objective without claiming
 unobserved success.
+
+### Later 2026-10-18 update — location fallback and connected live objective
+
+- A full live run first stopped before provider activity: the GreaterMUD
+  configured `sys status` locator yielded no authoritative coordinates, even
+  though room text and health parsed. The existing read-only room-probe path
+  then used the documented `pro` profile query and resolved the exact room.
+  Root cause was inconsistent startup fallback, not navigation or combat.
+- Full-session startup now uses the configured locator at user priority and,
+  only for GreaterMUD after no numeric coordinates arrive, tries the documented
+  read-only `pro` fallback once. Both paths still require parsed authoritative
+  `map/room` coordinates. A focused regression covers an accepted configured
+  request with no response followed by fallback success.
+- Before this change, the full harness demonstrated the distinction between
+  target victory and encounter settlement: it selected `fierce acid slime`,
+  recorded exact-target death and XP, but another attacker remained at
+  `45/51` HP, so it correctly marked combat unresolved and skipped
+  recovery/navigation. Kefka later retreated through SessionManager with one
+  `u` move and recovered in the verified empty room.
+- Additional exact-target live evidence from provider-free probes:
+  `thin kobold thief` (realm ID `[7]`, certain hostile) died with
+  `killedBy: 'sentence'` evidence and 650 XP; the uncertain hybrid
+  `angry giant rat` (IDs `[1, 109, 1116]`) died with named-sentence evidence
+  and 450 XP; `large lashworm` (ID `[2]`, certain hostile) died with 17
+  tracked damage, named-sentence evidence, and 600 XP. The rat encounter left
+  a distinct lashworm attacker, so it remained unresolved until that exact
+  attacker was separately selected. The lashworm fight ended at `50/51` with
+  no attackers; a later fresh observation found a new uncertain rat, which was
+  not attacked and was safely retreated from.
+- A second full provider-driven run passed end-to-end: the provider chose
+  `inspect_room`; Walker navigated `1/2146` -> `1/2150`, then one- and
+  two-room scenarios passed; the mapped resident Corwyn was inspected; the
+  integrated objective navigated to and inspected the Arena. Combat and combat
+  result were safely skipped because the only visible mob had uncertain realm
+  classification and no verified attacker evidence. Recovery completed as a
+  no-op because health was `51/51`, above configured `restBelow=0.35`. Four
+  provider requests used 12,051 tokens at estimated cost `$0.0019908`
+  (ceiling `$0.05`); no policy violations occurred.
+- A low-health recovery probe was verified: after an encounter and
+  policy-approved retreat, `36/51` HP rose to `46/51` during the first
+  60-second probe (which correctly reported its full-health target unmet).
+  A follow-up from `46/51` reached `51/51` within the same 60-second ceiling,
+  without leaving the empty room. Later recovery from `49/51` to `51/51` also
+  passed. No saved profile thresholds were changed.
+- Validation after the location fallback: focused LiveHarness/NpcDiscovery
+  71/71; full suite 7,075 passed and 2 skipped across 253 files; realm tests
+  18/18; typecheck/build passed; secret scan found no configured password in
+  51 files; script syntax and diff checks passed. The existing renderer
+  chunk-size warning remains.
+
+Latest live state is `1/2146`, `51/51`, no active target or attackers, verified
+by the final one-step retreat. The startup fix and connected multi-step
+objective are confirmed, but repeatable provider-selected combat is not:
+combat remains correctly skipped whenever realm identity/hostility is
+uncertain, and the real production recovery threshold has not been crossed in
+an autonomous encounter. Next highest-value work is to make an objective
+choose and pursue a verified target when one exists, then verify
+recovery/resumption and a subsequent objective in one bounded live session.

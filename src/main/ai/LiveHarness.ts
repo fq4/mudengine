@@ -388,19 +388,35 @@ export function summarizeCombatState(state: {
 export interface RoomIdentityRequestResult {
   resolved: boolean;
   requestSent: boolean;
+  fallbackRequestSent?: boolean;
 }
 
-/** Request one configured authoritative location response when entry probes leave room unknown. */
+/** Resolve coordinates from the configured locator, then an optional documented fallback. */
 export async function requestRoomIdentity(options: {
   roomKey: () => string;
   request: () => boolean;
+  fallbackRequest?: () => boolean;
   waitFor: (timeoutMs: number) => Promise<boolean>;
   timeoutMs: number;
 }): Promise<RoomIdentityRequestResult> {
   if (/^\d+\/\d+$/.test(options.roomKey())) return { resolved: true, requestSent: false };
-  if (!options.request()) return { resolved: false, requestSent: false };
-  const resolved = await options.waitFor(options.timeoutMs);
-  return { resolved: resolved && /^\d+\/\d+$/.test(options.roomKey()), requestSent: true };
+  const requestSent = options.request();
+  if (requestSent) await options.waitFor(options.timeoutMs);
+  if (/^\d+\/\d+$/.test(options.roomKey())) {
+    return { resolved: true, requestSent };
+  }
+  if (options.fallbackRequest === undefined)
+    return { resolved: false, requestSent };
+  const fallbackRequestSent = options.fallbackRequest();
+  const resolved =
+    fallbackRequestSent &&
+    (await options.waitFor(options.timeoutMs)) &&
+    /^\d+\/\d+$/.test(options.roomKey());
+  return {
+    resolved,
+    requestSent: requestSent || fallbackRequestSent,
+    fallbackRequestSent
+  };
 }
 
 export async function waitForCombatSettlement(options: {

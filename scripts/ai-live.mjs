@@ -804,7 +804,10 @@ async function main() {
   if (!roomKnown && !roomProbeOnly) {
     roomProbe = await requestRoomIdentity({
       roomKey,
-      request: () => session.askWhereIAm(),
+      request: () => session.askWhereIAm(true),
+      ...(session.family === 'greatermud'
+        ? { fallbackRequest: () => session.ask('pro', true) }
+        : {}),
       waitFor: (timeoutMs) => waitFor(() => /^\d+\/\d+$/.test(roomKey()), timeoutMs),
       timeoutMs: Math.min(
         5_000,
@@ -1712,6 +1715,7 @@ async function main() {
     const result = loginDiagnostic();
     const locationProbeDiagnostic = [
       `configuredLocationProbe=${roomProbe.requestSent ? 'sent' : 'not-sent'}`,
+      `documentedProfileFallback=${roomProbe.fallbackRequestSent ? 'sent' : 'not-sent'}`,
       `locationRequestState=${session.locationRequestState()}`,
       `locationResolved=${roomProbe.resolved}`
     ].join('; ');

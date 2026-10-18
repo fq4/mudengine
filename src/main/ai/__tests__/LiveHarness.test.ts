@@ -554,10 +554,15 @@ describe('requestRoomIdentity', () => {
   it('waits for authoritative coordinates after one accepted configured request', async () => {
     let room = '';
     let requests = 0;
+    let fallbackRequests = 0;
     const result = await requestRoomIdentity({
       roomKey: () => room,
       request: () => {
         requests += 1;
+        return true;
+      },
+      fallbackRequest: () => {
+        fallbackRequests += 1;
         return true;
       },
       waitFor: async (timeoutMs) => {
@@ -570,6 +575,38 @@ describe('requestRoomIdentity', () => {
 
     expect(result).toEqual({ resolved: true, requestSent: true });
     expect(requests).toBe(1);
+    expect(fallbackRequests).toBe(0);
+  });
+
+  it('tries the documented fallback when the configured query has no response', async () => {
+    let room = '';
+    const requests: string[] = [];
+    let waits = 0;
+    const result = await requestRoomIdentity({
+      roomKey: () => room,
+      request: () => {
+        requests.push('configured');
+        return true;
+      },
+      fallbackRequest: () => {
+        requests.push('fallback');
+        return true;
+      },
+      waitFor: async () => {
+        waits += 1;
+        if (waits === 2) room = '1/2150';
+        return waits === 2;
+      },
+      timeoutMs: 500
+    });
+
+    expect(result).toEqual({
+      resolved: true,
+      requestSent: true,
+      fallbackRequestSent: true
+    });
+    expect(requests).toEqual(['configured', 'fallback']);
+    expect(waits).toBe(2);
   });
 
   it('does not wait or retry when the configured location request is refused', async () => {

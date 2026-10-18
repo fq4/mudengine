@@ -1011,10 +1011,60 @@ The stationary-retreat and movement-accounting checkpoint was pushed as
   password), script syntax, and `git diff --check` passed. The pre-existing
   renderer chunk-size warning remains.
 
-Current live state is `1/2150`, `51/51`, no target or attackers. One
-provider-free, explicitly targeted exact kill is confirmed; repeatability,
+At that checkpoint the live state was `1/2150`, `51/51`, no target or attackers.
+One provider-free, explicitly targeted exact kill was confirmed; repeatability,
 autonomous target choice, low-health recovery, and an integrated multi-step
 live objective remain unverified. Next, use a fresh read-only observation to
 find another legitimate target before repeating combat, then prove a bounded
 provider-driven objective that links exploration, NPC inspection, combat,
 recovery/resumption, and a subsequent objective.
+
+### Later 2026-10-18 — startup fallback and integrated objective
+
+- A full harness startup failed before any provider decision because the
+  configured GreaterMUD `sys status` query produced no authoritative
+  coordinates. The read-only probe confirmed that the documented `pro`
+  profile query does resolve this server's coordinates.
+- Fixed full-mode room discovery to use the configured locator first and try
+  one read-only `pro` fallback only for GreaterMUD when no numeric room is
+  observed. The request uses the production command queue and accepts only
+  authoritative coordinates. Regression coverage includes an accepted first
+  query without a location followed by successful fallback.
+- The next capped provider-driven run completed all scenarios without policy
+  violations. It inspected the current room, navigated one and two rooms,
+  inspected Corwyn in the mapped resident room, and completed an Arena
+  objective (Walker arrival, room inspection, combat decision, result
+  decision, recovery decision). Combat/result were skipped safely because the
+  only mob was realm-uncertain and not a verified attacker; recovery was a
+  no-op at `51/51` with configured `restBelow=0.35`. Provider usage: 4
+  requests, 12,051 tokens, estimated `$0.0019908` of the unchanged `$0.05`
+  ceiling.
+- The earlier provider-driven Arena attempt selected and killed
+  `fierce acid slime` with exact death/XP evidence but left another attacker
+  active at `45/51`; no recovery or navigation followed. Subsequent
+  exact-target tests killed `thin kobold thief` (650 XP), `angry giant rat`
+  (450 XP), and `large lashworm` (17 tracked damage, 600 XP), each with
+  tracker `killedBy: 'sentence'`. The rat fight left the lashworm as a
+  different attacker; the lashworm was then killed separately and combat
+  settled at `50/51` with zero attackers. Fresh observations later revealed
+  additional uncertain rats, which were not attacked without current
+  authoritative eligibility.
+- Multiple live retreats through SessionManager used exactly one `u` from
+  `1/2150` to `1/2146`, kept HP stable, and cleared attackers. Recovery
+  demonstrated `36/51` -> `46/51` in one bounded 60-second attempt and
+  `46/51` -> `51/51` in a follow-up under the same cap; a later
+  `49/51` -> `51/51` probe also passed. The first attempt's timeout was
+  reported honestly; it was not treated as full recovery.
+- Validation: focused tests 71/71; full suite 7,075 passed, 2 skipped across
+  253 files; realm suite 18/18; typecheck/build, secret scan (51 files),
+  syntax, and diff checks passed. The renderer chunk-size warning is
+  pre-existing.
+
+Latest live state: `1/2146`, `51/51`, no target/attackers, confirmed after
+policy-checked retreat. The connected multi-step objective is now live
+demonstrated, but it did not engage a hostile because the available mob was
+uncertain; autonomous target choice, production-threshold recovery during an
+integrated combat objective, and resumption into a subsequent goal remain
+open. Next: have a bounded live objective pursue a verified target when
+present, then verify safe recovery and a subsequent objective without
+weakening identity, hostility, or combat policy.
