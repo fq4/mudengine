@@ -764,3 +764,12 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   scripts/ai-live.mjs`, and `git diff --check` passed. No additional live
   attempt was made because the latest observation still showed an attacker
   and no confidently classified target.
+- Post-checkpoint read-only observation (`--room-probe-only --max-ms 60000
+  --max-moves 0`): `pro` resolved GreaterMUD room `1/2150`; configured `sys
+  status` had no parsed response. Authoritative health was `20/51`, with no
+  active target/engagement and two listed attackers. A separate bounded
+  `--pve-probe-only --max-ms 60000 --max-moves 0` found two visible mobs, both
+  excluded for uncertain realm classification; it refused combat before
+  dispatch. Both runs used zero provider requests/tokens/cost, sent no movement
+  or attack, and reported zero violations. This is live verification of the
+  refusal gate, not a combat attempt or victory.

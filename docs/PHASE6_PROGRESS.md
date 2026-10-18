@@ -642,3 +642,13 @@ npm run check:secrets
   skipped across 253 files. Typecheck, production build, realm tests, secret
   scan, script syntax, and diff checks passed. The build retains its existing
   renderer chunk-size warning.
+- A fresh provider-free read-only probe after that checkpoint again resolved
+  room `1/2150` through the documented `pro` query; configured `sys status`
+  produced no parsed location. Health was `20/51`, with no active target or
+  engagement and two listed attackers. The exact-target PvE gate saw two
+  visible mobs, both with uncertain realm classification, and refused combat.
+  No attack or movement was issued; provider usage and cost were zero and there
+  were no monitor violations. This confirms the current blocker is
+  authoritative target identity, not missing mobs or a lack of character
+  location. Keep further live activity read-only until the target classification
+  or hostile pressure changes.

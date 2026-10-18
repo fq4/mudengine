@@ -592,8 +592,15 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   253 files. Typecheck, build, realm tests, secret scan, script syntax, and
   diff checks passed. The build retains its existing renderer chunk-size
   warning.
-- Next: do not launch another live probe while an attacker remains and the
-  visible mob is uncertain. Once a fresh bounded observation shows no hostile
-  pressure, resume navigation; only run exact-target PvE when the authoritative
-  target gate passes. Low-health rest, safe escape, target-death evidence, and
-  a complete live objective remain open.
+- Fresh post-checkpoint read-only probe: authoritative `pro` again resolved
+  `1/2150`; `sys status` still produced no parsed location. Health was `20/51`,
+  with no active target/engagement and two listed attackers. The separate
+  bounded PvE probe found two visible mobs, both uncertain by realm
+  classification, and correctly refused combat. It used zero provider
+  requests/tokens/cost, issued no attack or movement, and recorded zero
+  violations. The `st` monitor exception remains unverified in an actual fight.
+- Next: do not attack either uncertain mob. For now, continue only with bounded
+  read-only observation; when authoritative state shows no hostile pressure,
+  retry navigation, and attempt PvE only if the exact-target gate finds an
+  unambiguous realm-classified hostile. Low-health rest, safe escape,
+  target-death evidence, and a complete live objective remain open.
