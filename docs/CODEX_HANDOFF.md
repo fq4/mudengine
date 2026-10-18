@@ -1232,3 +1232,39 @@ if its state remains appropriate:
 node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only --max-ms 60000 --max-moves 0
 npm run test:ai-live -- --live --profile kefka --max-ms 120000 --max-moves 12 --max-requests 16 --max-tokens 60000 --max-cost 0.05
 ```
+
+## Latest checkpoint: dungeon candidate is level-gated (2026-10-18)
+
+- `development` is the active branch. Current work adds only bounded live
+  harness checks/documentation; `.npm-cache/` remains untouched.
+- Fresh read-only Kefka state: `1/2146`, `45/51`, no target or attackers,
+  `progress.level === null`. The read-only room probe used no provider calls
+  and exposed no raw server lines.
+- Offline realm evidence: `1/2156` is a `(Max 1)` cave-bear lair, but the
+  three-step route crosses an Arena exit restricted to levels 0-5, the
+  `(Max 3)` Dungeon Entrance at `1/2152`, and a dark-room segment. A level-6
+  route is blocked; level 1 is routable. Light readiness is not verified.
+- The harness now includes `1/2156` in its explicit Newhaven destination
+  allowlist, reports a known tracker level, passes it to route preflight, and
+  refuses to dispatch a route containing a level gate when level is unknown.
+  The live four-move Walker probe returned that refusal before movement;
+  Kefka stayed at `1/2146`, with zero policy violations/provider requests.
+  This proves a safe refusal only, not dungeon navigation or combat.
+- The attempted status-sheet query `st` was rejected by the existing
+  user-initiated probe whitelist (`health`/`pro`) and was not sent. Do not
+  bypass that gateway. The next unblock is an authoritative Kefka level and
+  light-readiness check, or a controlled character with those facts known.
+  If the route is valid, enter one room at a time and re-observe before
+  advancing; the multi-mob entrance must not be traversed blindly.
+- Focused `WorldGraph.test.ts`: 381/381 passed. Script syntax, live
+  pre-dispatch refusal, and diff checks passed. No full build or full suite
+  was run because this checkpoint changes only the live harness and docs.
+- Exact resume probes:
+
+  ```powershell
+  node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only --max-ms 60000 --max-moves 0
+  node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --navigation-probe-only --destination 1/2156 --max-ms 60000 --max-moves 4
+  ```
+
+  The second probe is expected to refuse until level is authoritative. The
+  overall sustained-combat and recovery loop is still unresolved.

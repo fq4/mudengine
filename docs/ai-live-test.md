@@ -27,19 +27,27 @@ node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile ke
 node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --recovery-probe-only --max-ms 60000 --max-moves 0
 ```
 
-A controlled PvE probe may route to one of the two known Newhaven rooms and
-request an exact target name. Walker must verify arrival, and the requested
-name must still resolve to one unique eligible realm-backed occupant in the
-live room; otherwise combat is refused:
+A controlled PvE probe may route to one of the pre-approved Newhaven
+destinations and request an exact target name. Walker must verify arrival,
+and the requested name must still resolve to one unique eligible
+realm-backed occupant in the live room; otherwise combat is refused:
 
 ```powershell
 node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --destination 1/2150 --target "big carrion beast" --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 4
 ```
 
+`1/2156` (Small Cavern, a mapped one-cave-bear lair) is also allowed for
+bounded exploration. Its route from Newhaven crosses `1/2150` and the
+multi-mob Dungeon Entrance at `1/2152`. Keep the existing move/runtime caps
+and retreat policy; this route is not a guarantee that the cave bear will be
+present or eligible when the character arrives.
+
 - The room probe tries the configured locator, then the documented `pro`
-  profile query, and asks for authoritative health once. It reports coordinates,
-  parsed health, combat engagement, and attacker count without retaining raw
-  login or server text.
+  profile query, and asks for authoritative health once. It reports
+  coordinates, any character level already known to the tracker, health,
+  combat engagement, and attacker count without retaining raw login or server
+  text. Destination checks reject routes over a level gate while level remains
+  unknown; the probe does not issue an unsupported stat command to resolve it.
 - The full provider-driven runner follows the same location policy at startup:
   for GreaterMUD only, it tries one read-only `pro` fallback if the configured
   locator yields no numeric coordinates. It never plans from a room name alone.
@@ -1363,3 +1371,29 @@ entities.
   area or wait for an authoritative single-hostile opportunity, then test
   production-threshold recovery and a subsequent objective in one connected
   session.
+
+## Dungeon route gate check (2026-10-18)
+
+- A read-only Kefka probe observed `1/2146`, `45/51`, no target/attackers, and
+  no authoritative character level in the tracker. It used the existing
+  `sys status`, `pro`, and `health` probes only; no provider requests or
+  gameplay commands were issued.
+- Realm data confirms `1/2156` is a one-cave-bear lair. The route from
+  `1/2146` crosses the level-0-to-5 Arena exit, the multi-mob
+  `1/2152` Dungeon Entrance, and a dark-room segment. At level 6, the
+  `WorldGraph` correctly blocks this route; level 1 yields a three-step
+  route. Kefka's level and light readiness are not established, so this is
+  only a mapped candidate, not a safe or live encounter.
+- The bounded Walker navigation probe for `1/2156` stopped before dispatch
+  with `Route crosses a level-gated exit but the character level is unknown`.
+  The character remained at `1/2146`; there were zero policy violations and
+  zero provider requests. This validates refusal behavior, not navigation or
+  combat.
+- The user-initiated probe gateway accepts `health` and `pro`, not `st`;
+  `st` was not sent. Do not bypass that boundary to infer Kefka's level.
+- Next: obtain the level from an authoritative client stat sheet or use a
+  controlled character with verified level and light readiness. If that
+  validates the route, probe one segment at a time and re-observe before
+  continuing; do not traverse the multi-mob entrance blindly. Otherwise find
+  a different reachable encounter. No live combat progress, death, XP, or
+  recovery is claimed.

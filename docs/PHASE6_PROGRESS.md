@@ -1221,3 +1221,26 @@ weakening identity, hostility, or combat policy.
   Next, seek a legitimate single-hostile encounter in a reachable room.
   Preserve the outnumbered retreat and authoritative target gate; do not count
   the temporary-threshold recovery probe as saved-threshold recovery.
+
+## Dungeon candidate blocked on authoritative character data (2026-10-18)
+
+- Fresh provider-free room observation: Kefka at `1/2146`, `45/51`, no active
+  target or attackers; character level remains unknown to the tracker.
+- Realm inspection found a one-cave-bear lair at `1/2156`, but its route
+  crosses a level-0-to-5 gate at the Arena, a multi-mob lair at `1/2152`, and
+  a dark segment. The route is valid at level 1 and blocked at level 6.
+- The bounded four-move Walker probe refused before dispatch because the
+  character level was unknown. This change is harness-only: report a known
+  tracker level, pass it into route preflight, and refuse an unknown
+  level-gated route. No production combat/navigation safety policy changed.
+- The user-initiated query gateway accepts `health` and `pro`; `st` is not
+  permitted and was not issued. Offline route tests passed 381/381 in
+  `WorldGraph.test.ts`; `node --check scripts/ai-live.mjs` and
+  `git diff --check` passed. The live refusal had zero provider requests and
+  zero policy violations; no movement or combat occurred.
+- Next: obtain Kefka's level from an authoritative stat sheet and verify light
+  readiness before any route attempt. If those facts permit the route, proceed
+  one room at a time, rechecking for attackers and health; otherwise identify
+  a different reachable single-hostile opportunity. Integrated sustained
+  combat, saved-threshold recovery, and next-objective selection remain
+  unverified.

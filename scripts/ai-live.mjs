@@ -145,6 +145,7 @@ const NEWHAVEN_SOUTHEAST_EXIT_ROOM = '1/2148';
 const NEWHAVEN_SOUTH_EXIT_ROOM = '1/2149';
 const NEWHAVEN_NORTH_EXIT_ROOM = '1/2141';
 const NEWHAVEN_SOUTHWARD_EXIT_ROOM = '1/2142';
+const NEWHAVEN_CAVERN_ROOM = '1/2156';
 const requestedDestination = valueOf('--destination');
 const requestedCombatTarget = valueOf('--target')?.trim();
 if (
@@ -163,7 +164,8 @@ if (
     NEWHAVEN_SOUTHEAST_EXIT_ROOM,
     NEWHAVEN_SOUTH_EXIT_ROOM,
     NEWHAVEN_NORTH_EXIT_ROOM,
-    NEWHAVEN_SOUTHWARD_EXIT_ROOM
+    NEWHAVEN_SOUTHWARD_EXIT_ROOM,
+    NEWHAVEN_CAVERN_ROOM
   ].includes(requestedDestination)
 )
   throw new Error('--destination must be one of the pre-approved Newhaven probe rooms');
@@ -900,6 +902,7 @@ async function main() {
       requestAccepted: healthRequestAccepted,
       statusRequestAccepted,
       phase: healthState.phase,
+      level: healthState.progress.level,
       hp: healthState.vitals.hp,
       hpMax: healthState.vitals.hpMax,
       resting: healthState.vitals.resting,
@@ -1191,8 +1194,24 @@ async function main() {
           result: 'PvE navigation requires known health at or above the 60% combat floor'
         };
       } else {
-        const route = world.route(roomKey(), navigationDestination);
-        if (route.blocked) {
+        const level = session.character.progress.level;
+        const route = world.route(roomKey(), navigationDestination, { level });
+        const unknownLevelGate =
+          level === null &&
+          route.steps.find((step) =>
+            world
+              .byId(step.from)
+              ?.exits.some(
+                (exit) =>
+                  exit.direction === step.direction && exit.requirement?.kind === 'level'
+              )
+          );
+        if (unknownLevelGate) {
+          navigation = {
+            arrived: false,
+            result: 'Route crosses a level-gated exit but the character level is unknown'
+          };
+        } else if (route.blocked) {
           navigation = { arrived: false, result: route.reason };
         } else if (route.steps.length > monitor.limits.maxMoves) {
           navigation = {
