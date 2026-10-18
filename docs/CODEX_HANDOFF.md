@@ -547,3 +547,11 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   tests 18/18; focused harness/session tests 301/301; typecheck, production
   build, secret scan, script syntax, and diff checks passed. The existing
   renderer chunk-size warning remains.
+- The room-key formatter now falls back to the parsed room name instead of
+  showing `null/null` when nullable coordinates are absent. Focused harness
+  tests pass 31/31; this improves diagnostics only and does not resolve the
+  live locator blocker.
+- The subsequent full serial suite run recorded 7,037 passing, 2 skipped, and
+  one unrelated flaky `ConfigStore.test.ts` watcher timeout. Its focused test
+  passed 1/1 on retry; do not attribute this to the locator changes (no
+  ConfigStore files were modified).

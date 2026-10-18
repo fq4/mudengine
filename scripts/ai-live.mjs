@@ -20,6 +20,7 @@ import {
   navigateToWithWalker,
   requestRoomIdentity,
   createRoomProbeAutomation,
+  roomIdentityKey,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
@@ -216,10 +217,7 @@ const report = {
   trace: monitor.events
 };
 const roomKey = () => {
-  const room = session.character.room;
-  return room?.map !== undefined && room?.number !== undefined
-    ? `${room.map}/${room.number}`
-    : (room?.name ?? '');
+  return roomIdentityKey(session.character.room);
 };
 const snapshot = () => session.aiSnapshot;
 const waitFor = async (predicate, timeout = 45_000) => {

@@ -1,5 +1,5 @@
 import type { AiApproval } from '../../shared/ai';
-import type { Combat, Vitals } from '../../shared/character';
+import type { Combat, Room, Vitals } from '../../shared/character';
 import { DEFAULT_CONFIG, type AutomationConfig } from '../../shared/config';
 import type { WalkProgress } from '../../shared/walk';
 import { mobKey } from '../../shared/world';
@@ -18,6 +18,12 @@ export function createRoomProbeAutomation(): AutomationConfig {
     events: [],
     rules: []
   };
+}
+
+/** Show coordinates only when both are authoritative; otherwise retain the parsed room name. */
+export function roomIdentityKey(room: Pick<Room, 'map' | 'number' | 'name'>): string {
+  if (room.map !== null && room.number !== null) return `${room.map}/${room.number}`;
+  return room.name ?? '';
 }
 
 export interface LiveHarnessLimits {

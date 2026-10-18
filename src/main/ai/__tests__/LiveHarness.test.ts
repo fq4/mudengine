@@ -6,6 +6,7 @@ import {
   LiveHarnessMonitor,
   navigateToWithWalker,
   requestRoomIdentity,
+  roomIdentityKey,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../LiveHarness';
@@ -46,6 +47,14 @@ describe('createRoomProbeAutomation', () => {
     expect(enabledFlags).toEqual([]);
     expect(DEFAULT_CONFIG.automation.enabled).toBe(true);
     expect(DEFAULT_CONFIG.automation.onEnterRealm.length).toBeGreaterThan(0);
+  });
+});
+
+describe('roomIdentityKey', () => {
+  it('uses coordinates only when both are present and otherwise reports the room name', () => {
+    expect(roomIdentityKey({ map: 1, number: 2150, name: 'Arena' })).toBe('1/2150');
+    expect(roomIdentityKey({ map: null, number: null, name: 'Arena' })).toBe('Arena');
+    expect(roomIdentityKey({ map: null, number: null, name: null })).toBe('');
   });
 });
 

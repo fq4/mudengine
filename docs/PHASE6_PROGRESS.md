@@ -567,6 +567,19 @@ realm tests passed 18/18 and focused harness/SessionManager tests passed
 checks passed; the existing renderer chunk-size warning remains. The probe is
 the only new live evidence and does not verify gameplay.
 
+The harness room-key formatter also no longer renders nullable coordinates
+as the misleading literal `null/null`: it uses a room name when coordinates
+are absent, and an empty value when neither is known. This was a diagnostic
+display issue, not evidence of a different live room state. Its focused tests
+pass 31/31.
+
+A final serial full-suite attempt after that small diagnostic refinement
+reported 7,037 passing and 2 skipped, with one unrelated
+`ConfigStore.test.ts` file-watch timeout (`no change event`). The focused
+watcher test passed on retry (1/1); the complete ConfigStore file had failed
+once in isolation before the focused retry. The earlier serial full suite had
+passed before the added room-key test. No ConfigStore code was changed.
+
 ## Environment on a new computer
 ```powershell
 git clone https://github.com/fq4/mudengine.git   # or: git pull --ff-only

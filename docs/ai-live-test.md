@@ -687,3 +687,15 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   focused harness/session tests passed 301/301; typecheck, production build,
   secret scan, script syntax, and `git diff --check` passed. The production
   build retains the existing renderer chunk-size warning.
+- The diagnostic's displayed room key now uses numeric coordinates only when
+  both map and room are present; otherwise it reports the parsed room name or
+  an empty value. A prior report rendered absent nullable coordinates as the
+  string `null/null`; this was a display bug, not location evidence. The
+  focused helper suite now covers all three cases.
+- A follow-up full serial run after this diagnostic-only refinement had one
+  unrelated intermittent failure: `ConfigStore.test.ts` timed out waiting for
+  a file-watch change event (`no change event`), with 7,037 tests passing and
+  2 skipped. The focused watcher test passed on immediate retry (1/1); the
+  broader ConfigStore file had failed once in isolation before that retry.
+  The earlier serial full run passed before this final helper test was added.
+  No ConfigStore code was changed.
