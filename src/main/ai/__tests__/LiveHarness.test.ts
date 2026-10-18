@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canSkipNavigationPreflightAtDestination,
   createEscapeProbeAutomation,
   createRecoveryProbeAutomation,
   createRoomProbeAutomation,
@@ -174,6 +175,54 @@ describe('readOnlyNavigationPreflight', () => {
     expect(
       readOnlyNavigationPreflight({ ...state, phase: 'authenticating' as const })
     ).toMatchObject({ allowed: false, reason: 'Not in game' });
+  });
+});
+
+describe('canSkipNavigationPreflightAtDestination', () => {
+  const combatPreflight = {
+    allowed: false,
+    reason: 'Combat or hostile attention is active'
+  };
+
+  it('allows a no-op only when authoritative coordinates match the requested destination', () => {
+    expect(
+      canSkipNavigationPreflightAtDestination(combatPreflight, {
+        map: 1,
+        number: 2150,
+        name: 'Arena'
+      }, '1/2150')
+    ).toBe(true);
+  });
+
+  it('does not bypass other refusals, mismatched coordinates, or names without coordinates', () => {
+    expect(
+      canSkipNavigationPreflightAtDestination(combatPreflight, {
+        map: 1,
+        number: 2147,
+        name: 'Guild'
+      }, '1/2150')
+    ).toBe(false);
+    expect(
+      canSkipNavigationPreflightAtDestination(combatPreflight, {
+        map: null,
+        number: null,
+        name: '1/2150'
+      }, '1/2150')
+    ).toBe(false);
+    expect(
+      canSkipNavigationPreflightAtDestination(
+        { allowed: false, reason: 'Not in game' },
+        { map: 1, number: 2150, name: 'Arena' },
+        '1/2150'
+      )
+    ).toBe(false);
+    expect(
+      canSkipNavigationPreflightAtDestination(
+        { allowed: true, reason: 'In-game, alive, and not engaged or under attack' },
+        { map: 1, number: 2150, name: 'Arena' },
+        '1/2150'
+      )
+    ).toBe(false);
   });
 });
 

@@ -107,6 +107,21 @@ export function readOnlyNavigationPreflight(
   return { allowed: true, reason: 'In-game, alive, and not engaged or under attack' };
 }
 
+/** Permit a no-op navigation preflight only when authoritative coordinates already match. */
+export function canSkipNavigationPreflightAtDestination(
+  preflight: { allowed: boolean; reason: string },
+  room: Pick<Room, 'map' | 'number' | 'name'>,
+  destination: string
+): boolean {
+  return (
+    !preflight.allowed &&
+    preflight.reason === 'Combat or hostile attention is active' &&
+    room.map !== null &&
+    room.number !== null &&
+    roomIdentityKey(room) === destination
+  );
+}
+
 export interface LiveHarnessLimits {
   maxRuntimeMs: number;
   maxMoves: number;

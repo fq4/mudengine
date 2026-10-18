@@ -931,10 +931,53 @@ The stationary-retreat and movement-accounting checkpoint was pushed as
   roots; no configured password found), `node --check scripts/ai-live.mjs`,
   and `git diff --check` all passed.
 
-Fresh read-only preflight again found `1/2146`, `48/51`, no attackers or active
-target, and no visible occupants. The recovery and exact-target probe changes
-remain local after `ea520e7`. Next: commit/push, then seek a controlled room
-with one eligible hostile and no second attacker. Preserve exact death
-telemetry; do not repeat the same multi-hostile Arena fight. Autonomous target
-selection, exact-target death, and a complete multi-step objective remain
-unverified.
+## Continuation checkpoint: single-target live damage, outcome unresolved
+
+- Commit `aee01c2` containing the bounded recovery and exact-target probe was
+  pushed after full validation. Since then, bounded navigation probes verified
+  arrival at `1/2147`, `1/2143`, `1/2140`, `1/2148`, `1/2149`, `1/2142`, and
+  `1/2141`. Read-only room probes found passive Corwyn, Ferryman, Betram, and
+  Nathaniel; the other sampled rooms were empty. None offered eligible combat.
+  All probes used zero provider calls and reported zero policy violations.
+- From `1/2141`, Walker verified the four-step route to Arena `1/2150`. A
+  fresh read-only probe found only `nasty lashworm`, both visible and the sole
+  attacker, at `51/51` HP with no active target.
+- The first exact-target attempt was refused by the probe's navigation
+  preflight even though the authoritative current coordinates already matched
+  its destination; no movement or combat command was sent. After narrowly
+  allowing no-op navigation only at an exact authoritative destination, a
+  second refusal showed the probe imposed `hasMappedCombatEscape` even though
+  production SessionManager permits authorized PvE without that map edge. The
+  server's live `u` exit had been proven by earlier verified retreat, but its
+  destination is absent from the mapped room exits.
+- Fixed only the diagnostic path: exact current room + hostility-only
+  preflight refusal can proceed without dispatching movement, and the PVE
+  diagnostic now matches the SessionManager escape-availability flag while
+  retaining its stricter 60% health floor, exact target resolution, approval,
+  and bounded monitor. Production combat policy is unchanged.
+- The accepted run uniquely resolved `nasty lashworm` to hybrid entity `2`,
+  hostile/certain, uncharmed and not costly, matched it to attacker evidence,
+  and executed exact-target approval through SessionManager. It recorded six
+  target-matching hits (12 total damage), 600 XP, and `Combat Off`, but no
+  exact-target death event. `targetDied=false`; settlement remained
+  unresolved through the 30-second post-timeout observation. `fat giant rat`
+  then became the sole attacker and missed repeatedly; Kefka stayed `51/51`.
+  No victory is claimed.
+- Artifact: `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-30-25-678Z-12828.json`.
+  It contains bounded parsed events and no raw server lines. The combat probe
+  used zero provider requests and had zero policy violations. A bounded
+  one-move retreat matched the new attacker, sent `u`, and verified
+  `1/2150` -> `1/2146` at `51/51` with no attackers; a fresh read-only probe
+  reconfirmed.
+- Focused LiveHarness/NpcDiscovery tests pass 66/66. Post-change full
+  validation passed: 7,070 serial tests with 2 skipped across 253 files,
+  realm tests 18/18, production build/typecheck, secret scan (47 files under
+  the resolved roots; no configured password found), script syntax, and
+  `git diff --check`. The existing renderer chunk-size warning remains.
+
+Current state is `1/2146`, `51/51`, no attackers. Live engagement, damage,
+XP, and a verified retreat are demonstrated; exact target death and a
+connected autonomous multi-step objective remain unverified. Commit and push
+the harness correction and evidence. Next, determine whether an authoritative
+exact-death signal exists for the 600-XP/`Combat Off` result; do not count XP
+or disappearance as a kill.

@@ -27,6 +27,7 @@ import {
   LiveHarnessMonitor,
   navigateToWithWalker,
   requestRoomIdentity,
+  canSkipNavigationPreflightAtDestination,
   createEscapeProbeAutomation,
   createRecoveryProbeAutomation,
   createRoomProbeAutomation,
@@ -132,6 +133,12 @@ if (!roomProbeOnly && !process.env.OPENROUTER_API_KEY)
 
 const NEWHAVEN_ARENA = '1/2150';
 const NEWHAVEN_ADVENTURERS_GUILD = '1/2147';
+const NEWHAVEN_EAST_EXIT_ROOM = '1/2143';
+const NEWHAVEN_EASTWARD_EXIT_ROOM = '1/2140';
+const NEWHAVEN_SOUTHEAST_EXIT_ROOM = '1/2148';
+const NEWHAVEN_SOUTH_EXIT_ROOM = '1/2149';
+const NEWHAVEN_NORTH_EXIT_ROOM = '1/2141';
+const NEWHAVEN_SOUTHWARD_EXIT_ROOM = '1/2142';
 const requestedDestination = valueOf('--destination');
 const requestedCombatTarget = valueOf('--target')?.trim();
 if (
@@ -142,9 +149,18 @@ if (
   throw new Error('--destination is only available with --navigation-probe-only or --pve-probe-only');
 if (
   requestedDestination !== undefined &&
-  ![NEWHAVEN_ARENA, NEWHAVEN_ADVENTURERS_GUILD].includes(requestedDestination)
+  ![
+    NEWHAVEN_ARENA,
+    NEWHAVEN_ADVENTURERS_GUILD,
+    NEWHAVEN_EAST_EXIT_ROOM,
+    NEWHAVEN_EASTWARD_EXIT_ROOM,
+    NEWHAVEN_SOUTHEAST_EXIT_ROOM,
+    NEWHAVEN_SOUTH_EXIT_ROOM,
+    NEWHAVEN_NORTH_EXIT_ROOM,
+    NEWHAVEN_SOUTHWARD_EXIT_ROOM
+  ].includes(requestedDestination)
 )
-  throw new Error('--destination must be a known Newhaven probe room (1/2147 or 1/2150)');
+  throw new Error('--destination must be one of the pre-approved Newhaven probe rooms');
 if (pveProbeOnly && requestedDestination !== undefined && requestedMaxMoves < 1)
   throw new Error('PvE navigation requires --max-moves of at least 1');
 if (has('--target') && !pveProbeOnly)
@@ -1126,6 +1142,11 @@ async function main() {
     if (runNavigationProbe) {
       const state = session.character;
       const preflight = readOnlyNavigationPreflight(state);
+      const alreadyAtRequestedDestination = canSkipNavigationPreflightAtDestination(
+        preflight,
+        state.room,
+        navigationDestination
+      );
       const pveHealthReady =
         !pveProbeOnly ||
         (state.vitals.hp !== null &&
@@ -1133,7 +1154,7 @@ async function main() {
           state.vitals.hp / state.vitals.hpMax >= MINIMUM_COMBAT_HEALTH_FRACTION);
       if (!responseObserved) {
         navigation = { arrived: false, result: 'No authoritative starting room was resolved' };
-      } else if (!preflight.allowed) {
+      } else if (!preflight.allowed && !alreadyAtRequestedDestination) {
         navigation = { arrived: false, result: preflight.reason };
       } else if (!pveHealthReady) {
         navigation = {
@@ -1177,7 +1198,12 @@ async function main() {
           monitor.room(walk.after);
           navigation = {
             ...walk,
-            arrived: walk.arrived && !monitor.failed && walk.after === navigationDestination
+            arrived: walk.arrived && !monitor.failed && walk.after === navigationDestination,
+            ...(walk.dispatchMessage === 'Already at destination'
+              ? {
+                  result: `Already at ${navigationDestination}; no movement command was dispatched`
+                }
+              : {})
           };
         }
       }
@@ -1192,12 +1218,13 @@ async function main() {
         requestedCombatTarget,
         state.combat.attackers
       );
+      // Match SessionManager's PvE policy; keep this probe's stricter health floor.
       const eligibility = assessCombatEligibility(
         room?.occupants ?? [],
         state.vitals,
         target?.name,
         MINIMUM_COMBAT_HEALTH_FRACTION,
-        hasMappedCombatEscape(room),
+        true,
         state.combat.attackers
       );
       if (requestedDestination !== undefined && navigation?.arrived !== true) {

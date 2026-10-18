@@ -1049,14 +1049,56 @@ node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile ke
   arrival at `1/2146` with no attackers, unchanged HP, zero provider requests,
   and zero violations.
 
-Current verified state after the retreat: `1/2146`, `48/51`, no attackers.
-A fresh read-only probe reconfirmed the same state and found no visible
-occupants. The selected exact-target experiment demonstrated live damage and
-XP but not death; the chosen target was explicit test input, so this is not
-autonomous target-selection evidence. Next test should use a controlled room
-with one eligible hostile, avoiding the multi-attacker ambiguity.
+### Single-target live PvE attempt and verified retreat (2026-10-18)
 
-Post-change validation passed: full serial suite 7,068 passed with 2 skipped,
-realm suite 18/18, production build/typecheck, `node --check
-scripts/ai-live.mjs`, `git diff --check`, and secret scan (46 files checked
-under the resolved output/home roots; no configured password found).
+- A bounded Walker-only tour verified `1/2147`, `1/2143`, `1/2140`, `1/2148`,
+  `1/2149`, `1/2142`, and `1/2141`. Separate read-only probes found passive
+  Corwyn (always-costly), Ferryman (never-costly), Betram (always-costly), and
+  Nathaniel (always-costly); `1/2143`, `1/2140`, and `1/2148` were empty.
+  These are observations, not evidence of hostile targets. All used zero
+  provider requests and had zero policy violations.
+- From `1/2141`, a bounded four-move Walker route returned to `1/2150`
+  without combat. The immediate read-only preflight found `51/51` HP, no
+  active target, and exactly one visible attacker: realm-backed
+  `nasty lashworm` (hostile, certain, uncharmed, never costly).
+- The first attempt with this exact destination was safely refused because
+  `readOnlyNavigationPreflight` blocked navigation while an attacker was
+  present, despite the character already having authoritative coordinates
+  `1/2150`. It sent no movement or combat command. A second attempt exposed a
+  harness-only mismatch: the diagnostic required a mapped escape edge, while
+  production `SessionManager.aiAction` passes `escapeAvailable=true` for
+  authorized PvE. The live room lists `u`, but the exit has no mapped
+  destination; earlier bounded probes had nevertheless verified `u` ->
+  `1/2146`.
+- The diagnostic now skips preflight only for a no-op at an exact
+  authoritative destination when hostile attention is the sole refusal, and
+  matches the production PvE escape flag. The 60% health floor, exact
+  realm-backed target, SessionManager approval, and bounded action monitor
+  remain in place. No production combat/policy code changed.
+- The accepted run dispatched exactly `a nasty lashworm` after SessionManager
+  approval. Telemetry recorded six target-matching hits for 2, 1, 3, 1, 1,
+  and 4 damage (12 total), then 600 XP and `Combat Off`. It did not record an
+  exact-target `mob-dies` event; `targetDied=false`, and settlement remained
+  unresolved after the 30-second observation. `fat giant rat` became the sole
+  attacker afterward and missed repeatedly; HP stayed `51/51`. The run
+  returned a non-success result because exact death was unverified. XP plus
+  target disappearance is not claimed as a kill.
+- Structured diagnostic:
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-30-25-678Z-12828.json`.
+  No raw server lines were retained. Provider requests: zero; violations:
+  zero.
+- A one-move escape probe matched `fat giant rat` to attacker evidence, sent
+  one `u`, and verified `1/2150` -> `1/2146`; HP remained `51/51` and
+  attackers cleared. A separate read-only probe confirmed `1/2146`, full HP,
+  and no visible occupants or attackers.
+
+Current live state: `1/2146`, `51/51`, no attackers. This demonstrates
+authoritative target selection from explicit test input, approved combat,
+real damage/XP, and a verified retreat. Autonomous target choice, exact
+target death, and a complete multi-step gameplay objective remain unverified.
+Focused LiveHarness/NpcDiscovery tests pass 66/66. Post-change validation
+passed: full serial suite 7,070 passed with 2 skipped across 253 files, realm
+suite 18/18, production build/typecheck, secret scan (47 files under the
+resolved roots; no configured password found), `node --check
+scripts/ai-live.mjs`, and `git diff --check`. The production renderer build
+retains its pre-existing chunk-size warning.

@@ -903,14 +903,62 @@ exact-target death and a connected multi-step gameplay loop remain unverified.
   and the full multi-step objective remain unverified. Do not repeat the same
   two-hostile Arena encounter without changing the experiment.
 
-The recovery probe and exact-target navigation/PvE probe are still local
-changes after pushed commit `ea520e7`. A fresh read-only check reconfirmed
-`1/2146`, `48/51` HP, no active combat or attackers, and no visible occupants.
-Full validation now passes: 7,068 serial tests with 2 skipped, 18/18 realm
-tests, production build/typecheck, secret scan (46 files under the two
-resolved roots; no configured password found), harness syntax, and
-`git diff --check`. Next, commit/push these verified changes. The next combat
-experiment should use a room with a single eligible hostile and retain
-exact-death telemetry; if no such safe live room is available, preserve the
-present evidence and report the environmental limit rather than repeat the
-same Arena fight.
+## Continuation checkpoint: single-target live damage, outcome unresolved
+
+- Pushed `aee01c2` (`Add bounded recovery and exact-target probes`) after full
+  validation. Additional local changes since that commit are limited to the
+  bounded destination allowlist and two diagnostic-harness corrections below.
+- Bounded Walker exploration verified rooms `1/2147`, `1/2143`, `1/2140`,
+  `1/2148`, `1/2149`, `1/2142`, and `1/2141`. Separate read-only probes found
+  Corwyn, Ferryman, Betram, and Nathaniel as passive NPCs; the other inspected
+  rooms had no visible occupants. None was an eligible hostile. Health
+  recovered from `48/51` to `51/51` during the bounded exploration; that was
+  not attributed to a recovery command. Every probe used zero provider calls
+  and reported zero policy violations.
+- Returning by a four-step Walker route to `1/2150`, a fresh room probe found
+  one visible hostile and attacker: `nasty lashworm`, `51/51` HP, no active
+  target. The first exact-target attempt did not move or attack because the
+  harness required `readOnlyNavigationPreflight` to allow navigation even
+  though the authoritative current room already equaled the requested
+  destination. The second refusal exposed a separate harness-only mismatch:
+  the diagnostic passed `hasMappedCombatEscape(room)` to
+  `assessCombatEligibility`, while production `SessionManager.aiAction`
+  explicitly allows the authorized disposable-character PvE path without a
+  mapped escape. The arena's server-listed `u` exit had been proven by prior
+  one-step retreats, though its destination is absent from realm exit data.
+- The harness was corrected narrowly: it may skip the navigation refusal only
+  when authoritative room coordinates exactly equal the requested destination
+  and the only refusal is hostile attention; no movement is dispatched. Its
+  provider-free PvE preflight now matches SessionManager on the escape flag
+  but retains its stricter 60% health floor, exact realm-backed target
+  resolution, SessionManager approval, bounded runtime, and existing policy
+  checks. No production combat or policy code was changed.
+- The retry resolved `nasty lashworm` to unique hybrid entity id `2`,
+  hostile/certain, uncharmed, not costly, and matched it to attacker evidence.
+  SessionManager approved and executed exactly `a nasty lashworm`. Telemetry
+  recorded six matching hits for `2+1+3+1+1+4 = 12` damage, followed by 600
+  XP and `Combat Off`. No exact-target `mob-dies` event was recorded:
+  `targetDied=false`, outcome remained unresolved through the 30-second
+  observation window. `fat giant rat` then became the sole attacker and
+  missed repeatedly; HP stayed `51/51`. XP and target disappearance are not
+  sufficient to claim a kill.
+- The sanitized artifact is
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-30-25-678Z-12828.json`;
+  it retains parsed events/telemetry, not raw server lines. The attempt made
+  zero provider requests and recorded zero violations. A one-move escape probe
+  matched the `fat giant rat` to attacker evidence, sent `u`, and verified
+  `1/2150` -> `1/2146`, `51/51` HP, and no attackers. A fresh read-only probe
+  confirmed that safe state.
+- Focused LiveHarness/NpcDiscovery tests passed 66/66. Post-change full
+  validation passed: 7,070 serial tests with 2 skipped across 253 files,
+  18/18 realm tests, production build/typecheck, secret scan (47 files under
+  the resolved roots; no configured password found), script syntax, and
+  `git diff --check`. The existing renderer chunk-size warning remains.
+
+Current live state: `1/2146`, `51/51`, no target or attackers. Combat
+engagement, exact-target damage, XP, and verified retreat are live-confirmed;
+the exact death and autonomous end-to-end objective remain unverified. Next,
+commit/push the validated harness corrections and room observations. Then
+investigate whether the captured 600 XP/`Combat Off` result has an
+authoritative exact-death signal not represented in parsed evidence; do not
+claim a kill or repeat the same encounter without gaining new evidence.
