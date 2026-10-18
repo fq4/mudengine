@@ -194,8 +194,12 @@ export class AutonomousScheduler {
     return this.rememberDeadEnd(room, deadEnd) || changed;
   }
   choose(candidates: readonly ActivityCandidate[], observation: string): AiAction | null {
+    const recoveryAvailable = candidates.some(({ action }) => action.name === 'recover_health');
+    if (this.state.status === 'completed') {
+      if (!recoveryAvailable || observation === this.state.lastObservation) return null;
+      this.state.status = 'idle';
+    }
     if (
-      this.state.status === 'completed' ||
       this.state.status === 'blocked' ||
       this.state.status === 'interrupted'
     )
@@ -204,7 +208,8 @@ export class AutonomousScheduler {
     this.state.lastObservation = observation;
     const next = candidates.find(
       ({ action }) =>
-        !this.state.completed.includes(action.name) && !this.journal.avoided.includes(action.name)
+        (action.name === 'recover_health' || !this.state.completed.includes(action.name)) &&
+        !this.journal.avoided.includes(action.name)
     );
     if (!next) {
       this.state.status = 'completed';
@@ -230,7 +235,7 @@ export class AutonomousScheduler {
           this.journal.lastStrategyChange = `${name} stalled after ${entry.stalls} unchanged results`;
         }
       } else entry.stalls = 0;
-      this.state.completed.push(name);
+      if (!this.state.completed.includes(name)) this.state.completed.push(name);
       this.state.failures = 0;
       this.state.current = null;
       this.state.status = 'idle';

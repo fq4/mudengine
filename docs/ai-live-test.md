@@ -579,7 +579,7 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   combat state before another live run.
 - Focused Recovery and SessionManager recovery tests passed 8/8, and
   objective/live-harness tests passed 36/36. The latest full suite passed
-  7,026 tests with 2 skipped
+  7,027 tests with 2 skipped
   across 253 files. An earlier concurrent run hit two `SessionLog.test.ts`
   cleanup errors (`ENOTEMPTY`); all 14 tests passed in isolation, and the final
   full run passed. Typecheck, production build, secret scan, script syntax, and
@@ -593,10 +593,17 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   threshold for both its provider observation and scheduler decisions; the
   standalone selector defaults to the shared application default.
 - Focused selector and SessionManager tests passed 287/287. The full suite
-  passed 7,026 tests with 2 skipped; typecheck and production build passed.
+  passed 7,027 tests with 2 skipped; typecheck and production build passed.
   The secret scan found no configured password, and harness syntax and diff
   checks passed.
 - No live connection was attempted. Kefka's current in-game room and combat
   state could not be confirmed, and the last recorded live attempt had an
   unknown room plus an attacker. This offline fix does not establish live
   recovery; resume bounded live validation only after that state is confirmed.
+- A scheduler regression verifies that recovery becomes selectable again
+  after the no-goal scheduler's previous activity cycle is complete, when new
+  authoritative health evidence crosses the configured threshold. It also
+  verifies that unchanged observations do not repeat recovery and completion
+  history stays unique. The final full run including this change passed 7,027
+  tests with 2 skipped; focused SessionManager and scheduler tests passed
+  287/287.

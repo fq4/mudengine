@@ -89,6 +89,23 @@ describe('AutonomousScheduler', () => {
       }
       expect(scheduler.journal.avoided).toEqual([]);
     });
+    it('allows recovery to run again after a completed campaign when new health evidence warrants it', () => {
+      const recover = [
+        { action: { name: 'recover_health' as const, reason: 'hp' }, priority: 100, rationale: 'hp' }
+      ];
+      const scheduler = new AutonomousScheduler();
+
+      expect(scheduler.choose(recover, 'hurt-1')?.name).toBe('recover_health');
+      scheduler.finish(true, progress('1/1', null, 0.8));
+      expect(scheduler.choose([], 'recovered')).toBeNull();
+      expect(scheduler.state.status).toBe('completed');
+      expect(scheduler.choose(recover, 'recovered')).toBeNull();
+
+      expect(scheduler.choose(recover, 'hurt-2')?.name).toBe('recover_health');
+      expect(scheduler.state.status).toBe('executing');
+      scheduler.finish(true, progress('1/1', null, 0.9));
+      expect(scheduler.state.completed.filter((name) => name === 'recover_health')).toHaveLength(1);
+    });
     it('keeps the journal through interrupt and reset but drops it on forget', () => {
       const scheduler = new AutonomousScheduler();
       scheduler.choose(candidates, 'a');

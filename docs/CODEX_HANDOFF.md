@@ -211,18 +211,24 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   action the Recovery owner must refuse as not due. Selector and
   SessionManager regressions verify the configured boundary; live recovery is
   still unverified.
+- The no-goal scheduler can now re-activate `recover_health` after its prior
+  activity cycle completed, but only when a changed observation makes recovery
+  eligible again. The recovery action is not duplicated in completion history,
+  and the same completed observation cannot trigger a repeated action. This
+  preserves retry/failure limits and keeps live recovery unverified.
 - The most recent bounded attempt did not pass its room-identity gate:
   `phase=in-game`, `room=unknown/unknown`, and one attacker were reported.
   It made zero provider requests and did not run an objective. This is
   inconclusive about gameplay and is not a navigation failure; do not retry
   until Kefka's placement and combat state are confirmed.
-- Latest local validation: the final `npm test` passed 7,026 tests with 2
+- Latest local validation: the final `npm test` passed 7,027 tests with 2
   skipped across 253 files. An earlier concurrent run hit two
   `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
   isolation (14/14), and the final full run passed. The configured-threshold
-  change also passed focused tests (287/287), typecheck, production build,
-  secret scan, harness syntax check, and `git diff --check`. The renderer
-  chunk-size warning remains.
+  and repeatable-recovery changes passed focused SessionManager, selector, and
+  scheduler tests (303/303), typecheck, production build, secret scan, harness
+  syntax check, and `git diff --check`. The renderer chunk-size warning
+  remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
   `node --check scripts/ai-live.mjs` / `git diff --check` passed. The live
   follow-up was blocked before gameplay as described above; no live combat
