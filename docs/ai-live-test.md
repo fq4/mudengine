@@ -647,11 +647,43 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   now exposes a secret-safe `locationRequestState()` diagnostic that
   distinguishes an unavailable command from a disabled setting.
 - The local configuration audit did not expose the endpoint or credentials.
-  Once a supported locator is confirmed, Kefka must reference a saved server
-  entry configured with that method; editing a different saved entry does not
-  affect the inline profile.
+  At the time of this audit, inline profiles could not override the locator.
+  They now can: after the endpoint's supported method is confirmed, configure
+  Kefka's inline locator in Settings, or select a saved server that uses it.
+  Editing an unrelated saved entry still has no effect on the inline profile.
 - The room-location retry and diagnostic passed focused helper/SessionManager
   tests (300/300), typechecks, production build, secret scan, script syntax,
   and diff checks. The parallel full test run hit two known SessionLog cleanup
   failures (`ENOTEMPTY`); `SessionLog.test.ts` passed 14/14 in isolation, and
   the serial full run passed 7,035 tests with 2 skipped across 253 files.
+
+## Inline locator follow-up (2026-10-18)
+
+- Inline profiles now expose and persist their own locator setting; Kefka's
+  active profile was set to `sys-status` based on existing MajorMUD test
+  evidence, not confirmed live behavior.
+- The first room-only harness implementation constructed `SessionManager`
+  without passing the resolved locator, so it sent the constructor default
+  `rm`. The harness now applies the profile's locator through
+  `SessionManager.configure()` before connecting.
+- A probe-only automation config keeps the automation master switch off.
+  `Invoke.locate` now submits this explicit Room-card request at user priority;
+  Walker and other automatic callers retain probe priority. This avoids
+  enabling unrelated automation just to issue a read-only location request.
+- The final bounded attempt (`--room-probe-only --max-ms 30000`) connected to
+  Kefka and sent exactly `sys status`. The queue accepted it, but within the
+  five-second response window the tracker remained `null/null`; no parsed
+  location block or server-family evidence arrived. The diagnostic reported
+  `locationRequestState=available`, which means the configured word has not
+  been retired as unavailable, not that the server supports it. The harness
+  made 0 provider requests, used 0 tokens, spent $0, and recorded no policy
+  violations. It ran no movement, combat, recovery, or objective scenarios.
+- This is inconclusive about command support and does not authorize another
+  guessed locator. Live gameplay remains blocked until the endpoint's
+  authoritative location command is confirmed. Do not use `sys-status` as a
+  verified setting or report this probe as a live location success.
+- Validation after the probe changes: the serial deterministic suite passed
+  7,037 tests with 2 skipped across 253 files; realm tests passed 18/18;
+  focused harness/session tests passed 301/301; typecheck, production build,
+  secret scan, script syntax, and `git diff --check` passed. The production
+  build retains the existing renderer chunk-size warning.

@@ -299,7 +299,13 @@ export interface VitalDraft {
  */
 export type ServerChoice =
   | { kind: 'saved'; name: string }
-  | { kind: 'inline'; host: string; port: number; encoding: StreamEncoding };
+  | {
+      kind: 'inline';
+      host: string;
+      port: number;
+      encoding: StreamEncoding;
+      locate?: LocateMethod;
+    };
 
 /**
  * What a person fills in about a character.
@@ -786,7 +792,13 @@ function asServerChoice(value: unknown): ServerChoice | null {
     const number = port(value['port']);
     const stream = encoding(value['encoding']);
     if (host.length === 0 || host.length > 255 || number === null || stream === null) return null;
-    return { kind: 'inline', host, port: number, encoding: stream };
+    return {
+      kind: 'inline',
+      host,
+      port: number,
+      encoding: stream,
+      locate: asLocateMethod(value['locate'])
+    };
   }
   return null;
 }

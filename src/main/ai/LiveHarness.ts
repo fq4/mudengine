@@ -1,8 +1,24 @@
 import type { AiApproval } from '../../shared/ai';
 import type { Combat, Vitals } from '../../shared/character';
+import { DEFAULT_CONFIG, type AutomationConfig } from '../../shared/config';
 import type { WalkProgress } from '../../shared/walk';
 import { mobKey } from '../../shared/world';
 import { combatOutcome, type CombatOutcome } from './CombatOutcome';
+
+/** Isolate a room diagnostic session from all background automation. */
+export function createRoomProbeAutomation(): AutomationConfig {
+  return {
+    ...DEFAULT_CONFIG.automation,
+    enabled: false,
+    onEnterRealm: [],
+    onPartyChange: '',
+    idle: { ...DEFAULT_CONFIG.automation.idle, enabled: false },
+    supplies: { ...DEFAULT_CONFIG.automation.supplies, enabled: false },
+    loops: [],
+    events: [],
+    rules: []
+  };
+}
 
 export interface LiveHarnessLimits {
   maxRuntimeMs: number;

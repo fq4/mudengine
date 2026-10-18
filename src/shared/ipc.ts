@@ -63,6 +63,7 @@ import type {
   PartyConfig,
   PotionWhen,
   PvpAction,
+  LocateMethod,
   SuppliesConfig,
   SupplyItem
 } from './config';
@@ -384,6 +385,8 @@ export interface ProfileEditable {
   autoReconnect: boolean;
   /** The name it refers to, or null when it spells the address out inline. */
   serverName: string | null;
+  /** Effective locator; editable on inline realms and owned by saved realms otherwise. */
+  locate: LocateMethod;
   target: ConnectionTarget;
   username: string;
   /**

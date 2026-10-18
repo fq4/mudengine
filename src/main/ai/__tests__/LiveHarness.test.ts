@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createRoomProbeAutomation,
   exactCombatApproval,
   isExactCombatTargetDeath,
   LiveHarnessMonitor,
@@ -9,6 +10,7 @@ import {
   waitForRecoveryHealth
 } from '../LiveHarness';
 import type { AiApproval } from '../../../shared/ai';
+import { DEFAULT_CONFIG } from '../../../shared/config';
 
 const limits = {
   maxRuntimeMs: 10_000,
@@ -18,6 +20,34 @@ const limits = {
   maxCostUsd: 0.1,
   maxRepeatedAction: 2
 };
+
+describe('createRoomProbeAutomation', () => {
+  it('leaves automation disabled and clears every independent automation source', () => {
+    const config = createRoomProbeAutomation();
+    const enabledFlags: string[] = [];
+    const visit = (value: unknown, path: string) => {
+      if (value === null || typeof value !== 'object') return;
+      for (const [key, child] of Object.entries(value)) {
+        const childPath = `${path}.${key}`;
+        if (key === 'enabled' && child === true) enabledFlags.push(childPath);
+        visit(child, childPath);
+      }
+    };
+    visit(config, 'automation');
+
+    expect(config.enabled).toBe(false);
+    expect(config.onEnterRealm).toEqual([]);
+    expect(config.onPartyChange).toBe('');
+    expect(config.idle.enabled).toBe(false);
+    expect(config.supplies.enabled).toBe(false);
+    expect(config.rules).toEqual([]);
+    expect(config.loops).toEqual([]);
+    expect(config.events).toEqual([]);
+    expect(enabledFlags).toEqual([]);
+    expect(DEFAULT_CONFIG.automation.enabled).toBe(true);
+    expect(DEFAULT_CONFIG.automation.onEnterRealm.length).toBeGreaterThan(0);
+  });
+});
 
 describe('exactCombatApproval', () => {
   const approval = (id: string, targetName: string): AiApproval => ({

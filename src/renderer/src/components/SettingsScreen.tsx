@@ -574,6 +574,7 @@ interface CharacterForm {
   autoConnect: boolean;
   autoReconnect: boolean;
   serverName: string | null;
+  locate: LocateMethod;
   host: string;
   port: string;
   encoding: StreamEncoding;
@@ -818,6 +819,7 @@ function formOf(entry: ProfileEditable): CharacterForm {
     autoConnect: entry.autoConnect,
     autoReconnect: entry.autoReconnect,
     serverName: entry.serverName,
+    locate: entry.locate,
     host: entry.target.host,
     port: String(entry.target.port),
     encoding: entry.target.encoding,
@@ -1030,7 +1032,8 @@ function draftOf(form: CharacterForm): ProfileDraft {
             kind: 'inline',
             host: form.host,
             port: Number.parseInt(form.port, 10),
-            encoding: form.encoding
+            encoding: form.encoding,
+            locate: form.locate
           },
     username: form.username,
     password: form.password,
@@ -1403,6 +1406,7 @@ function emptyForm(
         ?.name ??
       servers[0]?.name ??
       null,
+    locate: DEFAULT_CONFIG.connection.locate,
     host: '',
     port: '23',
     encoding: 'cp437',
@@ -2803,6 +2807,21 @@ export default function SettingsScreen({
                               label: encoding
                             }))}
                             value={form.encoding}
+                          />
+                          <SelectField
+                            hint={t('settings.realms.locateHint')}
+                            label={t('settings.realms.locateLabel')}
+                            name="character-locate"
+                            onChange={(value) => patch({ locate: value as LocateMethod })}
+                            options={[
+                              { value: 'rm', label: t('settings.realms.locateOptions.rm') },
+                              {
+                                value: 'sys-status',
+                                label: t('settings.realms.locateOptions.sysStatus')
+                              },
+                              { value: 'none', label: t('settings.realms.locateOptions.none') }
+                            ]}
+                            value={form.locate}
                           />
                         </Advanced>
                       )}

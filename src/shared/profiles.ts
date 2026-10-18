@@ -182,9 +182,12 @@ function resolveServer(
       // An address spelled out inline names no server entry, so there is no
       // script to inherit — the character's own, or the global default, wins.
       login: [],
-      // Same reasoning: nothing to inherit, so the global default answers
-      // which word this address is tried with.
-      locate: DEFAULT_CONFIG.connection.locate,
+      // An inline address is its own realm declaration, so it may state the
+      // locator it uses rather than inherit a setting from no server entry.
+      locate:
+        value['locate'] === 'sys-status' || value['locate'] === 'none' || value['locate'] === 'rm'
+          ? value['locate']
+          : DEFAULT_CONFIG.connection.locate,
       /*
        * The realm database, which an inline address *may* state.
        *

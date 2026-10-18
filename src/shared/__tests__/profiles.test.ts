@@ -75,6 +75,24 @@ describe('the realm a character walks', () => {
     ).toBe('/realms/mine.mdb');
   });
 
+  it('reads the locator stated on an inline realm address', () => {
+    expect(
+      resolve({
+        server: { host: 'gmud-tgs', port: 2427, locate: 'sys-status' }
+      }).config.connection.locate
+    ).toBe('sys-status');
+    expect(
+      resolve({
+        server: { host: 'gmud-tgs', port: 2427, locate: 'none' }
+      }).config.connection.locate
+    ).toBe('none');
+    expect(
+      resolve({
+        server: { host: 'gmud-tgs', port: 2427, locate: 'unsupported' }
+      }).config.connection.locate
+    ).toBe(DEFAULT_CONFIG.connection.locate);
+  });
+
   /*
    * And a character cannot state one of its own. The key is gone from the
    * options schema, so `world:` left in a file is overlaid onto nothing and

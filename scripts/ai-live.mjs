@@ -3,6 +3,8 @@
  *
  * This file deliberately does nothing unless --live is supplied:
  *   npm run test:ai-live -- --live --profile kefka
+ * The room-only diagnostic stops before provider or gameplay activity:
+ *   node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only
  *
  * The runner never prints credentials or raw login traffic. It only permits
  * inspection and movement, and exits as soon as a safety limit is reached.
@@ -17,6 +19,7 @@ import {
   LiveHarnessMonitor,
   navigateToWithWalker,
   requestRoomIdentity,
+  createRoomProbeAutomation,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
@@ -47,6 +50,7 @@ if (!has('--live')) {
 const profileId = valueOf('--profile') ?? 'kefka';
 if (profileId !== 'kefka')
   throw new Error('The live harness is restricted to the authorized kefka profile');
+const roomProbeOnly = has('--room-probe-only');
 const gossipReplyTest = has('--gossip-reply-test');
 const requestedRuntimeMs = Number(valueOf('--max-ms') ?? 120_000);
 if (gossipReplyTest && requestedRuntimeMs > 300_000)
@@ -61,11 +65,12 @@ if (resolved.error !== undefined)
 const profile = resolved.profile;
 if (!profile.config.connection.login.username || !profile.config.connection.login.password)
   throw new Error(`profile ${profileId} has no complete login configuration`);
-if (!process.env.OPENROUTER_API_KEY)
+if (!roomProbeOnly && !process.env.OPENROUTER_API_KEY)
   throw new Error('OPENROUTER_API_KEY is not present in the environment');
 
 const NEWHAVEN_ARENA = '1/2150';
 const NEWHAVEN_ADVENTURERS_GUILD = '1/2147';
+const roomProbeAutomation = createRoomProbeAutomation();
 
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: requestedRuntimeMs,
@@ -91,9 +96,21 @@ let multiRoomTarget = null;
 const loginBlockCounts = new Map();
 const loginPromptSignals = new Set();
 const recentLoginBlockSummaries = [];
+let latestLocationEvidence = null;
 const sink = {
   data: () => {},
   block: (block) => {
+    if (
+      (block.type === 'user-location' || block.type === 'user-profile') &&
+      /^\d+$/.test(block.groups.map ?? '') &&
+      /^\d+$/.test(block.groups.room ?? '')
+    ) {
+      latestLocationEvidence = {
+        type: block.type,
+        map: block.groups.map,
+        room: block.groups.room
+      };
+    }
     if (session.character.phase !== 'in-game' && loginBlockCounts.size < 12) {
       loginBlockCounts.set(block.type, (loginBlockCounts.get(block.type) ?? 0) + 1);
       const text = block.text.toLowerCase();
@@ -159,17 +176,27 @@ const realms = new RealmLibrary({
   notify: () => {}
 });
 const world = realms.load(profile.database ?? '').graph;
+const harnessAutomation = roomProbeOnly
+  ? roomProbeAutomation
+  : profile.config.automation;
+// Entry probes can overlap with room exits (notably "st").
+const harnessAutomationConfig = {
+  ...harnessAutomation,
+  onEnterRealm: gossipReplyTest || roomProbeOnly ? [] : harnessAutomation.onEnterRealm,
+  idle: { ...harnessAutomation.idle, enabled: false },
+  rules: []
+};
 const session = new SessionManager(
   sink,
   world,
-  {
-    ...profile.config.automation,
-    // Entry probes can overlap with room exits (notably "st"); keep the social run motionless.
-    onEnterRealm: gossipReplyTest ? [] : profile.config.automation.onEnterRealm,
-    idle: { ...profile.config.automation.idle, enabled: false },
-    rules: []
-  },
+  harnessAutomationConfig,
   profile.config.connection.login
+);
+session.configure(
+  harnessAutomationConfig,
+  profile.config.connection.login,
+  profile.config.ui.rewrites,
+  profile.config.connection.locate
 );
 session.resize({ cols: 100, rows: 30 });
 // Keep the production session budget strict while allowing the provider-driven
@@ -544,7 +571,7 @@ async function main() {
   monitor.start();
   // Ordinary recovery is explicitly authorized for disposable Kefka and is
   // still bounded by the production recovery adapter and session budget.
-  monitor.authorizeRecovery();
+  if (!roomProbeOnly) monitor.authorizeRecovery();
   console.log(`AI live test -> ${profile.id} (credentials withheld)`);
   await session.connect(profile.target);
   const connected = await waitFor(() => session.character.phase === 'in-game');
@@ -561,9 +588,10 @@ async function main() {
     await runGossipReplyTest();
     return;
   }
-  let roomKnown = await waitFor(() => /^\d+\/\d+$/.test(roomKey()), 30_000);
+  let roomKnown =
+    !roomProbeOnly && (await waitFor(() => /^\d+\/\d+$/.test(roomKey()), 30_000));
   let roomProbe = { resolved: roomKnown, requestSent: false };
-  if (!roomKnown) {
+  if (!roomKnown && !roomProbeOnly) {
     roomProbe = await requestRoomIdentity({
       roomKey,
       request: () => session.askWhereIAm(),
@@ -574,6 +602,38 @@ async function main() {
       )
     });
     roomKnown = roomProbe.resolved;
+  }
+  if (roomProbeOnly) {
+    const priorEvidence = latestLocationEvidence;
+    const requestAccepted = session.askWhereIAm(true);
+    const responseObserved =
+      requestAccepted &&
+      (await waitFor(
+        () =>
+          latestLocationEvidence !== priorEvidence &&
+          latestLocationEvidence !== null &&
+          `${latestLocationEvidence.map}/${latestLocationEvidence.room}` === roomKey(),
+        5_000
+      ));
+    report.scenarios.push({
+      name: 'configured-room-location',
+      passed: responseObserved,
+      room: roomKey(),
+      serverFamily: session.family,
+      configuredLocationMethod: profile.config.connection.locate,
+      locationRequestState: session.locationRequestState(),
+      requestAccepted,
+      responseType: latestLocationEvidence === priorEvidence ? null : latestLocationEvidence?.type,
+      providerRequests: monitor.providerRequests,
+      result: responseObserved
+        ? 'Configured locator returned authoritative coordinates; no AI or gameplay scenario was run'
+        : 'Configured locator did not return fresh coordinates; no AI or gameplay scenario was run'
+    });
+    report.violations = monitor.violations;
+    report.trace = monitor.events.slice(-50);
+    console.log(JSON.stringify(report, null, 2));
+    if (!responseObserved || monitor.violations.length > 0) process.exitCode = 1;
+    return;
   }
   if (!roomKnown) {
     const result = loginDiagnostic();

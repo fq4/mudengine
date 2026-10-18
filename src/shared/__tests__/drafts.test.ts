@@ -192,13 +192,20 @@ describe('a character', () => {
   it('takes an address spelled out inline', () => {
     const draft = asProfileDraft({
       ...good,
-      server: { kind: 'inline', host: 'gmud-tgs', port: 2427, encoding: 'cp437' }
+      server: {
+        kind: 'inline',
+        host: 'gmud-tgs',
+        port: 2427,
+        encoding: 'cp437',
+        locate: 'sys-status'
+      }
     });
     expect(draft?.server).toEqual({
       kind: 'inline',
       host: 'gmud-tgs',
       port: 2427,
-      encoding: 'cp437'
+      encoding: 'cp437',
+      locate: 'sys-status'
     });
   });
 

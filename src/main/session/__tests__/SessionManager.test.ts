@@ -7175,7 +7175,7 @@ describe('the locate setting', () => {
     const { sink } = collect();
     manager = new SessionManager(sink);
     manager.configure(
-      { ...DEFAULT_CONFIG.automation, onEnterRealm: [] },
+      { ...DEFAULT_CONFIG.automation, enabled: false, onEnterRealm: [] },
       DEFAULT_CONFIG.connection.login,
       DEFAULT_CONFIG.ui.rewrites,
       'sys-status'
@@ -7187,7 +7187,8 @@ describe('the locate setting', () => {
     socket.write('[HP=100/MA=50]:' + PROMPT_REPAINT);
     await until(() => manager!.character.phase === 'in-game');
 
-    expect(manager.askWhereIAm()).toBe(true);
+    expect(manager.askWhereIAm()).toBe(false);
+    expect(manager.askWhereIAm(true)).toBe(true);
     expect(manager.locationRequestState()).toBe('available');
     await until(() => /(^|\n)sys status\r\n/.test(Buffer.concat(received).toString('latin1')));
   });

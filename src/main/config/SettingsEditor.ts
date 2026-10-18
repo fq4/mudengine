@@ -276,7 +276,8 @@ export class SettingsEditor {
           document.setIn(['server'], {
             host: draft.server.host,
             port: draft.server.port,
-            encoding: draft.server.encoding
+            encoding: draft.server.encoding,
+            locate: draft.server.locate ?? DEFAULT_CONFIG.connection.locate
           });
         }
 
@@ -1245,6 +1246,7 @@ export class SettingsEditor {
         autoReconnect: record['autoReconnect'] !== false,
         theme: themeOf(record['ui']),
         serverName: typeof record['server'] === 'string' ? record['server'] : null,
+        locate: effective?.connection.locate ?? config.connection.locate,
         target,
         username:
           isRecord(account) && typeof account['username'] === 'string' ? account['username'] : '',
@@ -1464,6 +1466,7 @@ function blank(id: string): ProfileEditable {
     autoConnect: false,
     autoReconnect: true,
     serverName: null,
+    locate: DEFAULT_CONFIG.connection.locate,
     target: { host: '', port: 23, encoding: 'cp437' },
     username: '',
     hasPassword: false,

@@ -125,10 +125,24 @@ describe('creating a character', () => {
   it('takes an address spelled out, for the first character on a new realm', () => {
     const result = editor.saveProfile('thorn', {
       ...draft(),
-      server: { kind: 'inline', host: 'gmud-tgs', port: 2500, encoding: 'utf8' }
+      server: {
+        kind: 'inline',
+        host: 'gmud-tgs',
+        port: 2500,
+        encoding: 'utf8',
+        locate: 'sys-status'
+      }
     });
     expect(result).toEqual({ ok: true });
-    expect(read('thorn')['server']).toEqual({ host: 'gmud-tgs', port: 2500, encoding: 'utf8' });
+    expect(read('thorn')['server']).toEqual({
+      host: 'gmud-tgs',
+      port: 2500,
+      encoding: 'utf8',
+      locate: 'sys-status'
+    });
+    const loaded = resolveProfile('thorn', read('thorn'), parse(OPTIONS));
+    expect(loaded.error).toBeUndefined();
+    if (loaded.error === undefined) expect(loaded.profile.config.connection.locate).toBe('sys-status');
   });
 
   /*
@@ -312,7 +326,8 @@ ui:
     expect(read('vaelor')['server']).toEqual({
       host: 'gmud-tgs',
       port: 2500,
-      encoding: 'cp437'
+      encoding: 'cp437',
+      locate: 'rm'
     });
   });
 

@@ -236,12 +236,13 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   inline server address, so `resolveServer()` gives it the global default
   locator (`rm`); it does not inherit a locator from a saved server entry. The
   attempt again had unknown room identity, HP 36/51, and two attackers; no
-  alternate location command is verified, so do not guess one. Once the
-  server's supported method is confirmed, configure it on a saved server entry
-  and have Kefka reference that entry; changing an unrelated saved entry will
-  not change this inline profile. `SessionManager.locationRequestState()` now
-  distinguishes available, disabled-by-configuration, and server-unavailable
-  states in the secret-safe harness diagnostic.
+  alternate location command is verified, so do not guess one. Inline
+  profiles can now set their own locator in Settings, or Kefka can reference a
+  saved server configured with the confirmed method; changing an unrelated
+  saved entry will not change this inline profile.
+  `SessionManager.locationRequestState()` now distinguishes available,
+  disabled-by-configuration, and server-unavailable states in the secret-safe
+  harness diagnostic.
 - The live combat harness matches `mob-dies` evidence to its chosen target
   using the shared `mobKey` normalization: leading articles are harmless, but
   modifiers remain part of the identity and absent names do not count.
@@ -524,3 +525,25 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   policy violations (5 provider requests, 11,653 tokens, estimated cost ~$0.002).
   It verifies the production baseline, not persisted frontier selection.
 - Run `git log -1 --oneline` on `development` for the latest commit.
+
+## Latest locator checkpoint (2026-10-18)
+
+- Inline profile locator overrides are implemented in settings. The active
+  Kefka profile uses `sys-status`, but the live server has not confirmed that
+  command.
+- The room-only diagnostic now passes the resolved locator into
+  `SessionManager.configure()` before connecting. Its automation config keeps
+  the master switch off; the explicit Room-card probe is user-priority, while
+  Walker probes remain automation-priority.
+- A bounded probe connected and sent `sys status` once. It received no parsed
+  coordinates within five seconds (`room=null/null`, no server-family
+  evidence). Provider usage and cost were zero; no gameplay action ran. Queue
+  acceptance and `locationRequestState=available` are not evidence that the
+  remote command is supported.
+- Do not start gameplay or try another guessed locator until the authoritative
+  room command for this endpoint is confirmed. The original Arena timeout
+  remains unconfirmed because its capture is unavailable.
+- Offline validation: 7,037 tests passed, 2 skipped across 253 files; realm
+  tests 18/18; focused harness/session tests 301/301; typecheck, production
+  build, secret scan, script syntax, and diff checks passed. The existing
+  renderer chunk-size warning remains.

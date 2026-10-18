@@ -2534,7 +2534,7 @@ function registerIpc(): void {
    * picks the word itself, exactly as the gear button decides its own.
    */
   handle(Invoke.locate, (_caller, session: SessionId) => {
-    return host?.get(session)?.manager.askWhereIAm() ?? false;
+    return host?.get(session)?.manager.askWhereIAm(true) ?? false;
   });
 
   /*

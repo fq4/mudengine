@@ -514,10 +514,11 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   Typecheck, production build, secret scan, harness syntax, and diff checks
   passed.
 - To unblock safely, first confirm the exact location command this endpoint
-  supports. Then add/configure a saved server entry with that method and change
-  Kefka's profile to reference it; changing a saved entry that the inline
-  profile does not reference will not affect Kefka. Do not try an alternative
-  command or update the profile locator based only on a family guess.
+  supports. Inline profiles can now set their own locator in Settings, or
+  Kefka can reference a saved server configured with that method. Changing an
+  unrelated saved entry still has no effect on the inline profile. Do not try
+  an alternative command or update the profile locator based only on a family
+  guess.
 
 ## Remaining work
 
@@ -533,6 +534,38 @@ not pass the authoritative room-identity gate, so repeat the objective only
 after the character's placement/combat state is confirmed. Exact-target death
 and low-health resting remain unverified. The original Arena timeout's exact
 server-side cause remains unknown because its capture is unavailable.
+
+## Inline locator follow-up (2026-10-18)
+
+Inline server profiles can now set their own `locate` method through profile
+settings instead of silently inheriting the global default. Kefka's setting
+was changed to `sys-status` from repository MajorMUD test evidence, but the
+live endpoint has not confirmed that command.
+
+The first room-only probe did not apply the resolved locator to
+`SessionManager`; it therefore sent the constructor default `rm`. This is now
+fixed in the harness by configuring the session with the profile's locator
+before connecting. Probe-only setup also leaves global automation disabled.
+The explicit Room-card locate request uses user priority, while Walker's
+automatic locator requests continue to use probe priority; this avoids
+temporarily enabling other automation merely to pass the queue's master
+switch.
+
+The latest bounded, provider-free probe connected and sent one `sys status`
+request. The queue accepted it, but no fresh typed location evidence or
+authoritative coordinates arrived within five seconds; `room=null/null`,
+`serverFamily=null`, and `locationRequestState=available`. The latter reports
+only that the configured word has not been marked unavailable. There were zero
+provider requests/tokens/cost and zero policy violations; no gameplay
+scenario ran. This is not a successful room resolution, and no other command
+will be guessed. Resume live gameplay only after the endpoint's authoritative
+locator has been confirmed.
+
+The final serial suite passed 7,037 tests with 2 skipped across 253 files;
+realm tests passed 18/18 and focused harness/SessionManager tests passed
+301/301. Typecheck, production build, secret scan, harness syntax, and diff
+checks passed; the existing renderer chunk-size warning remains. The probe is
+the only new live evidence and does not verify gameplay.
 
 ## Environment on a new computer
 ```powershell

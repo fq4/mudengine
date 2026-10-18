@@ -1289,12 +1289,14 @@ export class SessionManager {
    * locate button (`Invoke.locate`): a window may ask *that* a location be
    * asked for, but never *which word* — main is what read the realm's
    * setting, so main is what has to pick.
+   * That explicit button press uses user priority and remains available when
+   * background automation is disabled; walkers continue to use probe priority.
    */
-  askWhereIAm(): boolean {
+  askWhereIAm(userInitiated = false): boolean {
     if (this.locateWord === null) return false;
     return this.queue.enqueue({
       command: this.locateWord,
-      priority: 'probe',
+      priority: userInitiated ? 'user' : 'probe',
       coalesceKey: 'loop-locate',
       expiresAt: Date.now() + 10_000,
       reason: t('session.loop.locateReason')
