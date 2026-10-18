@@ -1233,8 +1233,11 @@ weakening identity, hostility, or combat policy.
   character level was unknown. This change is harness-only: report a known
   tracker level, pass it into route preflight, and refuse an unknown
   level-gated route. No production combat/navigation safety policy changed.
-- The user-initiated query gateway accepts `health` and `pro`; `st` is not
-  permitted and was not issued. Offline route tests passed 381/381 in
+- The exact user-initiated read-only probe allowlist now includes `st`
+  alongside `health` and `pro`; arbitrary commands remain rejected. The
+  room-only harness sends at most one status-sheet read while idle/entry
+  automation is disabled and waits for the parsed level only. The updated live
+  result is pending. Offline route tests passed 381/381 in
   `WorldGraph.test.ts`; `node --check scripts/ai-live.mjs` and
   `git diff --check` passed. The live refusal had zero provider requests and
   zero policy violations; no movement or combat occurred.
@@ -1244,3 +1247,45 @@ weakening identity, hostility, or combat policy.
   a different reachable single-hostile opportunity. Integrated sustained
   combat, saved-threshold recovery, and next-objective selection remain
   unverified.
+
+## Verified character level, Arena refusal, and safe Healer-room exploration (2026-10-18)
+
+- The read-only room probe now makes one exact `st` status-sheet request when
+  level is unknown. The first accepted request exposed a harness integration
+  defect: `SessionManager.ask` tagged it `ask:st`, while `LiveHarnessMonitor`
+  only exempts the exact `probe:st` status probe. This counted the read-only
+  request as movement at a zero-move cap. `SessionManager.ask` now gives only
+  exact `st` requests the existing `probe:st` tag; ordinary untagged `st`
+  and directions remain movement-limited. The read-only explicit probe
+  allowlist includes exact `st`, `health`, and `pro`, not arbitrary commands.
+- A clean repeated room probe parsed level 1 and 8 lives, with `45/51` HP and
+  no attackers in `1/2146`; it used zero provider requests and had zero
+  monitor violations.
+- A one-step Walker probe verified arrival at `1/2150`. Fresh observation
+  found two hostile current attackers, `big giant rat` and `angry giant rat`,
+  and no active engagement. Combat was not initiated. The existing bounded
+  escape probe moved one step `u`, verified return to `1/2146`, cleared
+  attackers, and reported `47/51` HP with zero violations.
+- Another one-step Walker probe reached the level-eligible Healer room
+  `1/2190`. Fresh read-only observation found a passive realm-backed `healer`,
+  no target/attackers, and `47/51` HP. The room was added to the explicit
+  bounded destination allowlist. No NPC inspection action or healer
+  interaction was issued.
+- Current live state is `1/2190`, level 1, `47/51`, 8 lives, passive healer,
+  no target/attackers. The cave route remains unsafe/unverified: the
+  multi-mob entrance is not to be crossed blindly, and no light source/readiness
+  has been established. This work improves safe observation and exploration
+  but does not establish sustained combat, exact-target victory, saved-threshold
+  recovery, or a connected next-objective loop.
+- Focused read-only probe authorization test: 1 passed; focused status-sheet
+  movement-monitor test: 1 passed; full SessionManager suite: 279 passed;
+  WorldGraph suite: 381 passed. Full unit suite ran serially with 7,087 passed,
+  2 skipped, and one `ConfigStore.test.ts` watcher timeout (`no change event`);
+  its isolated file rerun passed 12/12. The parallel full-suite run also
+  encountered two pre-existing `SessionLog.test.ts` `ENOTEMPTY` temp-cleanup
+  races. Realm tests passed 18/18. Production build/typechecks passed with the
+  existing renderer chunk-size warning; secret scan found no configured
+  password in 56 files. Script syntax and `git diff --check` passed.
+- Next: pursue only a fresh single-hostile opportunity with the saved retreat
+  and authoritative target checks intact. If none appears, continue safe
+  exploration rather than pretending the cave route is viable.

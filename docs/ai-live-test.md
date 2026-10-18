@@ -42,12 +42,19 @@ multi-mob Dungeon Entrance at `1/2152`. Keep the existing move/runtime caps
 and retreat policy; this route is not a guarantee that the cave bear will be
 present or eligible when the character arrives.
 
+`1/2190` (Newhaven, Healer) is an additional one-step destination from
+`1/2146` through a level-0-to-5 exit. The harness still requires an
+authoritative level and verified Walker arrival.
+
 - The room probe tries the configured locator, then the documented `pro`
-  profile query, and asks for authoritative health once. It reports
-  coordinates, any character level already known to the tracker, health,
-  combat engagement, and attacker count without retaining raw login or server
-  text. Destination checks reject routes over a level gate while level remains
-  unknown; the probe does not issue an unsupported stat command to resolve it.
+  profile query, and asks for authoritative health once. If the tracker still
+  lacks the character level, it issues one bounded user-priority `st`
+  status-sheet request through SessionManager's exact read-only probe
+  allowlist, with idle/entry automation disabled, then waits up to five
+  seconds for the parsed level. It reports coordinates, whether level was
+  observed, health, combat engagement, and attacker count without retaining
+  raw login or server text. Destination checks reject routes over a level
+  gate while level remains unknown.
 - The full provider-driven runner follows the same location policy at startup:
   for GreaterMUD only, it tries one read-only `pro` fallback if the configured
   locator yields no numeric coordinates. It never plans from a room name alone.
@@ -1389,11 +1396,40 @@ entities.
   The character remained at `1/2146`; there were zero policy violations and
   zero provider requests. This validates refusal behavior, not navigation or
   combat.
-- The user-initiated probe gateway accepts `health` and `pro`, not `st`;
-  `st` was not sent. Do not bypass that boundary to infer Kefka's level.
-- Next: obtain the level from an authoritative client stat sheet or use a
-  controlled character with verified level and light readiness. If that
-  validates the route, probe one segment at a time and re-observe before
-  continuing; do not traverse the multi-mob entrance blindly. Otherwise find
-  a different reachable encounter. No live combat progress, death, XP, or
-  recovery is claimed.
+- The user-initiated exact read-only probe allowlist now includes `st`
+  alongside `health` and `pro`. The room-only diagnostic sends at most one
+  status-sheet request and reports only whether the level arrived, not raw
+  status text. Its live result is pending.
+- Fresh status-sheet evidence resolved Kefka as level 1 with 8 lives.
+  `st` first tripped the movement monitor because `SessionManager.ask` tagged
+  it as `ask:st`, not the monitor's exact `probe:st` status-sheet key. The
+  queue now applies that tag only to the exact `st` probe; untagged `st` and
+  directional movement remain counted. The repeat status read completed
+  with zero violations.
+- With the level-1 gate now verified, Walker made one bounded move from
+  `1/2146` to Arena `1/2150`. A fresh observation found two hostile attackers
+  (`big giant rat`, `angry giant rat`) and no active engagement. No attack was
+  issued. The existing supervised escape probe sent one `u`, verified return
+  to `1/2146`, and cleared attackers; HP was `47/51`, with zero violations.
+- Kefka then made a separate one-step Walker route to `1/2190` (Newhaven,
+  Healer). A fresh room observation found the passive realm-backed `healer`,
+  no attackers/target, and `47/51` HP. This does not establish an NPC
+  inspection or combat outcome. `1/2190` is now in the bounded destination
+  allowlist; it is a level-gated one-step route and still requires verified
+  level.
+- Current live state: `1/2190`, level 1, `47/51`, 8 lives, passive healer,
+  no target/attackers. Dungeon route light readiness is unknown; do not enter
+  the dark cavern or traverse the multi-mob Dungeon Entrance blindly. No
+  new live combat, victory, XP, or damage-driven recovery is claimed.
+- Validation after these harness/session changes: focused read-only probe
+  authorization 1/1; tagged status movement monitor 1/1; SessionManager
+  279/279; WorldGraph 381/381; realm suite 18/18; build/typechecks and secret
+  scan passed. The serial full unit suite had one `ConfigStore.test.ts`
+  filesystem watcher timeout (7,087 passed, 2 skipped); isolated rerun of
+  that file passed 12/12. The earlier parallel full run also hit two
+  `SessionLog.test.ts` temporary-directory cleanup races. No combat or NPC
+  inspection test was attempted after the two-attacker discovery.
+- Next: pursue a controlled eligible single-hostile encounter only if fresh
+  authoritative state presents one without violating the saved retreat
+  policy; otherwise continue bounded safe exploration/NPC inspection and
+  preserve the documented combat blocker.

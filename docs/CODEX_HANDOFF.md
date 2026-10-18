@@ -1250,21 +1250,68 @@ npm run test:ai-live -- --live --profile kefka --max-ms 120000 --max-moves 12 --
   The live four-move Walker probe returned that refusal before movement;
   Kefka stayed at `1/2146`, with zero policy violations/provider requests.
   This proves a safe refusal only, not dungeon navigation or combat.
-- The attempted status-sheet query `st` was rejected by the existing
-  user-initiated probe whitelist (`health`/`pro`) and was not sent. Do not
-  bypass that gateway. The next unblock is an authoritative Kefka level and
-  light-readiness check, or a controlled character with those facts known.
-  If the route is valid, enter one room at a time and re-observe before
-  advancing; the multi-mob entrance must not be traversed blindly.
+- The first route check refused because character level was unknown. The
+  exact user-initiated read-only probe allowlist now includes `st` alongside
+  `health`/`pro`; arbitrary commands remain rejected. The room-only harness
+  requests the status sheet at most once, with idle and entry automation
+  disabled, and waits up to five seconds for the parsed level. It reports no
+  raw status lines. Its live result still needs a fresh run. Light readiness
+  must also be established, and the multi-mob entrance must not be traversed
+  blindly.
 - Focused `WorldGraph.test.ts`: 381/381 passed. Script syntax, live
   pre-dispatch refusal, and diff checks passed. No full build or full suite
   was run because this checkpoint changes only the live harness and docs.
-- Exact resume probes:
+- The earlier `1/2156` command below is historical only; do not run it
+  blindly. The level gate now passes, but this route still crosses the
+  multi-mob lair at `1/2152` and a dark segment with unknown light readiness.
+  Current state is safer at the level-eligible `1/2190` Healer room.
+
+Safe resume observation:
 
   ```powershell
   node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only --max-ms 60000 --max-moves 0
-  node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --navigation-probe-only --destination 1/2156 --max-ms 60000 --max-moves 4
   ```
 
-  The second probe is expected to refuse until level is authoritative. The
-  overall sustained-combat and recovery loop is still unresolved.
+  The overall sustained-combat and recovery loop is still unresolved.
+
+## Follow-up: authoritative level and one-room exploration (2026-10-18)
+
+- The read-only room probe now requests `st` once if tracker level is unknown.
+  The user-priority exact read-only allowlist contains `health`, `pro`, and
+  `st`; other commands remain rejected. `SessionManager.ask` tags only exact
+  `st` with the existing `probe:st` queue key, so the monitor distinguishes
+  the status sheet from the server-specific `st` movement alias. An initial
+  run exposed the missing tag (one false movement-limit violation); focused
+  tests now cover the exact command and tagged monitor behavior.
+- Repeated read-only live probe: Kefka at `1/2146`, level 1, 8 lives,
+  `45/51`, no target/attackers. The previous Arena gate is therefore valid.
+- A one-move Walker probe verified `1/2146` → `1/2150`. Fresh read-only room
+  observation found `big giant rat` and `angry giant rat` as two hostile
+  current attackers; no attack was issued. The bounded escape probe sent
+  exactly one `u`, verified return to `1/2146`, cleared attackers, and left
+  Kefka at `47/51`, with no violations.
+- A subsequent one-move Walker probe verified `1/2146` → `1/2190` (Newhaven,
+  Healer). Fresh read-only observation found the passive realm-backed
+  `healer`, no attackers/target, and `47/51`. No inspect or interaction action
+  was issued. `1/2190` is now a pre-approved one-step destination.
+- Latest observed live state: `1/2190`, level 1, 8 lives, `47/51`, passive
+  healer, no attackers or target. Do not enter the dark cave route yet: light
+  readiness is unknown and the path crosses the multi-mob lair at `1/2152`.
+  The latest probes demonstrate status parsing, verified navigation, and
+  safe retreat, not sustained combat, victory, or recovery.
+- Focused tests passed: SessionManager read-only probe authorization (1),
+  LiveHarness tagged status movement (1), full SessionManager (279), and
+  WorldGraph (381). Full-suite runs each had one unrelated filesystem watcher
+  failure in `ConfigStore.test.ts` ("no change event"); the parallel run also
+  hit two `SessionLog.test.ts` `ENOTEMPTY` temp-cleanup races. Running
+  `ConfigStore.test.ts` alone passed 12/12, and serializing the suite removed
+  the SessionLog races but not the ConfigStore watcher timeout
+  (7,087 passed, 2 skipped, 1 failed). Realm suite passed 18/18.
+  `npm run build` passed both typechecks and the production build; the
+  existing large-renderer-chunk warning remains. Secret scan passed over 56
+  user-scoped files; no configured password was found. Syntax and diff checks
+  passed. Preserve `.npm-cache/`.
+- Next: re-evaluate live state. Engage only if a legitimate target appears
+  and existing safety/retreat checks permit it; otherwise keep advancing
+  through safe exploration and NPC inspection without risking the
+  two-attacker Arena group.

@@ -145,6 +145,7 @@ const NEWHAVEN_SOUTHEAST_EXIT_ROOM = '1/2148';
 const NEWHAVEN_SOUTH_EXIT_ROOM = '1/2149';
 const NEWHAVEN_NORTH_EXIT_ROOM = '1/2141';
 const NEWHAVEN_SOUTHWARD_EXIT_ROOM = '1/2142';
+const NEWHAVEN_HEALER_ROOM = '1/2190';
 const NEWHAVEN_CAVERN_ROOM = '1/2156';
 const requestedDestination = valueOf('--destination');
 const requestedCombatTarget = valueOf('--target')?.trim();
@@ -165,6 +166,7 @@ if (
     NEWHAVEN_SOUTH_EXIT_ROOM,
     NEWHAVEN_NORTH_EXIT_ROOM,
     NEWHAVEN_SOUTHWARD_EXIT_ROOM,
+    NEWHAVEN_HEALER_ROOM,
     NEWHAVEN_CAVERN_ROOM
   ].includes(requestedDestination)
 )
@@ -875,15 +877,14 @@ async function main() {
       monitor.check();
       await wait(250);
     }
-    const statusRequestAccepted =
-      healthRequestAccepted && session.character.vitals.hp !== null && session.character.vitals.hp < 0
+    const characterLevelRequestAccepted =
+      healthRequestAccepted && session.character.progress.level === null
         ? session.ask('st', true)
         : false;
-    if (statusRequestAccepted) {
+    if (characterLevelRequestAccepted) {
       const statusDeadline = Date.now() + 5_000;
       while (
-        session.character.vitals.hpMax === null &&
-        session.character.progress.lives === null &&
+        session.character.progress.level === null &&
         Date.now() < statusDeadline &&
         !monitor.failed
       ) {
@@ -892,6 +893,7 @@ async function main() {
       }
     }
     const healthState = session.character;
+    const characterLevelObserved = healthState.progress.level !== null;
     const visibleNpc = findSafeNpc(healthState.room.occupants);
     const eligibleCombatTarget = findSafeCombatNpc(
       healthState.room.occupants,
@@ -900,7 +902,8 @@ async function main() {
     );
     const healthProbe = {
       requestAccepted: healthRequestAccepted,
-      statusRequestAccepted,
+      characterLevelRequestAccepted,
+      characterLevelObserved,
       phase: healthState.phase,
       level: healthState.progress.level,
       hp: healthState.vitals.hp,

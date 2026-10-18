@@ -7532,9 +7532,11 @@ describe('the locate setting', () => {
     expect(manager.ask('pro', true)).toBe(true);
     expect(manager.ask('health')).toBe(false);
     expect(manager.ask('health', true)).toBe(true);
+    expect(manager.ask('st', true)).toBe(true);
     expect(manager.ask('kill guard', true)).toBe(false);
     await until(() => /(^|\n)pro\r\n/.test(Buffer.concat(received).toString('latin1')));
     await until(() => /(^|\n)health\r\n/.test(Buffer.concat(received).toString('latin1')));
+    await until(() => /(^|\n)st\r\n/.test(Buffer.concat(received).toString('latin1')));
   });
 
   it('asks nothing, and says so by refusing, when configured to none', async () => {

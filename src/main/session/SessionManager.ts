@@ -5674,11 +5674,12 @@ export class SessionManager {
    * request read-only information while background automation is disabled.
    */
   ask(command: string, userInitiated = false): boolean {
-    if (userInitiated && !['health', 'pro'].includes(command.trim().toLowerCase())) return false;
+    if (userInitiated && !['health', 'pro', 'st'].includes(command.trim().toLowerCase())) return false;
     return this.queue.enqueue({
       command,
       priority: userInitiated ? 'user' : 'probe',
-      coalesceKey: `ask:${command}`,
+      coalesceKey:
+        command.trim().toLowerCase() === 'st' ? 'probe:st' : `ask:${command}`,
       reason: t('session.probe.askedFromCard')
     });
   }
