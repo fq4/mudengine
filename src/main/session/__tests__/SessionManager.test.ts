@@ -1113,6 +1113,26 @@ describe('AI reconnect lifecycle', () => {
     isolated.dispose();
   });
 
+  it('ranks autonomous recovery using the configured rest threshold', () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.vitals.hp = 40;
+    state.vitals.hpMax = 100;
+
+    const candidates = (isolated as any).aiObservation().activityCandidates as Array<{
+      action: { name: string };
+    }>;
+    expect(candidates.map(({ action }) => action.name)).not.toContain('recover_health');
+
+    state.vitals.hp = 30;
+    const injuredCandidates = (isolated as any).aiObservation().activityCandidates as Array<{
+      action: { name: string };
+    }>;
+    expect(injuredCandidates.map(({ action }) => action.name)).toContain('recover_health');
+    isolated.dispose();
+  });
+
   it('reports when the recovery command is rejected by CommandQueue', async () => {
     const { sink } = collect();
     const isolated = new SessionManager(sink);

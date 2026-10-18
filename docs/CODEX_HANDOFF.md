@@ -205,17 +205,24 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   in-flight/resting bookkeeping if CommandQueue rejects the request. Focused
   SessionManager and Recovery tests cover the safe-rest refusal and queue
   outcomes. This improves offline correctness but is not live evidence.
+- Activity selection now uses the configured per-session `restBelow`
+  threshold in both AI observation and autonomous scheduling, rather than
+  independently prioritizing recovery at 50% HP. This avoids selecting a rest
+  action the Recovery owner must refuse as not due. Selector and
+  SessionManager regressions verify the configured boundary; live recovery is
+  still unverified.
 - The most recent bounded attempt did not pass its room-identity gate:
   `phase=in-game`, `room=unknown/unknown`, and one attacker were reported.
   It made zero provider requests and did not run an objective. This is
   inconclusive about gameplay and is not a navigation failure; do not retry
   until Kefka's placement and combat state are confirmed.
-- Latest local validation: the final `npm test` passed 7,024 tests with 2
+- Latest local validation: the final `npm test` passed 7,026 tests with 2
   skipped across 253 files. An earlier concurrent run hit two
   `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
-  isolation (14/14), and the final full run passed. Typecheck, production
-  build, secret scan, harness syntax check, and `git diff --check` passed. The
-  renderer chunk-size warning remains.
+  isolation (14/14), and the final full run passed. The configured-threshold
+  change also passed focused tests (287/287), typecheck, production build,
+  secret scan, harness syntax check, and `git diff --check`. The renderer
+  chunk-size warning remains.
 - After the combat-settlement change, focused AI tests passed 27/27 and
   `node --check scripts/ai-live.mjs` / `git diff --check` passed. The live
   follow-up was blocked before gameplay as described above; no live combat

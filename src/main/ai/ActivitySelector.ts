@@ -1,5 +1,6 @@
 import type { CharacterState } from '../../shared/character';
 import type { AiAction, AiActionName } from '../../shared/ai';
+import { DEFAULT_CONFIG } from '../../shared/config';
 import { findSafeCombatNpc } from './NpcDiscovery';
 import {
   objectiveCombatIsOptional,
@@ -84,7 +85,8 @@ export function selectActivity(
   state: CharacterState,
   goal = '',
   exploration?: ExplorationContext,
-  gossipReplyAvailable = false
+  gossipReplyAvailable = false,
+  recoveryThreshold = DEFAULT_CONFIG.automation.health.restBelow
 ): ActivitySelection {
   const candidates: ActivityCandidate[] = [];
   const lower = goal.toLowerCase();
@@ -96,11 +98,13 @@ export function selectActivity(
   const hp = state.vitals.hp;
   const hpMax = state.vitals.hpMax;
   const healthRatio = hp !== null && hpMax !== null && hpMax > 0 ? hp / hpMax : null;
-  if (healthRatio !== null && healthRatio < 0.5) {
+  if (healthRatio !== null && healthRatio < recoveryThreshold) {
     candidates.push({
       action: { name: 'recover_health', reason: 'Authoritative HP is below the recovery threshold' },
       priority: 100,
-      rationale: `recovery is required before other risky activities (${summary})`
+      rationale: `recovery is required below the configured ${Math.round(
+        recoveryThreshold * 100
+      )}% threshold before other risky activities (${summary})`
     });
   }
   if (/inventory|pack|backpack/.test(lower))

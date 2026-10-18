@@ -3488,7 +3488,8 @@ export class SessionManager {
         state,
         this.aiAgent.state.objective,
         exploration,
-        this.isGossipReplyObjective() && this.hasRecentGossipReplyAuthorization()
+        this.isGossipReplyObjective() && this.hasRecentGossipReplyAuthorization(),
+        this.automationConfig.health.restBelow
       ).considered,
       ...(event ? { event } : {})
     };
@@ -3906,7 +3907,9 @@ export class SessionManager {
     const ranked = selectActivity(
       this.tracker.current,
       this.aiAgent.state.objective,
-      exploration
+      exploration,
+      false,
+      this.automationConfig.health.restBelow
     ).considered;
     const recovery = ranked.find(({ action }) => action.name === 'recover_health');
     const selection =

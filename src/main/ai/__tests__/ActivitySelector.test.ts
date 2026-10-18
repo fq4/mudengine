@@ -14,9 +14,26 @@ describe('policy-filtered activity selection', () => {
       ...structuredClone(EMPTY_CHARACTER),
       vitals: { ...EMPTY_CHARACTER.vitals, hp: 40, hpMax: 100 }
     };
-    const result = selectActivity(state, 'explore the arena');
+    const result = selectActivity(state, 'explore the arena', undefined, false, 0.5);
     expect(result.candidate?.action.name).toBe('recover_health');
     expect(result.considered.map(({ action }) => action.name)).toContain('inspect_room');
+  });
+
+  it('uses the configured recovery threshold instead of a hard-coded HP ratio', () => {
+    const state = {
+      ...structuredClone(EMPTY_CHARACTER),
+      vitals: { ...EMPTY_CHARACTER.vitals, hp: 40, hpMax: 100 }
+    };
+
+    expect(
+      selectActivity(state, 'explore the arena', undefined, false, 0.35).considered.map(
+        ({ action }) => action.name
+      )
+    ).not.toContain('recover_health');
+    state.vitals.hp = 30;
+    expect(
+      selectActivity(state, 'explore the arena', undefined, false, 0.35).candidate?.action.name
+    ).toBe('recover_health');
   });
 
   it('offers a gossip reply only when a recent inbound reply authorization exists', () => {

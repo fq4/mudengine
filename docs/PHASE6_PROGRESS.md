@@ -453,14 +453,25 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   rest is in flight. Regressions cover unsafe resting and both deferred and
   rejected Recovery requests. These are deterministic results only; live
   low-health recovery remains unverified.
+- Autonomous activity ranking now uses the session's configured
+  `restBelow` threshold rather than an unrelated hard-coded 50% HP trigger.
+  This prevents selecting a recovery action when Recovery itself would
+  correctly report that resting is not due. Focused selector and SessionManager
+  regressions cover both sides of the configured threshold.
 - Latest bounded live attempt stopped at its login/placement gate: phase was
   `in-game`, but the authoritative room remained `unknown/unknown`; one
   attacker was reported and no provider/objective action ran. The run had zero
   provider requests and cannot verify the integrated scenario. Do not retry
   live until Kefka's actual placement and combat state are confirmed.
 - Focused Recovery/SessionManager tests passed 8/8; objective/live-harness tests
-  passed 36/36. The full suite now passes 7,024 tests with 2 skipped across 253
-  files.
+  passed 36/36. Activity selection now uses the session-configured
+  `restBelow` threshold for its recovery candidate in both the observation and
+  autonomous-scheduler paths, avoiding false recovery selection above the
+  threshold. Its focused ActivitySelector/SessionManager suites passed 287/287.
+  The latest full suite passes 7,026 tests with 2 skipped across 253 files.
+  Typecheck, production build, secret scan, harness syntax, and `git diff
+  --check` passed. Low-health recovery and the complete gameplay session are
+  still unverified live.
   An earlier concurrent run hit two `SessionLog.test.ts` cleanup `ENOTEMPTY`
   errors; the file passed in isolation (14/14), and the final full run passed.
   Typecheck, production build, secret scan, JavaScript syntax, and
