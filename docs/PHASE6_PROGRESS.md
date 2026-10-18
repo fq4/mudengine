@@ -652,3 +652,10 @@ npm run check:secrets
   authoritative target identity, not missing mobs or a lack of character
   location. Keep further live activity read-only until the target classification
   or hostile pressure changes.
+- The configured GreaterMUD graph calls `1/2150` Newhaven, Arena and records
+  exits north/up/down, but neither a local NPC nor a lair. Because both visible
+  mobs have uncertain realm disposition and there is no room-specific spawn
+  evidence, their nearest-spawn rows remain unresolved. This is a valid
+  refusal, not evidence that the room lacks monsters or that the target gate is
+  broken. A future run needs an unambiguous target or stronger authoritative
+  row evidence; do not infer it from the mobs' display names.

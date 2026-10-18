@@ -773,3 +773,9 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   dispatch. Both runs used zero provider requests/tokens/cost, sent no movement
   or attack, and reported zero violations. This is live verification of the
   refusal gate, not a combat attempt or victory.
+- The configured GreaterMUD graph identifies `1/2150` as Newhaven, Arena
+  (exits north/up/down), with no resident NPC or lair. The two observed mobs
+  therefore have no room-local spawn evidence; the nearest-spawn resolver did
+  not identify one unique disposition row for either. The target refusal is
+  consistent with available realm evidence and must not be bypassed by
+  guessing from display names.

@@ -599,6 +599,12 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   classification, and correctly refused combat. It used zero provider
   requests/tokens/cost, issued no attack or movement, and recorded zero
   violations. The `st` monitor exception remains unverified in an actual fight.
+- The locally configured GreaterMUD graph identifies `1/2150` as Newhaven,
+  Arena, with exits north/up/down but no room-local NPC or lair. The live mobs
+  are present, but the room has no spawn record to settle their shared-name
+  realm rows; nearest-spawn resolution did not select an unambiguous row.
+  This is a legitimate target-identity ambiguity, not a lack of visible mobs;
+  do not weaken the combat gate to force a target.
 - Next: do not attack either uncertain mob. For now, continue only with bounded
   read-only observation; when authoritative state shows no hostile pressure,
   retry navigation, and attempt PvE only if the exact-target gate finds an
