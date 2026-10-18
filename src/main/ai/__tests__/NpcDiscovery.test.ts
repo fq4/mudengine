@@ -5,7 +5,7 @@ import {
   findSafeNpc,
   summarizeCombatCandidates
 } from '../NpcDiscovery';
-import { assessCombatEligibility } from '../CombatSafety';
+import { assessCombatEligibility, hasMappedCombatEscape } from '../CombatSafety';
 import { combatOutcome } from '../CombatOutcome';
 import { assessItemUse } from '../InventorySafety';
 
@@ -238,6 +238,30 @@ describe('safe NPC discovery', () => {
       ok: false,
       reason: 'no authoritative escape route is available from the room'
     });
+  });
+
+  it('requires a mapped exit without a key requirement for a combat escape', () => {
+    const mappedExit = {
+      direction: 'n',
+      note: null,
+      targetMap: 1,
+      targetRoom: 2,
+      targetName: 'North room',
+      requirement: null
+    };
+
+    expect(hasMappedCombatEscape({ exits: [mappedExit] })).toBe(true);
+    expect(
+      hasMappedCombatEscape({
+        exits: [{ ...mappedExit, targetMap: null, targetRoom: null }]
+      })
+    ).toBe(false);
+    expect(
+      hasMappedCombatEscape({
+        exits: [{ ...mappedExit, requirement: { kind: 'key', raw: 'Key: 9' } }]
+      })
+    ).toBe(false);
+    expect(hasMappedCombatEscape(null)).toBe(false);
   });
 
   it('classifies combat only from authoritative engagement and vitals', () => {

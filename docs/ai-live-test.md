@@ -34,10 +34,13 @@ node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile ke
   to move when health is unknown/dead or combat, a target, or attackers are
   present. Its queue-enabled configuration disables unrelated automation,
   automatic combat, and door bashing.
-- The PvE probe asks for health before acting, then requires positive parsed
-  health and one uniquely identified, realm-classified hostile. Any attack goes
-  through exact-target SessionManager approval and AutoCombat; the bounded
-  monitor requires no movement and emergency-stops an unresolved encounter.
+- The PvE probe asks for health before acting, then requires at least 60% of
+  maximum health, one uniquely identified, realm-classified hostile, and a
+  mapped exit without a key requirement. Any attack goes through exact-target
+  SessionManager approval and AutoCombat; the bounded monitor requires no
+  movement and emergency-stops an unresolved encounter. A failed preflight
+  refuses before dispatch; this harness threshold does not change production
+  combat policy.
   The harness treats the production-owned exact `st` sheet request as a status
   probe in this mode; all actual directional commands still count against the
   movement limit. A passed combat result requires both exact target-death and
@@ -128,6 +131,24 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   recovery completion without causing another provider request.
 - Repository lint remains a baseline failure because Prettier reports existing
   formatting drift across unrelated files; no broad reformat was applied.
+
+### 2026-10-18 — Conservative PvE preflight
+
+- The provider-free PvE harness previously passed a zero health threshold and
+  assumed an escape existed. It now requires at least 60% of maximum HP and a
+  mapped exit without a key requirement; the arena probe shares the same
+  escape predicate. Production combat policy is unchanged.
+- Live refusal check at room `1/2150`, HP `5/51`, with two visible authoritative
+  attackers: the probe returned
+  `Safely refused before combat: character health is below the conservative
+  combat threshold`. Trace contained only login plus `sys status`, `pro`, and
+  `health`, with no attack/movement/recovery command, zero provider usage, and
+  zero violations.
+- Validation: focused combat eligibility 16/16; full serial suite 7,063
+  passed, 2 skipped; realm suite 18/18; typecheck, production build, secret
+  scan, script syntax, and diff checks passed. No live combat, victory, or
+  recovery was demonstrated; hostile pressure persists and the effective
+  profile has no configured retreat or safe-haven route.
 
 ### 2026-10-13 — unknown-command safety / live regression
 

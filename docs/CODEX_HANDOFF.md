@@ -758,3 +758,40 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   disposable/controlled character and a supervised setup that can preserve
   the session on timeout; then use the new bounded telemetry to distinguish
   hit/miss/damage/refusal and verify a terminal outcome.
+
+## Conservative PvE harness preflight (2026-10-18)
+
+- A fresh provider-free room probe found Kefka at `1/2150`, HP `5/51`, no
+  active target or engagement, and two authoritative visible hostiles
+  (`thin carrion beast`, `small kobold thief`) also present in the attacker
+  list. Only login plus `sys status`, `pro`, and `health` reads were sent;
+  provider usage, movement, and policy violations were zero.
+- The live PvE probe had been calling `assessCombatEligibility` with a zero
+  health floor and `escapeAvailable=true` unconditionally. That meant it could
+  attempt combat below the same conservative 60% threshold used by the arena
+  preflight, and without verifying an escape. This is a harness safety defect,
+  not evidence of a production combat defect.
+- The probe now applies the existing 60% threshold and requires a room exit
+  with a resolved destination and no key requirement. The arena and provider-
+  free PvE paths share the same exit predicate. Production combat policy and
+  profile settings are unchanged.
+- Focused combat eligibility tests passed 16/16, including mapped, unresolved,
+  key-required, and missing exits. The serial full suite passed 7,063 tests
+  with 2 skipped across 253 files; realm tests passed 18/18. Typecheck,
+  production build, secret scan, script syntax, and diff checks passed. The
+  build retains its existing renderer chunk-size warning.
+- The bounded `--pve-probe-only --max-ms 30000 --max-moves 0` run was repeated
+  at `5/51`. It refused before combat with
+  `character health is below the conservative combat threshold`. The trace
+  contained only login plus `sys status`, `pro`, and `health`; it contained no
+  attack, movement, recovery, or other game action, with zero provider usage
+  and zero violations. This validates the harness guard only, not combat or
+  recovery.
+- Current hostile pressure and low health still make a combat test
+  inappropriate. The effective profile has no configured retreat, flee-goto,
+  or safe-haven destination, while Recovery refuses to rest with attackers
+  present. Next: use an attacker-free read-only preflight or arrange another
+  authorized controlled character/encounter with a verified escape. Do not
+  attempt live combat until at least 60% HP and a mapped, unblocked exit are
+  confirmed. Sustained combat, exact-target death, recovery, and a complete
+  live objective remain unverified.

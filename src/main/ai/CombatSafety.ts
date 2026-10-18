@@ -1,11 +1,18 @@
-import type { Vitals } from '../../shared/character';
-import type { RoomOccupant } from '../../shared/character';
+import type { Room, RoomOccupant, Vitals } from '../../shared/character';
 import { findSafeCombatNpc } from './NpcDiscovery';
 
 export interface CombatEligibility {
   ok: boolean;
   reason: string;
   target: RoomOccupant | null;
+}
+
+export function hasMappedCombatEscape(room: Pick<Room, 'exits'> | null | undefined): boolean {
+  return (
+    room?.exits.some(
+      (exit) => exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
+    ) ?? false
+  );
 }
 
 /** Bounded PvE preflight; direct attacker evidence may resolve disposition, never identity. */

@@ -803,3 +803,38 @@ npm run check:secrets
   `node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 0`
   only after a fresh read-only preflight shows a suitable state or a separate
   controlled disposable character is available.
+
+## Conservative PvE harness preflight (2026-10-18)
+
+- Fresh read-only state: room `1/2150`, HP `5/51`, no active target/engagement,
+  and two certain realm-backed hostiles (`thin carrion beast`,
+  `small kobold thief`) also recorded as attackers. No gameplay command was
+  sent and no provider usage occurred.
+- Found that `--pve-probe-only` bypassed the conservative combat threshold by
+  passing minimum health `0` and an assumed escape flag. The prior 24/51
+  attempt therefore was not guarded by the 60% health floor or an actual exit
+  check. This explains a harness safety gap, not the combat outcome or a
+  production scheduler defect.
+- The bounded live probe now shares the arena's 60% health threshold and
+  requires a resolved exit with no key requirement. A shared
+  `hasMappedCombatEscape` predicate is covered for mapped, unknown, and
+  key-required exits. No combat, movement, recovery, or profile setting was
+  changed.
+- Focused combat eligibility tests passed 16/16; the serial full suite passed
+  7,063 with 2 skipped across 253 files; realm tests passed 18/18. Typecheck,
+  production build, secret scan, script syntax, and diff checks passed. The
+  existing renderer chunk-size warning remains.
+- The bounded `--pve-probe-only --max-ms 30000 --max-moves 0` run was repeated
+  at `5/51`. It safely refused before combat because health was below the
+  conservative threshold. Its trace contained only login plus `sys status`,
+  `pro`, and `health`; no attack, movement, recovery, or other game action,
+  zero provider usage, and zero violations. This proves the refusal path, not
+  a combat outcome.
+- Current state remains a severe live blocker: room `1/2150`, HP `5/51`, no
+  active target/engagement, and two authoritative hostiles also recorded as
+  attackers. The effective profile has retreat and flee-goto disabled, no
+  safe-haven destination, and Recovery will not rest under attacker pressure.
+  Next: wait for a fresh attacker-free read-only state or arrange an authorized
+  controlled encounter with a verified escape. Do not test combat before
+  health is at least 60% and a mapped, unblocked exit is confirmed. No live
+  victory, recovery, or complete gameplay loop is established.

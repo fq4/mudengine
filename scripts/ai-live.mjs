@@ -36,7 +36,10 @@ import fs from 'node:fs';
 import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
 import { mobKey, roomId } from '../src/shared/world.ts';
-import { assessCombatEligibility } from '../src/main/ai/CombatSafety.ts';
+import {
+  assessCombatEligibility,
+  hasMappedCombatEscape
+} from '../src/main/ai/CombatSafety.ts';
 import {
   findSafeCombatNpc,
   findSafeNpc,
@@ -93,6 +96,7 @@ if (!roomProbeOnly && !process.env.OPENROUTER_API_KEY)
 
 const NEWHAVEN_ARENA = '1/2150';
 const NEWHAVEN_ADVENTURERS_GUILD = '1/2147';
+const MINIMUM_COMBAT_HEALTH_FRACTION = 0.6;
 const roomProbeAutomation = createRoomProbeAutomation();
 
 const monitor = new LiveHarnessMonitor({
@@ -834,8 +838,8 @@ async function main() {
         room?.occupants ?? [],
         state.vitals,
         target?.name,
-        0,
-        true,
+        MINIMUM_COMBAT_HEALTH_FRACTION,
+        hasMappedCombatEscape(room),
         state.combat.attackers
       );
       if (!responseObserved || roomKey() === '') {
@@ -1430,15 +1434,12 @@ async function main() {
     });
   }
   const arenaTarget = findSafeCombatNpc(arenaRoom?.occupants ?? []);
-  const arenaEscapeAvailable =
-    arenaRoom?.exits?.some(
-      (exit) => exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
-    ) ?? false;
+  const arenaEscapeAvailable = hasMappedCombatEscape(arenaRoom);
   const arenaEligibility = assessCombatEligibility(
     arenaRoom?.occupants ?? [],
     session.character.vitals,
     arenaTarget?.name,
-    0.6,
+    MINIMUM_COMBAT_HEALTH_FRACTION,
     arenaEscapeAvailable,
     session.character.combat.attackers
   );
