@@ -662,3 +662,17 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   sent only location/status/health reads with zero provider usage and zero
   violations. Hostile pressure has not cleared; do not attempt combat,
   navigation, or recovery.
+- The parser intentionally preserves attackers across `*Combat Off*`: that
+  signal can follow retreat or a temporary combat break and is not evidence
+  that a mob died or left. Since the current room also lists both hostiles,
+  settlement remains unresolved. The live report now captures bounded parsed
+  hit/miss target identities and damage, attacker blows, combat status,
+  refusal/ineffective event types, XP, and death identity, without retaining
+  raw server lines. This improves diagnosis but is deterministic-only until a
+  later authorized bounded encounter is appropriate. The 42-test focused
+  LiveHarness suite, typecheck, production build, secret scan, script syntax,
+  and diff checks pass; the existing renderer chunk-size warning remains.
+- A final read-only check after the telemetry build still reports HP `22/51`,
+  no active target/engagement, and the same two attackers at `1/2150`. No game
+  action was sent; wait for fresh authoritative evidence of cleared pressure
+  before the next live combat/navigation/recovery step.

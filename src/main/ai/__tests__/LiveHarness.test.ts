@@ -9,6 +9,7 @@ import {
   requestRoomIdentity,
   readOnlyNavigationPreflight,
   roomIdentityKey,
+  summarizeCombatEvidence,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../LiveHarness';
@@ -218,6 +219,79 @@ describe('isExactCombatTargetDeathEvidence', () => {
     );
     expect(isExactCombatTargetDeathEvidence({ attacker: 'nasty giant rat' }, null)).toBe(false);
     expect(isExactCombatTargetDeathEvidence({}, 'nasty giant rat')).toBe(false);
+  });
+});
+
+describe('summarizeCombatEvidence', () => {
+  it('records target hit/miss identity without retaining raw text', () => {
+    expect(
+      summarizeCombatEvidence(
+        { type: 'user-hits', groups: { target: 'large filthbug', damage: '7' } },
+        'large filthbug'
+      )
+    ).toEqual({
+      type: 'user-hits',
+      target: 'large filthbug',
+      targetMatch: true,
+      damage: 7
+    });
+    expect(
+      summarizeCombatEvidence(
+        { type: 'user-misses', groups: { target: 'small kobold thief' } },
+        'large filthbug'
+      )
+    ).toEqual({
+      type: 'user-misses',
+      target: 'small kobold thief',
+      targetMatch: false
+    });
+  });
+
+  it('summarizes attacker blows, combat transitions, refusals, XP, and deaths', () => {
+    expect(
+      summarizeCombatEvidence(
+        { type: 'mob-hits', groups: { attacker: 'large filthbug', damage: '3' } },
+        'large filthbug'
+      )
+    ).toEqual({ type: 'mob-hits', attacker: 'large filthbug', damage: 3 });
+    expect(
+      summarizeCombatEvidence(
+        { type: 'combat-status', groups: { status: 'Off' } },
+        'large filthbug'
+      )
+    ).toEqual({ type: 'combat-status', status: 'Off' });
+    expect(
+      summarizeCombatEvidence(
+        { type: 'attack-ineffective', groups: { line: 'raw server message' } },
+        'large filthbug'
+      )
+    ).toEqual({ type: 'attack-ineffective' });
+    expect(
+      summarizeCombatEvidence(
+        { type: 'user-gain-experience', groups: { exp: '25' } },
+        'large filthbug'
+      )
+    ).toEqual({ type: 'user-gain-experience', experience: 25 });
+    expect(
+      summarizeCombatEvidence(
+        { type: 'mob-dies', groups: { attacker: 'large filthbug' } },
+        'large filthbug'
+      )
+    ).toEqual({
+      type: 'mob-dies',
+      mob: null,
+      attacker: 'large filthbug',
+      candidates: null
+    });
+  });
+
+  it('omits unrelated blocks and does not accept evidence without a selected target', () => {
+    expect(
+      summarizeCombatEvidence({ type: 'user-hits', groups: { damage: 'invalid' } }, null)
+    ).toBeNull();
+    expect(
+      summarizeCombatEvidence({ type: 'room-name', groups: { name: 'Room' } }, 'large filthbug')
+    ).toBeNull();
   });
 });
 

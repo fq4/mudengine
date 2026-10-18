@@ -824,3 +824,16 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   (`small kobold thief`, `large filthbug`). It used zero provider requests,
   tokens, and cost, with no violations. Since hostile pressure remains, no
   combat, navigation, or recovery action was sent.
+- The tracker keeps attacker evidence across `*Combat Off*` because this event
+  is not proof of a kill or departure. Both named attackers were still present
+  in the room. Future bounded combat reports now contain parsed, capped
+  summaries of player hits/misses and exact-target matches, hostile hits,
+  combat transitions, attack refusals/ineffective events, XP, and death
+  identity; raw server text is not retained. This diagnostic change has
+  deterministic coverage only and has not been exercised in another live
+  fight. The LiveHarness suite passes 42/42; typecheck, production build, and
+  secret scan pass.
+- A final post-build read-only probe again found HP `22/51`, no active target
+  or engagement, and both attackers at `1/2150`. It used zero provider
+  requests/tokens/cost and reported zero violations. No combat, movement, or
+  recovery command was sent.

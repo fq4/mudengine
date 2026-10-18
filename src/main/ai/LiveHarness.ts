@@ -1,4 +1,5 @@
 import type { AiApproval } from '../../shared/ai';
+import type { Block } from '../../shared/blocks';
 import type { CharacterState, Combat, Room, Vitals } from '../../shared/character';
 import { DEFAULT_CONFIG, type AutomationConfig } from '../../shared/config';
 import type { WalkProgress } from '../../shared/walk';
@@ -190,6 +191,49 @@ export function isExactCombatTargetDeathEvidence(
   targetName: string | null
 ): boolean {
   return isExactCombatTargetDeath(groups.mob ?? groups.attacker ?? '', targetName);
+}
+
+export function summarizeCombatEvidence(
+  block: Pick<Block, 'type' | 'groups'>,
+  targetName: string | null
+): Record<string, string | number | boolean | null> | null {
+  if (targetName === null) return null;
+  const { type, groups } = block;
+  switch (type) {
+    case 'user-hits':
+    case 'user-misses': {
+      const target = groups.target ?? null;
+      return {
+        type,
+        target,
+        targetMatch: target !== null && mobKey(target) === mobKey(targetName),
+        ...(type === 'user-hits' ? { damage: Number(groups.damage) || null } : {})
+      };
+    }
+    case 'mob-hits':
+    case 'mob-misses':
+      return {
+        type,
+        attacker: groups.attacker ?? null,
+        ...(type === 'mob-hits' ? { damage: Number(groups.damage) || null } : {})
+      };
+    case 'combat-status':
+      return { type, status: groups.status ?? null };
+    case 'user-gain-experience':
+      return { type, experience: Number(groups.exp) || null };
+    case 'mob-dies':
+      return {
+        type,
+        mob: groups.mob ?? null,
+        attacker: groups.attacker ?? null,
+        candidates: groups.mobs ?? null
+      };
+    case 'attack-refused':
+    case 'attack-ineffective':
+      return { type };
+    default:
+      return null;
+  }
 }
 
 export interface RoomIdentityRequestResult {

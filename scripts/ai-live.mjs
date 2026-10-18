@@ -26,6 +26,7 @@ import {
   createRoomProbeAutomation,
   readOnlyNavigationPreflight,
   roomIdentityKey,
+  summarizeCombatEvidence,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
@@ -156,19 +157,9 @@ const sink = {
     }
     if (block.type === 'user-gain-experience') {
       combatVictoryEvidence = true;
-      combatEvidenceEvents.push({
-        type: block.type,
-        experience: block.groups.exp ?? null
-      });
     }
-    if (block.type === 'mob-dies') {
-      combatEvidenceEvents.push({
-        type: block.type,
-        mob: block.groups.mob ?? null,
-        attacker: block.groups.attacker ?? null,
-        candidates: block.groups.mobs ?? null
-      });
-    }
+    const combatEvidence = summarizeCombatEvidence(block, combatTargetName);
+    if (combatEvidence !== null) combatEvidenceEvents.push(combatEvidence);
     if (combatEvidenceEvents.length > 20) combatEvidenceEvents.shift();
     if (
       block.type === 'mob-dies' &&

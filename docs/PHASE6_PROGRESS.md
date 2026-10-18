@@ -716,3 +716,14 @@ npm run check:secrets
   attacker list. Room `1/2150` was confirmed by `pro`; only read-only location,
   status, and health queries were sent. The unresolved pressure remains the
   next live blocker.
+- The combat parser retains attackers after `*Combat Off*` because that event
+  does not prove they died or left; the current room listing confirms both are
+  still present. Do not treat this state as settled. Harness evidence now
+  records bounded parsed player hit/miss target and damage, hostile blows,
+  combat transitions, refusal types, XP, and death identity without raw text.
+  The focused LiveHarness suite passes 42/42, typecheck/build/secret scan pass,
+  and no further live combat was attempted.
+- Post-build read-only recheck still finds both hostiles at room `1/2150`,
+  HP `22/51`, no active target/engagement, and zero provider usage or policy
+  violations. The bounded live encounter must remain paused pending a fresh
+  attacker-free state.
