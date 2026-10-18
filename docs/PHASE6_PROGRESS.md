@@ -498,7 +498,8 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   across 253 files.
 - One bounded follow-up used a single `SessionManager.askWhereIAm()` request
   only after the automatic entry probe failed. The call was refused because
-  the session had already retired configured `rm` as unavailable; no alternate
+  the session had already retired configured `rm` as unavailable; the active
+  Kefka profile resolves its location method to `rm`, and no alternate
   location command is verified. The room remained unknown, HP was 36/51, and
   two attackers remained listed. The harness now reports the safe
   `locationRequestState` (`available`, `disabled`, or `unavailable`) alongside

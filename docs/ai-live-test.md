@@ -638,7 +638,8 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
 - A second bounded attempt used one explicit `SessionManager.askWhereIAm()`
   request after the normal entry probe did not resolve coordinates. The request
   was refused because `rm` had already been marked unavailable by the session;
-  the harness did not try an unverified alternative. The result reported
+  the active Kefka profile resolves its location method to `rm`, and the
+  harness did not try an unverified alternative. The result reported
   `locationRequestState=unavailable`, room `unknown/unknown`, HP 36/51, and two
   attackers, with no provider requests or gameplay scenarios. SessionManager
   now exposes a secret-safe `locationRequestState()` diagnostic that
