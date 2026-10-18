@@ -1348,6 +1348,14 @@ entities.
   and no attackers. Final live state: `1/2147`, `45/51`, no target/attackers.
   All documented Newhaven probe rooms have now been inspected without finding
   an eligible single hostile outside the two-attacker Arena group.
+- A final distinct-target attempt requested the historically observed
+  `large filthbug`; Walker verified arrival at `1/2150`, but the target was
+  absent and the two visible rats remained uncertain, so the harness refused
+  combat. A fresh read-only observation found both rats in the attacker list
+  at `45/51`. The bounded escape probe matched `angry giant rat` to live
+  attacker evidence and returned to `1/2146` using exactly one `u`; attackers
+  cleared and no violations were reported. No filthbug attack was dispatched.
+  Current state: `1/2146`, `45/51`, no target/attackers.
 - The live blocker is the lack of an eligible single-hostile opportunity in
   the inspected, approved Newhaven rooms. The Arena's two attackers trigger
   the preserved retreat before measurable combat progress; do not weaken

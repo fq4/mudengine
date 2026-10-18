@@ -1208,6 +1208,15 @@ recovery/resumption and a subsequent objective in one bounded live session.
   Corwyn, `45/51`, and no target or attackers. Final live state is
   `1/2147`, `45/51`, no target/attackers. The approved Newhaven scan found no
   eligible single hostile outside the two-attacker Arena group.
+- A distinct-target attempt from the Guild requested the historically observed
+  `large filthbug`. Walker reached `1/2150`, but that target was absent; the
+  harness refused combat because the two visible rats still had uncertain
+  realm classification. A fresh read-only probe found `45/51` and both rats
+  in the attacker list. The bounded escape probe matched `angry giant rat`
+  to the attacker/realm evidence and returned via one `u` to `1/2146`, with
+  attackers cleared, `45/51`, and zero violations. No combat command was
+  issued for the filthbug request. Current state: `1/2146`, `45/51`, no
+  target/attackers.
 - The current obstacle is now concrete: the observed Arena hostiles arrive
   together and trigger the saved outnumbered retreat before combat progress;
   the other inspected, approved Newhaven rooms contain no eligible hostile.

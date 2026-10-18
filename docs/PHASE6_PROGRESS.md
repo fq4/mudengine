@@ -1207,6 +1207,14 @@ weakening identity, hostility, or combat policy.
   `1/2147`, `45/51`, no target/attackers. All pre-approved Newhaven probe
   rooms have now been checked; no eligible single hostile was found outside
   the two-attacker Arena group.
+- A further exact-target attempt requested the previously observed
+  `large filthbug` from `1/2147`. Walker reached `1/2150`, but the target was
+  absent and both visible rats remained uncertain; combat was refused. The
+  read-only follow-up confirmed `45/51` with both rats as attackers. The
+  bounded escape probe matched `angry giant rat` to authoritative attacker
+  evidence and sent one `u` back to `1/2146`, clearing attackers. No
+  violations occurred; current state is `1/2146`, `45/51`, no
+  target/attackers.
 - This narrows the live limitation to a target opportunity: the only hostile
   encounter observed in the approved area had two simultaneous attackers and
   correctly triggered retreat; other inspected rooms were empty or passive.
