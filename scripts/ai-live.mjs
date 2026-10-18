@@ -33,8 +33,11 @@ import {
   createRoomProbeAutomation,
   readOnlyNavigationPreflight,
   roomIdentityKey,
+  summarizeCombatFightRecord,
   summarizeCombatEvidence,
+  summarizeCombatOccupants,
   summarizeCombatState,
+  shouldObserveForVerifiedAttacker,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
@@ -172,6 +175,7 @@ const navigationDestination =
 const runNavigationProbe =
   navigationProbeOnly || (pveProbeOnly && requestedDestination !== undefined);
 const MINIMUM_COMBAT_HEALTH_FRACTION = 0.6;
+const MAX_ATTACKER_OBSERVATION_MS = 10_000;
 const roomProbeAutomation = createRoomProbeAutomation();
 
 const monitor = new LiveHarnessMonitor({
@@ -200,6 +204,16 @@ let healthObservationCount = 0;
 const combatEvidenceEvents = [];
 const combatCommands = [];
 const combatSnapshots = [];
+const combatFightEvidence = [];
+const combatFightSink = {
+  record: (record) => {
+    const evidence = summarizeCombatFightRecord(record, combatTargetName);
+    if (evidence === null) return;
+    combatFightEvidence.push(evidence);
+    if (combatFightEvidence.length > 8) combatFightEvidence.shift();
+    if (evidence.exactTargetDeath) combatTargetDied = true;
+  }
+};
 const captureCombatSnapshot = () => {
   if (combatStartedAt === null) return;
   const aiState = snapshot().state;
@@ -354,7 +368,10 @@ const session = new SessionManager(
   sink,
   world,
   harnessAutomationConfig,
-  profile.config.connection.login
+  profile.config.connection.login,
+  undefined,
+  undefined,
+  combatFightSink
 );
 session.configure(
   harnessAutomationConfig,
@@ -533,6 +550,7 @@ const runIntegratedAdventureObjective = async () => {
   combatTargetName = null;
   combatTargetDied = false;
   combatEvidenceEvents.length = 0;
+  combatFightEvidence.length = 0;
   session.aiGoal(objective);
   const complete = await waitFor(
     (state) => {
@@ -1211,13 +1229,60 @@ async function main() {
     let pveProbe = null;
     if (pveProbeOnly) {
       const beforeRoom = roomKey();
-      const state = session.character;
-      const room = state.room;
-      const target = findSafeCombatNpc(
+      let state = session.character;
+      let room = state.room;
+      let target = findSafeCombatNpc(
         room?.occupants ?? [],
         requestedCombatTarget,
         state.combat.attackers
       );
+      let attackerEvidenceWaitMs = 0;
+      if (
+        !target &&
+        (requestedDestination === undefined || navigation?.arrived === true) &&
+        state.phase === 'in-game' &&
+        !state.combat.engaged &&
+        state.combat.target === null &&
+        state.vitals.hp !== null &&
+        state.vitals.hpMax !== null &&
+        state.vitals.hp / state.vitals.hpMax >= MINIMUM_COMBAT_HEALTH_FRACTION &&
+        shouldObserveForVerifiedAttacker(
+          room?.occupants ?? [],
+          requestedCombatTarget,
+          state.combat.attackers
+        )
+      ) {
+        const waitBudgetMs = Math.min(
+          MAX_ATTACKER_OBSERVATION_MS,
+          Math.max(
+            0,
+            monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs - postTimeoutObserveMs
+          )
+        );
+        const waitStartedAt = Date.now();
+        await waitFor(() => {
+          const current = session.character;
+          const healthReady =
+            current.vitals.hp !== null &&
+            current.vitals.hpMax !== null &&
+            current.vitals.hp / current.vitals.hpMax >= MINIMUM_COMBAT_HEALTH_FRACTION;
+          return (
+            current.phase !== 'in-game' ||
+            current.combat.engaged ||
+            current.combat.target !== null ||
+            current.combat.attackers.length > 0 ||
+            !healthReady
+          );
+        }, waitBudgetMs);
+        attackerEvidenceWaitMs = Math.min(Date.now() - waitStartedAt, waitBudgetMs);
+        state = session.character;
+        room = state.room;
+        target = findSafeCombatNpc(
+          room?.occupants ?? [],
+          requestedCombatTarget,
+          state.combat.attackers
+        );
+      }
       // Match SessionManager's PvE policy; keep this probe's stricter health floor.
       const eligibility = assessCombatEligibility(
         room?.occupants ?? [],
@@ -1286,6 +1351,7 @@ async function main() {
         combatTargetName = eligibility.target.name;
         combatTargetDied = false;
         combatEvidenceEvents.length = 0;
+        combatFightEvidence.length = 0;
         combatCommands.length = 0;
         combatSnapshots.length = 0;
         combatStartedAt = Date.now();
@@ -1434,6 +1500,7 @@ async function main() {
           targetDied: combatTargetDied,
           experienceObserved: combatVictoryEvidence,
           combatEvidenceEvents: [...combatEvidenceEvents],
+          combatFightEvidence: [...combatFightEvidence],
           combatCommands: [...combatCommands],
           combatSnapshots: [...combatSnapshots],
           combatDeadlineUnresolved,
@@ -1449,6 +1516,18 @@ async function main() {
           attackers: finalCombat.attackers,
           result: `${dispatch.message}; outcome=${outcome}; target=${combatTargetName}; targetDeath=${combatTargetDied}; XP=${combatVictoryEvidence}; HP=${finalVitals.hp ?? 'unknown'}/${finalVitals.hpMax ?? 'unknown'}; engaged=${finalCombat.engaged}; activeTargetPresent=${finalCombat.target !== null}; attackers=${finalCombat.attackers.length}; room=${beforeRoom}->${afterRoom}; ${summarizeCombatCandidates(room?.occupants ?? [], finalCombat.attackers)}`
         };
+        const targetForAttackerEvidence = requestedCombatTarget ?? target?.name;
+        pveProbe.attackerEvidenceWaitMs = attackerEvidenceWaitMs;
+        pveProbe.verifiedTargetAttackerObserved = Boolean(
+          targetForAttackerEvidence &&
+            state.combat.attackers.some(
+              (attacker) => mobKey(attacker) === mobKey(targetForAttackerEvidence)
+            )
+        );
+        pveProbe.targetCandidates = summarizeCombatOccupants(
+          room?.occupants ?? [],
+          state.combat.attackers
+        );
         if (pveProbeOnly && pveProbe.target) {
           try {
             pveProbe.diagnosticArtifact = persistCombatDiagnostic({
@@ -1466,6 +1545,10 @@ async function main() {
               combatCommands: pveProbe.combatCommands,
               combatEvidenceEvents: pveProbe.combatEvidenceEvents,
               combatSnapshots: pveProbe.combatSnapshots,
+              combatFightEvidence: pveProbe.combatFightEvidence,
+              attackerEvidenceWaitMs: pveProbe.attackerEvidenceWaitMs,
+              verifiedTargetAttackerObserved: pveProbe.verifiedTargetAttackerObserved,
+              targetCandidates: pveProbe.targetCandidates,
               targetDied: pveProbe.targetDied,
               experienceObserved: pveProbe.experienceObserved,
               outcome: pveProbe.outcome,
@@ -1863,6 +1946,7 @@ async function main() {
     combatTargetName = arenaEligibility.target.name;
     combatTargetDied = false;
     combatEvidenceEvents.length = 0;
+    combatFightEvidence.length = 0;
     monitor.authorizeCombatTarget(arenaEligibility.target.name);
     // The harness supplies the explicit authorized objective; the executor's
     // target, health, classification, and escape checks remain authoritative.
@@ -2246,6 +2330,7 @@ try {
       eligibilityReason: combatEligibilityReason,
       combatCommands: [...combatCommands],
       combatEvidenceEvents: [...combatEvidenceEvents],
+      combatFightEvidence: [...combatFightEvidence],
       combatSnapshots: [...combatSnapshots, currentCombatSnapshot()].slice(-24),
       targetDied: combatTargetDied,
       experienceObserved: combatVictoryEvidence,
@@ -2259,7 +2344,8 @@ try {
         targetDied: combatTargetDied,
         experienceObserved: combatVictoryEvidence,
         currentState: diagnostic.currentState,
-        combatEvidenceEvents: diagnostic.combatEvidenceEvents
+        combatEvidenceEvents: diagnostic.combatEvidenceEvents,
+        combatFightEvidence: diagnostic.combatFightEvidence
       };
     }
     try {

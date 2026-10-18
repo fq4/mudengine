@@ -65,12 +65,12 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
 
 ## Verification and limitations
 
-- Latest offline Phase 6 verification: `npm test` passed 7,016 tests with 2
+- Latest offline Phase 6 verification: `npm test` passed 7,074 tests with 2
   skipped across 253 files; `npm run test:realm` passed 18/18;
   `npm run typecheck`, `npm run build`, `npm run check:secrets`,
   `node --check scripts/ai-live.mjs`, and `git diff --check` passed. The build
   retains the existing renderer chunk-size warning; the secret scan found no
-  configured password in 45 user-scoped files.
+  configured password in 48 user-scoped files.
 - AI suite and planner regressions pass, including ordered-plan and
   same-observation reassessment coverage.
 - Focused AutoCombat and SessionManager suites: 497 tests passed, including
@@ -955,10 +955,51 @@ exact-target death and a connected multi-step gameplay loop remain unverified.
   the resolved roots; no configured password found), script syntax, and
   `git diff --check`. The existing renderer chunk-size warning remains.
 
-Current live state: `1/2146`, `51/51`, no target or attackers. Combat
-engagement, exact-target damage, XP, and verified retreat are live-confirmed;
-the exact death and autonomous end-to-end objective remain unverified. Next,
-commit/push the validated harness corrections and room observations. Then
-investigate whether the captured 600 XP/`Combat Off` result has an
-authoritative exact-death signal not represented in parsed evidence; do not
-claim a kill or repeat the same encounter without gaining new evidence.
+### 2026-10-18 — exact-target kill verified
+
+- The earlier `nasty lashworm` attempt remains unresolved: its trace had
+  target-matching damage, 600 XP, and `Combat Off`, but no exact death source.
+  No kill is inferred retroactively.
+- Root cause of the missing result was a diagnostic evidence gap, not a
+  demonstrated combat-execution failure. `CharacterTracker` passes an
+  in-memory `FightRecord` with `killedBy: 'sentence'` when its exact-target
+  death-sentence matcher succeeds, but the harness used `NO_FIGHTS` and only
+  watched explicit `mob-dies` blocks. The parser could therefore recognize an
+  exact named sentence without the harness recording it.
+- The provider-free harness now supplies a bounded in-memory fight sink and
+  summarizes only parsed mob identity, damage, kill status/source, and whether
+  the character opened the fight. Exact death requires the normalized selected
+  target, `killed: true`, and `killedBy: 'sentence'`; XP-proxy records and
+  `Combat Off` alone do not count. No raw server text is retained.
+- The harness also observes for up to 10 seconds, without sending commands,
+  when an explicitly requested target is a unique hybrid mob with uncertain
+  disposition and no attacker evidence yet. It proceeds only after the live
+  attacker list changes, then re-reads state and runs the existing eligibility
+  and SessionManager approval checks. Health below the 60% probe floor,
+  unrelated attackers, or an active engagement still prevent the request.
+- Live encounter: Walker verified `1/2146` -> `1/2150`. After 3,919 ms of
+  observation, `fat giant rat` matched the authoritative attacker list. Its
+  hybrid entity IDs were `[1, 109, 1116]`, disposition hostile, classification
+  uncertain, uncharmed, and alignment cost `sometimes`; the existing
+  attacker-evidence path selected it by its unique live room name. SessionManager
+  approved and executed `a fat giant rat`. The tracker recorded 13 character
+  damage, `killed: true`, `killedBy: 'sentence'`, and exact-target death; the
+  stream showed 450 XP and `Combat Off`. Kefka finished at `51/51` HP with no
+  active target or attackers. The configured post-combat rest threshold was
+  not due. Provider requests: zero; policy violations: zero.
+- The artifact
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-56-35-824Z-27212.json`
+  contains bounded parsed events and the fight summary, not raw server lines.
+- Validation after the harness change: 7,074 passed, 2 skipped across 253
+  files; realm tests 18/18; typecheck and production build passed; secret scan
+  found no configured password in 48 files; script syntax and `git diff
+  --check` passed. The existing renderer chunk-size warning remains.
+
+Current live state: `1/2150`, `51/51`, no target or attackers. One
+provider-free, explicitly targeted exact kill is now live-confirmed; this does
+not establish repeatability, autonomous target choice, low-health recovery, or
+a connected multi-step objective. Next, repeat the core demonstration only
+when a fresh room observation finds a legitimate eligible target, then run a
+bounded provider-driven multi-step objective and verify discovery, inspection,
+combat, recovery/resumption, and a subsequent objective without claiming
+unobserved success.

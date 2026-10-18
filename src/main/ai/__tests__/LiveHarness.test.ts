@@ -12,8 +12,11 @@ import {
   requestRoomIdentity,
   readOnlyNavigationPreflight,
   roomIdentityKey,
+  summarizeCombatFightRecord,
   summarizeCombatEvidence,
+  summarizeCombatOccupants,
   summarizeCombatState,
+  shouldObserveForVerifiedAttacker,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../LiveHarness';
@@ -226,6 +229,63 @@ describe('canSkipNavigationPreflightAtDestination', () => {
   });
 });
 
+describe('shouldObserveForVerifiedAttacker', () => {
+  const uncertainHostile = {
+    name: 'fat giant rat',
+    kind: 'mob' as const,
+    disposition: 'hostile' as const,
+    uncertain: true,
+    costly: 'sometimes' as const,
+    charmed: false,
+    hidden: false,
+    free: false,
+    mob: {
+      name: 'fat giant rat',
+      rawName: 'fat giant rat',
+      source: 'hybrid' as const,
+      disposition: 'hostile' as const,
+      uncertain: true,
+      costly: 'sometimes' as const,
+      charmed: false
+    }
+  };
+
+  it('observes only a unique, uncharmed hybrid mob with uncertain disposition', () => {
+    expect(shouldObserveForVerifiedAttacker([uncertainHostile], 'fat giant rat', [])).toBe(true);
+    expect(shouldObserveForVerifiedAttacker([uncertainHostile], undefined, [])).toBe(false);
+    expect(shouldObserveForVerifiedAttacker([uncertainHostile], 'fat giant rat', ['fat giant rat']))
+      .toBe(false);
+    expect(
+      shouldObserveForVerifiedAttacker(
+        [uncertainHostile, { ...uncertainHostile, name: 'Fat Giant Rat' }],
+        'fat giant rat',
+        []
+      )
+    ).toBe(false);
+    expect(
+      shouldObserveForVerifiedAttacker(
+        [{ ...uncertainHostile, mob: { ...uncertainHostile.mob, source: 'wire' } }],
+        'fat giant rat',
+        []
+      )
+    ).toBe(false);
+    expect(
+      shouldObserveForVerifiedAttacker(
+        [{ ...uncertainHostile, mob: { ...uncertainHostile.mob, costly: 'always' } }],
+        'fat giant rat',
+        []
+      )
+    ).toBe(false);
+    expect(
+      shouldObserveForVerifiedAttacker(
+        [{ ...uncertainHostile, charmed: true }],
+        'fat giant rat',
+        []
+      )
+    ).toBe(false);
+  });
+});
+
 describe('exactCombatApproval', () => {
   const approval = (id: string, targetName: string): AiApproval => ({
     id,
@@ -309,6 +369,95 @@ describe('isExactCombatTargetDeathEvidence', () => {
     );
     expect(isExactCombatTargetDeathEvidence({ attacker: 'nasty giant rat' }, null)).toBe(false);
     expect(isExactCombatTargetDeathEvidence({}, 'nasty giant rat')).toBe(false);
+  });
+});
+
+describe('summarizeCombatFightRecord', () => {
+  const record = {
+    mob: 'nasty lashworm',
+    killed: true,
+    killedBy: 'sentence' as const,
+    mine: 12,
+    others: 0,
+    opened: true
+  };
+
+  it('confirms only a named target death sentence from the tracker record', () => {
+    expect(summarizeCombatFightRecord(record, 'nasty lashworm')).toEqual({
+      type: 'fight-record',
+      mob: 'nasty lashworm',
+      targetMatch: true,
+      killed: true,
+      killedBy: 'sentence',
+      exactTargetDeath: true,
+      damageDealt: 12,
+      damageByOthers: 0,
+      openedByCharacter: true
+    });
+    expect(
+      summarizeCombatFightRecord({ ...record, killedBy: 'experience' }, 'nasty lashworm')
+        ?.exactTargetDeath
+    ).toBe(false);
+    expect(
+      summarizeCombatFightRecord({ ...record, killed: false }, 'nasty lashworm')
+        ?.exactTargetDeath
+    ).toBe(false);
+  });
+
+  it('does not transfer death evidence across identities or without a selected target', () => {
+    expect(
+      summarizeCombatFightRecord({ ...record, mob: 'fat giant rat' }, 'nasty lashworm')
+        ?.exactTargetDeath
+    ).toBe(false);
+    expect(
+      summarizeCombatFightRecord({ ...record, mob: '' }, '')?.exactTargetDeath
+    ).toBe(false);
+    expect(summarizeCombatFightRecord(record, null)).toBeNull();
+  });
+});
+
+describe('summarizeCombatOccupants', () => {
+  it('reports only bounded, parsed entity identity and eligibility facts', () => {
+    expect(
+      summarizeCombatOccupants(
+        [
+          {
+            ...{
+              name: 'fat giant rat',
+              kind: 'mob' as const,
+              disposition: 'hostile' as const,
+              uncertain: true,
+              costly: 'sometimes' as const,
+              charmed: false,
+              hidden: false,
+              free: false
+            },
+            mob: {
+              name: 'fat giant rat',
+              rawName: 'fat giant rat',
+              ids: [2],
+              source: 'hybrid' as const,
+              disposition: 'hostile' as const,
+              uncertain: true,
+              costly: 'sometimes' as const,
+              charmed: false
+            }
+          }
+        ],
+        ['The fat giant rat']
+      )
+    ).toEqual([
+      {
+        name: 'fat giant rat',
+        entityIds: [2],
+        entitySource: 'hybrid',
+        disposition: 'hostile',
+        uncertain: true,
+        charmed: false,
+        costly: 'sometimes',
+        verifiedAttacker: true
+      }
+    ]);
   });
 });
 

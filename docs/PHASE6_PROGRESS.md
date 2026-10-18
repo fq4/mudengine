@@ -975,9 +975,46 @@ The stationary-retreat and movement-accounting checkpoint was pushed as
   the resolved roots; no configured password found), script syntax, and
   `git diff --check`. The existing renderer chunk-size warning remains.
 
-Current state is `1/2146`, `51/51`, no attackers. Live engagement, damage,
-XP, and a verified retreat are demonstrated; exact target death and a
-connected autonomous multi-step objective remain unverified. Commit and push
-the harness correction and evidence. Next, determine whether an authoritative
-exact-death signal exists for the 600-XP/`Combat Off` result; do not count XP
-or disappearance as a kill.
+### Live exact-target victory and tracker evidence (2026-10-18)
+
+- The earlier 600-XP `nasty lashworm` result remains unverified. Its trace had
+  no explicit `mob-dies` event, and XP plus `Combat Off` or disappearance alone
+  still do not establish a kill.
+- The harness had missed a stronger tracker signal: `CharacterTracker`
+  recognizes an exact death sentence immediately before XP and records the
+  resulting `FightRecord` with `killedBy: 'sentence'`. The diagnostic passed
+  `NO_FIGHTS` and therefore could not observe this distinction.
+- Added a bounded in-memory fight sink and secret-safe summary. The harness
+  accepts death only when the fight record matches the exact normalized target,
+  says `killed: true`, and records `killedBy: 'sentence'`. An XP-proxy record
+  or `Combat Off` alone remains insufficient. Candidate identity details are
+  limited to parsed names, hybrid entity IDs, classification, disposition,
+  charm/alignment flags, and attacker match; raw server lines are not saved.
+- Added a no-command, 10-second observation window for an explicitly requested,
+  uniquely named hybrid mob whose disposition is uncertain. The window waits
+  only for fresh attacker evidence under the existing healthy/no-active-fight
+  preconditions, then reruns target and health checks and delegates through
+  SessionManager. This is diagnostic harness behavior; production combat
+  policy was not weakened.
+- Live: Walker verified `1/2146` -> `1/2150`. After 3,919 ms, `fat giant rat`
+  appeared in the attacker list. It was a hybrid hostile, uncertain, uncharmed,
+  `costly: sometimes`, with entity IDs `[1, 109, 1116]`. The exact target was
+  approved and executed through SessionManager. Tracker evidence recorded
+  13 damage and `killedBy: 'sentence'`; the parsed stream included 450 XP and
+  `Combat Off`. Kefka ended at `51/51`, no active target/attackers; no recovery
+  was due. Provider requests and policy violations were both zero.
+- Artifact:
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-56-35-824Z-27212.json`.
+  It contains bounded parsed evidence, not raw server lines.
+- Validation: full suite 7,074 passed, 2 skipped across 253 files; realm tests
+  18/18; typecheck, production build, secret scan (48 files, no configured
+  password), script syntax, and `git diff --check` passed. The pre-existing
+  renderer chunk-size warning remains.
+
+Current live state is `1/2150`, `51/51`, no target or attackers. One
+provider-free, explicitly targeted exact kill is confirmed; repeatability,
+autonomous target choice, low-health recovery, and an integrated multi-step
+live objective remain unverified. Next, use a fresh read-only observation to
+find another legitimate target before repeating combat, then prove a bounded
+provider-driven objective that links exploration, NPC inspection, combat,
+recovery/resumption, and a subsequent objective.

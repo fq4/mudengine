@@ -57,10 +57,21 @@ node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile ke
   movement and emergency-stops an unresolved encounter. A failed preflight
   refuses before dispatch; this harness threshold does not change production
   combat policy.
+  For an explicitly requested target that is a unique hybrid mob with an
+  uncertain disposition, it may observe without sending commands for up to
+  10 seconds for that exact name to appear in the authoritative attacker list.
+  It then re-reads state and repeats the existing eligibility and approval
+  checks; it does not attack based on the room display alone. A bounded
+  in-memory `FightSink` records only sanitized tracker facts. Exact target
+  death requires an exact target match plus `killed: true` and
+  `killedBy: 'sentence'`; an XP-proxy record or `Combat Off` alone is not a
+  kill.
   The harness treats the production-owned exact `st` sheet request as a status
   probe in this mode; all actual directional commands still count against the
   movement limit. A passed combat result requires both exact target-death and
-  XP evidence; XP alone is not called a kill.
+  XP evidence; XP alone is not called a kill. Always obtain a fresh room
+  observation before using an exact target name; old examples may no longer be
+  present.
 
 These are diagnostics, not a replacement for the capped provider-driven
 session below. Do not run more than one probe session concurrently for Kefka.
@@ -1092,13 +1103,57 @@ node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile ke
   attackers cleared. A separate read-only probe confirmed `1/2146`, full HP,
   and no visible occupants or attackers.
 
-Current live state: `1/2146`, `51/51`, no attackers. This demonstrates
+Earlier checkpoint, before the verified kill below: live state was `1/2146`,
+`51/51`, no attackers. This demonstrated
 authoritative target selection from explicit test input, approved combat,
 real damage/XP, and a verified retreat. Autonomous target choice, exact
-target death, and a complete multi-step gameplay objective remain unverified.
+target death, and a complete multi-step gameplay objective were then
+unverified.
 Focused LiveHarness/NpcDiscovery tests pass 66/66. Post-change validation
 passed: full serial suite 7,070 passed with 2 skipped across 253 files, realm
 suite 18/18, production build/typecheck, secret scan (47 files under the
 resolved roots; no configured password found), `node --check
 scripts/ai-live.mjs`, and `git diff --check`. The production renderer build
 retains its pre-existing chunk-size warning.
+
+### 2026-10-18 — first exact-target kill confirmed
+
+- A previous Arena probe reached `1/2150` but safely refused its single visible
+  mob because the realm classification was uncertain and attacker evidence had
+  not yet arrived. A later read-only observation found `fat giant rat` in the
+  attacker list. The bounded escape probe then used one verified `u` move back
+  to `1/2146`, with HP unchanged at `51/51` and attackers cleared.
+- The harness now waits without issuing commands for up to 10 seconds when an
+  explicitly requested, unique hybrid mob has uncertain disposition. It
+  proceeds only after the exact target appears in live attacker evidence, then
+  revalidates current room, health, target eligibility, and the
+  SessionManager action gateway. It reports parsed candidate entity IDs and
+  classification flags, bounded to eight occupants/IDs.
+- The first controlled run started at `1/2146`, `51/51`. Walker verified
+  arrival at `1/2150`; after 3,919 ms the unique visible `fat giant rat`
+  matched attacker evidence. It was hybrid, hostile, uncertain, uncharmed,
+  `costly: sometimes`, with entity IDs `[1, 109, 1116]`. SessionManager
+  approved and executed `a fat giant rat`.
+- Live combat showed nine target-matching hits for
+  `1+1+2+2+1+1+1+1+3 = 13` damage. The mob missed six times; Kefka took no
+  damage. The tracker recorded the exact
+  target as killed by a named sentence (`killed: true`, `killedBy: 'sentence'`),
+  followed by 450 XP and `Combat Off`. The target and attackers were cleared;
+  final HP was `51/51`. This is a verified live kill, not merely XP or combat
+  ending.
+- No provider requests or policy violations occurred. Recovery was correctly
+  not due at configured `restBelow=0.35`. Artifact:
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T20-56-35-824Z-27212.json`;
+  it stores bounded parsed data, not raw server lines.
+- Full validation after the harness update: 7,074 passed, 2 skipped across
+  253 files; realm tests 18/18; typecheck/build passed; secret scan found no
+  configured password in 48 files; script syntax and diff checks passed. The
+  existing renderer chunk-size warning remains.
+
+Current live state: `1/2150`, `51/51`, no target or attackers. One explicit
+provider-free exact-target victory is now confirmed. Autonomous target choice,
+repeatable combat, low-health recovery, and a connected multi-step live
+objective remain unverified. Next, use read-only observation to find another
+legitimate target before repeating combat; then test a bounded provider-driven
+objective that connects exploration, NPC inspection, combat, recovery, and a
+subsequent objective.

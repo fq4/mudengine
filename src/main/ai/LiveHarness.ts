@@ -1,7 +1,8 @@
 import type { AiApproval } from '../../shared/ai';
 import type { Block } from '../../shared/blocks';
-import type { CharacterState, Combat, Room, Vitals } from '../../shared/character';
+import type { CharacterState, Combat, Room, RoomOccupant, Vitals } from '../../shared/character';
 import { DEFAULT_CONFIG, type AutomationConfig } from '../../shared/config';
+import type { FightRecord } from '../../shared/fights';
 import type { WalkProgress } from '../../shared/walk';
 import { mobKey } from '../../shared/world';
 import { combatOutcome, type CombatOutcome } from './CombatOutcome';
@@ -122,6 +123,30 @@ export function canSkipNavigationPreflightAtDestination(
   );
 }
 
+/** Wait only for fresh attacker evidence about one uniquely identified uncertain mob. */
+export function shouldObserveForVerifiedAttacker(
+  occupants: readonly RoomOccupant[],
+  targetName: string | undefined,
+  attackers: readonly string[]
+): boolean {
+  if (targetName === undefined || attackers.length > 0) return false;
+  const key = mobKey(targetName);
+  if (!key) return false;
+  const matches = occupants.filter((occupant) => mobKey(occupant.name) === key);
+  if (matches.length !== 1) return false;
+  const occupant = matches[0];
+  if (!occupant) return false;
+  return (
+    occupant.kind === 'mob' &&
+    occupant.mob?.source === 'hybrid' &&
+    occupant.uncertain &&
+    !occupant.charmed &&
+    !occupant.mob.charmed &&
+    occupant.costly !== 'always' &&
+    occupant.mob.costly !== 'always'
+  );
+}
+
 export interface LiveHarnessLimits {
   maxRuntimeMs: number;
   maxMoves: number;
@@ -235,6 +260,48 @@ export function isExactCombatTargetDeathEvidence(
   targetName: string | null
 ): boolean {
   return isExactCombatTargetDeath(groups.mob ?? groups.attacker ?? '', targetName);
+}
+
+/** Summarize a tracker fight record without retaining any server text. */
+export function summarizeCombatFightRecord(
+  record: Pick<FightRecord, 'mob' | 'killed' | 'killedBy' | 'mine' | 'others' | 'opened'>,
+  targetName: string | null
+) {
+  if (targetName === null) return null;
+  const targetMatch = isExactCombatTargetDeath(record.mob, targetName);
+  return {
+    type: 'fight-record',
+    mob: record.mob,
+    targetMatch,
+    killed: record.killed,
+    killedBy: record.killedBy ?? null,
+    exactTargetDeath: targetMatch && record.killed && record.killedBy === 'sentence',
+    damageDealt: record.mine,
+    damageByOthers: record.others,
+    openedByCharacter: record.opened
+  };
+}
+
+/** Bounded, parsed occupant facts for a PvE preflight or combat trace. */
+export function summarizeCombatOccupants(
+  occupants: readonly RoomOccupant[],
+  attackers: readonly string[]
+) {
+  return occupants
+    .filter((occupant) => occupant.kind === 'mob')
+    .slice(0, 8)
+    .map((occupant) => ({
+      name: occupant.name,
+      entityIds: [...(occupant.mob?.ids ?? [])].slice(0, 8),
+      entitySource: occupant.mob?.source ?? null,
+      disposition: occupant.disposition,
+      uncertain: occupant.uncertain,
+      charmed: occupant.charmed || occupant.mob?.charmed === true,
+      costly: occupant.costly,
+      verifiedAttacker: attackers.some(
+        (attacker) => mobKey(attacker) === mobKey(occupant.name)
+      )
+    }));
 }
 
 export function summarizeCombatEvidence(
