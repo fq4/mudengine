@@ -562,6 +562,9 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   The workspace already contained uncommitted changes in the live harness,
   `LiveHarness`, and `SessionManager` from the locator/probe continuation. Keep
   those changes; `.npm-cache/` is unrelated and must remain untracked.
+- The verified provider-free probe changes were committed and pushed on
+  `development` as `7719a0a`; at that checkpoint, the only remaining worktree
+  entry was the pre-existing untracked `.npm-cache/`.
 - A command-local Git `safe.directory` override was used because the checkout
   is owned by `BUILTIN\\Administrators`; no global Git trust setting was
   changed.
