@@ -228,6 +228,11 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   It made zero provider requests and did not run an objective. This is
   inconclusive about gameplay and is not a navigation failure; do not retry
   until Kefka's placement and combat state are confirmed.
+- The live combat harness matches `mob-dies` evidence to its chosen target
+  using the shared `mobKey` normalization: leading articles are harmless, but
+  modifiers remain part of the identity and absent names do not count.
+  Focused deterministic tests cover this matcher. It does not establish a live
+  target death.
 - Latest local validation after the blocked-recovery edge-case regression:
   `npm test` passed 7,029 tests with 2
   skipped across 253 files. An earlier concurrent run hit two

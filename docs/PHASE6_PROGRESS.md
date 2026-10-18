@@ -485,6 +485,13 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   errors; the file passed in isolation (14/14), and the final full run passed.
   Typecheck, production build, secret scan, JavaScript syntax, and
   `git diff --check` passed. The existing build chunk-size warning remains.
+- The live combat harness now matches a parsed `mob-dies` name to its selected
+  target through the shared `mobKey` normalizer. A leading article is
+  normalized, but modifiers remain significant and missing/empty names are
+  rejected. Deterministic tests cover these cases. This prevents a possible
+  evidence-matching miss; it is not live evidence of exact-target death.
+  Kefka's current placement/combat state is unconfirmed, so no live connection
+  was attempted.
 
 ## Remaining work
 

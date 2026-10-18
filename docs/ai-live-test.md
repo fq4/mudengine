@@ -609,3 +609,16 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   blocked if that attempt fails rather than retrying on later events. The final
   full run including this change passed 7,029 tests with 2 skipped; focused
   SessionManager and scheduler tests passed 289/289.
+
+### 2026-10-18 — normalize exact-target death evidence
+
+- The combat harness now compares the parsed `mob-dies` identity to its
+  authorized target using the shared `mobKey` normalization. This accepts
+  harmless leading articles while preserving modifiers, so a death sentence
+  for `large lashworm` cannot be attributed to `lashworm`. Empty or absent
+  identities do not count as evidence.
+- Focused deterministic regressions cover article normalization, preserving
+  distinct modified names, and refusing missing/empty identities. No live
+  session was started: Kefka's current room and combat state remain unconfirmed.
+  This fixes a possible harness attribution miss; it does not establish that a
+  live death sentence was observed.

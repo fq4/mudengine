@@ -13,6 +13,7 @@ import { SessionManager } from '../src/main/session/SessionManager.ts';
 import { RealmLibrary } from '../src/main/world/RealmLibrary.ts';
 import {
   exactCombatApproval,
+  isExactCombatTargetDeath,
   LiveHarnessMonitor,
   navigateToWithWalker,
   waitForCombatSettlement,
@@ -125,8 +126,7 @@ const sink = {
     if (block.type === 'user-gain-experience') combatVictoryEvidence = true;
     if (
       block.type === 'mob-dies' &&
-      combatTargetName !== null &&
-      block.groups.mob?.trim().toLowerCase() === combatTargetName.trim().toLowerCase()
+      isExactCombatTargetDeath(block.groups.mob ?? '', combatTargetName)
     )
       combatTargetDied = true;
     if (

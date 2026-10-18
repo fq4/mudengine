@@ -1,6 +1,7 @@
 import type { AiApproval } from '../../shared/ai';
 import type { Combat, Vitals } from '../../shared/character';
 import type { WalkProgress } from '../../shared/walk';
+import { mobKey } from '../../shared/world';
 import { combatOutcome, type CombatOutcome } from './CombatOutcome';
 
 export interface LiveHarnessLimits {
@@ -101,6 +102,13 @@ export async function navigateToWithWalker(options: {
 export interface CombatSettlementResult {
   outcome: CombatOutcome;
   unresolved: boolean;
+}
+
+/** Match a parsed monster-death sentence to the exact target selected for combat. */
+export function isExactCombatTargetDeath(deathName: string, targetName: string | null): boolean {
+  if (targetName === null) return false;
+  const deathKey = mobKey(deathName);
+  return deathKey.length > 0 && deathKey === mobKey(targetName);
 }
 
 export async function waitForCombatSettlement(options: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   exactCombatApproval,
+  isExactCombatTargetDeath,
   LiveHarnessMonitor,
   navigateToWithWalker,
   waitForCombatSettlement,
@@ -68,6 +69,19 @@ describe('exactCombatApproval', () => {
     expect(
       exactCombatApproval([combat, approval('approval-2', 'acid slime')], 'acid slime')
     ).toBeNull();
+  });
+});
+
+describe('isExactCombatTargetDeath', () => {
+  it('normalizes a leading article without matching a different monster', () => {
+    expect(isExactCombatTargetDeath('The Lashworm', 'lashworm')).toBe(true);
+    expect(isExactCombatTargetDeath('large lashworm', 'lashworm')).toBe(false);
+  });
+
+  it('does not treat an absent target or an empty death name as evidence', () => {
+    expect(isExactCombatTargetDeath('lashworm', null)).toBe(false);
+    expect(isExactCombatTargetDeath('', 'lashworm')).toBe(false);
+    expect(isExactCombatTargetDeath('   ', '   ')).toBe(false);
   });
 });
 
