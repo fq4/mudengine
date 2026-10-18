@@ -490,9 +490,12 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   normalized, but modifiers remain significant and missing/empty names are
   rejected. Deterministic tests cover these cases. This prevents a possible
   evidence-matching miss; it is not live evidence of exact-target death.
-  Kefka's current placement/combat state is unconfirmed, so no live connection
-  was attempted. The full suite including this matcher passes 7,031 tests with
-  2 skipped across 253 files.
+  The bounded live attempt reached in-game status but could not resolve the
+  room (`unknown/unknown`); HP was 42/51, combat was not marked engaged, no
+  target was set, and two attackers were reported. It used 0 provider requests,
+  tokens, and cost, and no gameplay objective ran. This remains inconclusive;
+  the full suite including this matcher passes 7,031 tests with 2 skipped
+  across 253 files.
 
 ## Remaining work
 

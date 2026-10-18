@@ -624,3 +624,14 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   live death sentence was observed. The full suite passes 7,031 tests with 2
   skipped across 253 files; build, typechecks, secret scan, script syntax, and
   diff checks pass.
+
+### 2026-10-18 — bounded attempt blocked at room identity
+
+- The bounded harness reached `phase=in-game` but did not obtain an
+  authoritative room key (`unknown/unknown`). It reported HP 42/51,
+  `combatEngaged=false`, no target, and two attackers. It sent only the
+  harness's bounded informational probes; it made 0 provider requests, used
+  0 tokens, and spent $0. No objective, combat, or recovery scenario ran.
+- This does not establish a navigation failure, room placement, or current
+  hostile identity. No further live action is justified until the room and
+  target state can be confirmed authoritatively.

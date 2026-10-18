@@ -223,11 +223,13 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   list. If recovery fails, the scheduler remains blocked; subsequent
   observations do not turn the override into an unbounded retry path. A
   successful recovery re-arms it for a later failure cycle.
-- The most recent bounded attempt did not pass its room-identity gate:
-  `phase=in-game`, `room=unknown/unknown`, and one attacker were reported.
-  It made zero provider requests and did not run an objective. This is
-  inconclusive about gameplay and is not a navigation failure; do not retry
-  until Kefka's placement and combat state are confirmed.
+- Latest bounded live attempt (2026-10-18) reached `phase=in-game` but failed
+  the authoritative room-identity gate: `room=unknown/unknown`, HP 42/51,
+  `combatEngaged=false`, no target, and two attackers were reported. The
+  harness made 0 provider requests, used 0 tokens, spent $0, and ran no
+  objective/combat/recovery scenario. This is inconclusive about gameplay and
+  is not a navigation failure. Do not continue live activity until room and
+  target state are authoritatively resolved.
 - The live combat harness matches `mob-dies` evidence to its chosen target
   using the shared `mobKey` normalization: leading articles are harmless, but
   modifiers remain part of the identity and absent names do not count.
