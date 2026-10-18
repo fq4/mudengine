@@ -837,3 +837,34 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   or engagement, and both attackers at `1/2150`. It used zero provider
   requests/tokens/cost and reported zero violations. No combat, movement, or
   recovery command was sent.
+- Combat-chain diagnosis (2026-10-18): the previous exact-target attempt did
+  establish combat, rather than failing to engage. `large filthbug` uniquely
+  matched one visible hybrid realm mob, classified hostile/certain/
+  uncharmed/never-costly, and was in the attacker list. Exact-target approval
+  completed; the wire trace contained `a large filthbug`; tracker state
+  reported active combat with that exact target at 60 seconds. The outcome
+  stayed active with no XP/death evidence. Because this run predated the new
+  hit/miss summaries, whether the server returned a hit, miss, damage, or
+  refusal is unknown; no terminal combat cause is established.
+- Current state was rechecked with
+  `node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only --max-ms 60000 --max-moves 0`:
+  GreaterMUD `1/2150`, HP `22/51`, no active target/engagement, and two
+  distinct visible hybrid realm hostiles (`small kobold thief`,
+  `large filthbug`) still listed as attackers. Both are certain, hostile,
+  uncharmed, and never-costly. The probe sent only location/status/health
+  reads; provider requests/tokens/cost and movement were zero, with no
+  violations.
+- Effective safety configuration was read without emitting credentials:
+  retreat disabled, outnumbered threshold 0, flee-goto disabled without a
+  destination, safe-haven empty, rest below `0.35` and rest-to `0.70`.
+  Current HP fraction is about `0.43`; resting is not due, and Recovery will
+  refuse under attacker pressure. No configured escape/recovery action is
+  suitable at this time.
+- No production fix was made because the reported engagement failure is
+  contradicted by the trace, and no cause for the missing terminal outcome is
+  established. Do not equate `*Combat Off*` with departure. The old probe
+  cleanup disconnects at its bound, so do not repeat it while unresolved
+  attackers remain. Focused session/combat/harness tests passed 550/550, but
+  they do not prove live damage or victory. Next live experiment requires an
+  attacker-free recheck or a separate disposable/controlled setup with
+  supervised timeout handling that preserves the session.

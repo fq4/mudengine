@@ -676,3 +676,37 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   no active target/engagement, and the same two attackers at `1/2150`. No game
   action was sent; wait for fresh authoritative evidence of cleared pressure
   before the next live combat/navigation/recovery step.
+- Combat-blocker investigation (2026-10-18): the asserted failure to establish
+  an engagement is not supported by the latest exact-target live trace.
+  `large filthbug` was a unique visible hybrid realm mob, classified hostile,
+  certain, uncharmed, and never-costly; it matched the attacker list. The exact
+  action obtained approval, the wire trace contained `a large filthbug`, and
+  authoritative tracker state reported an active engagement and exact target
+  at the 60-second bound. Thus identity resolution, eligibility, selection,
+  approval, command dispatch, and engagement establishment succeeded for that
+  attempt. No XP or target-death evidence was observed; the run predates the
+  parsed hit/miss telemetry, so whether a hit, miss, or damage occurred is
+  unknown. It remained active, not a terminal outcome.
+- Fresh live state after `cb10ff1`: read-only `pro` located room `1/2150`;
+  HP `22/51`, no active target/engagement, and two visible, certain,
+  realm-backed hostiles (`small kobold thief`, `large filthbug`) still in the
+  attacker list. Both map uniquely to distinct mobs, hostile, uncharmed, and
+  never-costly. The probe sent only `sys status`, `pro`, and `health`; zero
+  provider requests/tokens/cost, zero movement, and zero violations.
+- Effective Kefka automation settings were inspected without exposing profile
+  secrets: retreat disabled (`belowHealth=0.30`, outnumbered threshold 0),
+  flee-goto disabled with no destination, safe-haven empty, rest threshold
+  `0.35` and rest-to `0.70`. Current HP is about 0.43, so configured resting
+  is not due; existing recovery also refuses while attackers remain. There is
+  no configured escape/recovery action suitable for this current state.
+- No production bug has yet been localized in the combat establishment path,
+  and no code fix is justified. The unresolved stage is combat progression and
+  outcome evidence: the old trace lacks hit/miss telemetry and the latest
+  state still has two active attackers. Do not interpret `*Combat Off*` alone
+  as departure. The 550 focused SessionManager/AutoCombat/LiveHarness tests
+  passed against this baseline. Do not repeat a 60-second PvE harness run
+  while unresolved: its cleanup disconnects the live client, and no escape
+  policy is configured. Next, wait for attackers to clear or use a separate
+  disposable/controlled character and a supervised setup that can preserve
+  the session on timeout; then use the new bounded telemetry to distinguish
+  hit/miss/damage/refusal and verify a terminal outcome.

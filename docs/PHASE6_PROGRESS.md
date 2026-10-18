@@ -727,3 +727,44 @@ npm run check:secrets
   HP `22/51`, no active target/engagement, and zero provider usage or policy
   violations. The bounded live encounter must remain paused pending a fresh
   attacker-free state.
+
+## Live combat blocker investigation (2026-10-18)
+
+- The claimed inability to establish a valid combat engagement is not borne
+  out by the latest exact-target attempt. Before engaging, `large filthbug`
+  uniquely matched a current visible hybrid realm mob; its disposition was
+  hostile, classification certain, uncharmed, and never-costly, and its name
+  matched the authoritative attacker list. Exact-target approval completed,
+  the trace recorded `a large filthbug`, and the tracker reported that exact
+  target with combat active at the 60-second bound. Identity, eligibility,
+  selection, approval, dispatch, and engagement establishment therefore
+  succeeded in this attempt.
+- That attempt had no XP or exact death evidence and remained `active`; it is
+  not a failed engagement or a terminal result. It predated the parsed hit/miss
+  telemetry in the live harness, so there is no evidence whether subsequent
+  server responses were hits, misses, damage, or refusals. No explanation for
+  the missing terminal outcome is yet demonstrated.
+- Current read-only evidence after `cb10ff1`: `pro` resolves room `1/2150`;
+  HP `22/51`; no current target or engagement; attackers are
+  `small kobold thief` and `large filthbug`. Both are present as distinct,
+  certain hybrid realm mobs, hostile, uncharmed, and never-costly. The probe
+  issued only `sys status`, `pro`, and `health`, with zero provider usage,
+  movement, or violations.
+- The effective Kefka profile enables general automation but has retreat
+  disabled, outnumbered retreat threshold 0, flee-goto disabled/no
+  destination, and no safe-haven room. Rest is configured below 35% toward
+  70%; current health is ~43%, and Recovery refuses while attackers remain.
+  No configured safe escape/recovery path applies to the current state.
+- No production defect has been localized in the engagement chain, so no
+  speculative combat change was made. The active problem is safe diagnosis
+  after engagement: the old run lacks hit/miss telemetry and the current room
+  still contains two attackers. `*Combat Off*` alone remains insufficient to
+  clear them. A repeat of the bounded live harness would disconnect on cleanup
+  while the unresolved attackers remain, so it is not an appropriate
+  experiment now.
+- Focused SessionManager, AutoCombat, and LiveHarness suites passed 550/550.
+  These demonstrate the mocked/session execution path, not live damage or
+  victory. Next experiment: wait for an attacker-free authoritative state or
+  arrange a separate disposable/controlled encounter with supervised timeout
+  handling that can preserve the session; then use the new capped telemetry to
+  distinguish attack hit/miss/damage/refusal and verify a terminal outcome.
