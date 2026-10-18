@@ -106,6 +106,60 @@ describe('AutonomousScheduler', () => {
       scheduler.finish(true, progress('1/1', null, 0.9));
       expect(scheduler.state.completed.filter((name) => name === 'recover_health')).toHaveLength(1);
     });
+    it('allows only one recovery attempt after unrelated failures block scheduling', () => {
+      const inspect = [
+        {
+          action: { name: 'inspect_room' as const, reason: 'observe' },
+          priority: 10,
+          rationale: 'room'
+        }
+      ];
+      const recovery = [
+        {
+          action: { name: 'recover_health' as const, reason: 'hp' },
+          priority: 100,
+          rationale: 'HP is below configured threshold'
+        }
+      ];
+      const scheduler = new AutonomousScheduler(1);
+
+      expect(scheduler.choose(inspect, 'room-observation')?.name).toBe('inspect_room');
+      scheduler.finish(false, progress('1/1', null, 0.4));
+      expect(scheduler.state.status).toBe('blocked');
+
+      expect(scheduler.choose(recovery, 'hurt-observation')?.name).toBe('recover_health');
+      scheduler.finish(false, progress('1/1', null, 0.4));
+      expect(scheduler.state.status).toBe('blocked');
+      expect(scheduler.choose(recovery, 'new-authoritative-observation')).toBeNull();
+      expect(scheduler.state.status).toBe('blocked');
+    });
+    it('re-arms the one-shot recovery override after recovery succeeds', () => {
+      const inspect = [
+        {
+          action: { name: 'inspect_room' as const, reason: 'observe' },
+          priority: 10,
+          rationale: 'room'
+        }
+      ];
+      const recovery = [
+        {
+          action: { name: 'recover_health' as const, reason: 'hp' },
+          priority: 100,
+          rationale: 'HP is below configured threshold'
+        }
+      ];
+      const scheduler = new AutonomousScheduler(1);
+
+      scheduler.choose(inspect, 'first-room');
+      scheduler.finish(false, progress('1/1', null, 0.4));
+      expect(scheduler.choose(recovery, 'first-hurt-state')?.name).toBe('recover_health');
+      scheduler.finish(true, progress('1/1', null, 0.8));
+
+      expect(scheduler.choose(inspect, 'second-room')?.name).toBe('inspect_room');
+      scheduler.finish(false, progress('1/1', null, 0.8));
+      expect(scheduler.state.status).toBe('blocked');
+      expect(scheduler.choose(recovery, 'second-hurt-state')?.name).toBe('recover_health');
+    });
     it('keeps the journal through interrupt and reset but drops it on forget', () => {
       const scheduler = new AutonomousScheduler();
       scheduler.choose(candidates, 'a');

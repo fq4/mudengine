@@ -470,11 +470,14 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   threshold. The no-goal scheduler may select recovery again after a prior
   campaign cycle completes, but only when a changed observation makes it
   eligible; unchanged observations do not repeat it, and completion history
-  stays unique. Focused selector, scheduler, and SessionManager suites passed
-  303/303. The latest full suite passes 7,027 tests with 2 skipped across 253
-  files. Typecheck, production build, secret scan, harness syntax, and diff
-  checks passed. Low-health recovery and the complete gameplay session are
-  still unverified live.
+  stays unique. If repeated failures have blocked the no-goal scheduler, it may
+  make one attempt at newly eligible recovery; another failed attempt leaves
+  it blocked, so the recovery exception cannot loop. Focused selector,
+  scheduler, and SessionManager suites passed 303/303, then 288/288 for the
+  blocked-scheduler recovery guards (289/289). The latest full suite passes
+  7,029 tests with 2 skipped across 253 files. Typecheck, production build,
+  secret scan, harness syntax, and diff checks passed. Low-health recovery and
+  the complete gameplay session are still unverified live.
   An earlier concurrent run hit two `SessionLog.test.ts` cleanup `ENOTEMPTY`
   errors; the file passed in isolation (14/14), and the final full run passed.
   Typecheck, production build, secret scan, JavaScript syntax, and

@@ -85,6 +85,7 @@ export class AutonomousScheduler {
   };
   journal: SchedulerJournal = blankJournal();
   private readonly visitedRooms = new Set<string>();
+  private blockedRecoveryAttempted = false;
   constructor(
     private readonly maxFailures = 3,
     private readonly stallLimit = 2
@@ -133,6 +134,7 @@ export class AutonomousScheduler {
     this.state.completed = [];
     this.state.failures = 0;
     this.state.lastObservation = null;
+    this.blockedRecoveryAttempted = false;
   }
   clearCompleted(): void {
     this.state.completed = [];
@@ -194,16 +196,17 @@ export class AutonomousScheduler {
     return this.rememberDeadEnd(room, deadEnd) || changed;
   }
   choose(candidates: readonly ActivityCandidate[], observation: string): AiAction | null {
-    const recoveryAvailable = candidates.some(({ action }) => action.name === 'recover_health');
+    const recovery = candidates.find(({ action }) => action.name === 'recover_health');
     if (this.state.status === 'completed') {
-      if (!recoveryAvailable || observation === this.state.lastObservation) return null;
+      if (!recovery || observation === this.state.lastObservation) return null;
       this.state.status = 'idle';
     }
-    if (
-      this.state.status === 'blocked' ||
-      this.state.status === 'interrupted'
-    )
-      return null;
+    if (this.state.status === 'blocked') {
+      if (!recovery || this.blockedRecoveryAttempted) return null;
+      this.state.status = 'idle';
+      this.blockedRecoveryAttempted = true;
+    }
+    if (this.state.status === 'interrupted') return null;
     if (observation === this.state.lastObservation && this.state.current === null) return null;
     this.state.lastObservation = observation;
     const next = candidates.find(
@@ -236,6 +239,7 @@ export class AutonomousScheduler {
         }
       } else entry.stalls = 0;
       if (!this.state.completed.includes(name)) this.state.completed.push(name);
+      if (name === 'recover_health') this.blockedRecoveryAttempted = false;
       this.state.failures = 0;
       this.state.current = null;
       this.state.status = 'idle';
