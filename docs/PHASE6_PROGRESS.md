@@ -838,3 +838,38 @@ npm run check:secrets
   controlled encounter with a verified escape. Do not test combat before
   health is at least 60% and a mapped, unblocked exit is confirmed. No live
   victory, recovery, or complete gameplay loop is established.
+
+## Continuation checkpoint: retreat verified, combat unresolved (2026-10-18)
+
+- Added a narrowly gated stationary-retreat path in `SessionManager`: it only
+  starts when an authoritative threat exists (dreaded mob, exact combat target,
+  or parsed attacker); a generic engagement message does not cancel an arrived
+  route. The full SessionManager suite passed 275/275.
+- Fixed bounded-harness movement accounting to use CommandQueue `coalesceKey`.
+  Exactly the `probe:st` status-sheet request is excluded; ordinary `st` aliases
+  and all directional commands remain counted. This removed a false
+  13-of-12 violation (10 movement directions and three status requests).
+- Added a provider-free `--escape-probe-only` harness mode. It requires a
+  realm-backed attacker match, known positive health, and a server-listed exit;
+  caps movement at one and verifies a room transition. It temporarily enables
+  retreat in memory and does not edit Kefka's persisted profile.
+- Live evidence: two separate one-move retreat probes from `1/2150` to
+  `1/2146` cleared attacker pressure, one starting with two attackers and one
+  starting with one. Both had zero provider use and zero policy violations.
+  Latest read-only state is `1/2146`, HP `39/51`, no target/attackers; north
+  leads to `1/2147`, east to `1/2143`.
+- The latest corrected full harness approved and dispatched `a thin carrion
+  beast` after resolving it to realm evidence. XP was observed, but
+  `big carrion beast` remained an attacker and no exact-target death event was
+  established. It correctly skipped subsequent guarded scenarios. No verified
+  victory is claimed.
+- Tests: 7,066 serial tests passed and 2 skipped before the final
+  threshold-only probe adjustment; after that adjustment, LiveHarness passed
+  46/46, SessionManager passed 275/275, and typecheck passed. Build, realm
+  tests (18/18), secret scan, syntax, and diff checks need the final rerun.
+
+Next highest-value task: re-establish safe health/recovery or use a controlled
+encounter, then capture sustained combat telemetry through exact-target death
+or a specific documented timeout. Do not repeat the Arena fight without
+changing the evidence available. Recovery, exact-target victory, and a
+connected multi-step live objective remain unverified.

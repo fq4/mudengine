@@ -795,3 +795,52 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   attempt live combat until at least 60% HP and a mapped, unblocked exit are
   confirmed. Sustained combat, exact-target death, recovery, and a complete
   live objective remain unverified.
+
+## Continuation checkpoint: verified retreat, unresolved combat
+
+This checkpoint was developed on `development` from prior pushed commit
+`c934799`. Preserve the pre-existing untracked `.npm-cache/`.
+
+- `SessionManager.considerEscape` now allows an already-stationary character to
+  take the configured retreat when the threat is authoritative (a dreaded mob,
+  exact target, or parsed attacker). Generic `Combat Engaged` alone still does
+  not abandon a route destination. The SessionManager regression and full
+  275-test suite passed.
+- `LiveHarnessMonitor` now receives the CommandQueue intent `coalesceKey`.
+  Movement accounting excludes `st` only when tagged as the `probe:st` status
+  sheet request; an untagged `st` still counts. This corrects the false
+  13-of-12 movement-limit report (10 actual directions plus three status
+  probes) without relaxing directional limits.
+- The bounded escape probe temporarily enables one verified-attacker retreat
+  (`whenOutnumbered: 1`) in memory, disables other automation, allows exactly
+  one move, and requires an authoritative room change. It does not persist the
+  Kefka profile. Two live probes each used exactly one `u` move from Arena
+  (`1/2150`) to `1/2146`; attacker pressure cleared on both. The first began
+  with two visible hostile attackers, the second with one. Neither used a
+  provider call or recorded a policy violation.
+- A subsequent read-only live probe verified current state at `1/2146`, HP
+  `39/51`, no active target or attackers, and mapped exits north to `1/2147`
+  and east to `1/2143`. The earlier isolated `-15` HP observation at `1/2190`
+  was contradicted by a later `51/51` read without intervening gameplay and is
+  not evidence of death.
+- The corrected full harness reached Arena, resolved and approved the exact
+  target `a thin carrion beast`, and observed XP. The engagement ended while
+  `big carrion beast` remained in the attacker list. Exact selected-target
+  death was not evidenced; the harness correctly skipped later guarded
+  scenarios. This is not a verified kill or a complete autonomous objective.
+- Deterministic verification: full serial suite 7,066 passed / 2 skipped
+  before the final threshold-only escape-probe test adjustment; afterward
+  `LiveHarness.test.ts` passed 46/46, `SessionManager.test.ts` passed 275/275,
+  and typecheck passed. Build, realm suite (18/18), secret scan, syntax, and
+  diff checks passed before that final one-line adjustment and still require
+  final rerun. The production build has its pre-existing renderer chunk-size
+  warning.
+
+Next: run final validation and commit/push this checkpoint. For live work, start
+with `node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live
+--profile kefka --room-probe-only --max-ms 60000 --max-moves 0`. Current state
+is above the configured 60% combat floor but below full health; do not repeat
+the ambiguous Arena encounter. First establish a safe recovery path or a fresh
+controlled encounter, then capture post-engagement combat telemetry and
+exact-target terminal evidence. Rest/recovery at low health, exact-target
+death, and the connected multi-step gameplay loop remain unverified.

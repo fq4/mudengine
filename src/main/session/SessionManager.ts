@@ -641,7 +641,11 @@ export interface SessionSink {
    * A command the client committed to the wire, reassembled from keystrokes.
    * One place does this, so a capture and the tracker cannot disagree.
    */
-  command?(command: string, source: 'user' | 'automation'): void;
+  command?(
+    command: string,
+    source: 'user' | 'automation',
+    coalesceKey?: string
+  ): void;
   /** How a route walk is going, when one is running. */
   walk?(progress: WalkProgress): void;
   /**
@@ -1684,7 +1688,7 @@ export class SessionManager {
         // latch below is about the last prompt, and the queue may hold the two
         // apart. See `Intent.secret`.
         const reported = this.reportable(command, intent.secret === true);
-        this.sink.command?.(reported, 'automation');
+        this.sink.command?.(reported, 'automation', intent.coalesceKey);
         this.noteSent(command, 'automation');
         this.recordSent({
           at: Date.now(),
@@ -9542,18 +9546,20 @@ export class SessionManager {
             ? t('session.safety.whyMana', { percent: percentText(manaFraction) })
             : t('session.safety.whyAttackers', { count: state.combat.attackers.length });
     /*
-     * **Only a character the client is taking somewhere runs** (todo 03): a
-     * route that has arrived is where the player wanted to be. Said once a
-     * fight and traced; the PvP retreat is its own switch and does not come
-     * through here. `mudengine-automation` › *Running away is a direction*.
-     *
-     * Not the `sys goto` flee, for a character on its own: that is the
-     * desperate tier, set below the retreat's own threshold, and it is not a
-     * direction out of the room the player chose — it is leaving before the
-     * character dies in it. A follower stays with the party even so.
+     * An enabled health/outnumbered retreat also applies while standing still
+     * when hostile attention is already authoritative. The opt-in threshold
+     * is the player's decision to leave; requiring an unrelated route here
+     * stranded a low-health character under attack despite retreat being
+     * enabled. A low-health character with no fight still stays where it is,
+     * and a follower stays with the party.
      */
     if (leader !== null) return this.stayPut(FOLLOWING, why, now, leader);
-    if (!fleeing && !this.goingSomewhere()) return this.stayPut(STAYING, why, now, null);
+    const underThreat =
+      dreaded !== null ||
+      state.combat.target !== null ||
+      state.combat.attackers.length > 0;
+    if (!fleeing && !this.goingSomewhere() && !underThreat)
+      return this.stayPut(STAYING, why, now, null);
 
     this.lastAskedToEscape = now;
     this.escape(state, why, now, undefined, fleeing ? fleeGoto.destination : undefined, hurt);

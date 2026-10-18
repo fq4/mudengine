@@ -23,6 +23,7 @@ import {
   LiveHarnessMonitor,
   navigateToWithWalker,
   requestRoomIdentity,
+  createEscapeProbeAutomation,
   createRoomProbeAutomation,
   readOnlyNavigationPreflight,
   roomIdentityKey,
@@ -63,11 +64,21 @@ if (profileId !== 'kefka')
   throw new Error('The live harness is restricted to the authorized kefka profile');
 const navigationProbeOnly = has('--navigation-probe-only');
 const pveProbeOnly = has('--pve-probe-only');
-const roomProbeOnly = has('--room-probe-only') || navigationProbeOnly || pveProbeOnly;
-if ([has('--room-probe-only'), navigationProbeOnly, pveProbeOnly].filter(Boolean).length > 1)
-  throw new Error('Choose only one room, navigation, or PvE probe mode');
+const escapeProbeOnly = has('--escape-probe-only');
+const roomProbeOnly =
+  has('--room-probe-only') || navigationProbeOnly || pveProbeOnly || escapeProbeOnly;
+if (
+  [has('--room-probe-only'), navigationProbeOnly, pveProbeOnly, escapeProbeOnly].filter(Boolean)
+    .length > 1
+)
+  throw new Error('Choose only one room, navigation, PvE, or escape probe mode');
 const gossipReplyTest = has('--gossip-reply-test');
 const requestedRuntimeMs = Number(valueOf('--max-ms') ?? 120_000);
+const requestedMaxMoves = Number(
+  valueOf('--max-moves') ?? (escapeProbeOnly ? 1 : navigationProbeOnly || pveProbeOnly ? 0 : 12)
+);
+if (escapeProbeOnly && requestedMaxMoves !== 1)
+  throw new Error('--escape-probe-only requires --max-moves 1');
 const postTimeoutObserveMs = Number(valueOf('--post-timeout-observe-ms') ?? 0);
 if (
   !Number.isInteger(postTimeoutObserveMs) ||
@@ -101,9 +112,7 @@ const roomProbeAutomation = createRoomProbeAutomation();
 
 const monitor = new LiveHarnessMonitor({
   maxRuntimeMs: requestedRuntimeMs,
-  maxMoves: gossipReplyTest
-    ? 0
-    : Number(valueOf('--max-moves') ?? (navigationProbeOnly || pveProbeOnly ? 0 : 12)),
+  maxMoves: gossipReplyTest ? 0 : requestedMaxMoves,
   maxRequests: gossipReplyTest
     ? Math.min(Number(valueOf('--max-requests') ?? 16), 16)
     : Number(valueOf('--max-requests') ?? 16),
@@ -122,6 +131,8 @@ let combatEligibilityReason = null;
 let combatTargetDied = false;
 let combatStartedAt = null;
 let pveScenarioIndex = null;
+let escapeProbeMovementSent = false;
+let healthObservationCount = 0;
 const combatEvidenceEvents = [];
 const combatCommands = [];
 const combatSnapshots = [];
@@ -160,6 +171,7 @@ let latestLocationEvidence = null;
 const sink = {
   data: () => {},
   block: (block) => {
+    if (block.type === 'user-health') healthObservationCount += 1;
     if (
       (block.type === 'user-location' || block.type === 'user-profile') &&
       /^\d+$/.test(block.groups.map ?? '') &&
@@ -230,8 +242,25 @@ const sink = {
   telnet: () => {},
   notice: () => {},
   line: () => {},
-  command: (command) => {
-    monitor.command(command);
+  command: (command, _source, coalesceKey) => {
+    monitor.command(command, Date.now(), coalesceKey);
+    if (
+      escapeProbeOnly &&
+      !escapeProbeMovementSent &&
+      /^(?:n|s|e|w|ne|nw|se|sw|u|d|north|south|east|west|northeast|northwest|southeast|southwest|up|down)$/i.test(
+        command.trim()
+      )
+    ) {
+      escapeProbeMovementSent = true;
+      setImmediate(() =>
+        session.configure(
+          roomProbeAutomation,
+          profile.config.connection.login,
+          profile.config.ui.rewrites,
+          profile.config.connection.locate
+        )
+      );
+    }
     if (combatStartedAt !== null && combatCommands.length < 40) {
       const value = command.trim().replace(/\s+/g, ' ').slice(0, 120);
       if (value) combatCommands.push({ elapsedMs: Date.now() - combatStartedAt, value });
@@ -751,15 +780,62 @@ async function main() {
       monitor.check();
       await wait(250);
     }
+    const statusRequestAccepted =
+      healthRequestAccepted && session.character.vitals.hp !== null && session.character.vitals.hp < 0
+        ? session.ask('st', true)
+        : false;
+    if (statusRequestAccepted) {
+      const statusDeadline = Date.now() + 5_000;
+      while (
+        session.character.vitals.hpMax === null &&
+        session.character.progress.lives === null &&
+        Date.now() < statusDeadline &&
+        !monitor.failed
+      ) {
+        monitor.check();
+        await wait(250);
+      }
+    }
     const healthState = session.character;
+    const visibleNpc = findSafeNpc(healthState.room.occupants);
+    const eligibleCombatTarget = findSafeCombatNpc(
+      healthState.room.occupants,
+      undefined,
+      healthState.combat.attackers
+    );
     const healthProbe = {
       requestAccepted: healthRequestAccepted,
+      statusRequestAccepted,
+      phase: healthState.phase,
       hp: healthState.vitals.hp,
       hpMax: healthState.vitals.hpMax,
+      lives: healthState.progress.lives,
+      mortallyWounded: healthState.mortallyWounded,
+      lastDeath: healthState.lastDeath,
       combatEngaged: healthState.combat.engaged,
       targetPresent: healthState.combat.target !== null,
       attackerCount: healthState.combat.attackers.length,
       attackers: healthState.combat.attackers,
+      exits: healthState.room.exits.map((exit) => ({
+        direction: exit.direction,
+        destination:
+          exit.targetMap !== null && exit.targetRoom !== null
+            ? `${exit.targetMap}/${exit.targetRoom}`
+            : null,
+        requirement: exit.requirement?.kind ?? null,
+        mappedAndUnblocked:
+          exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
+      })),
+      visibleNpc: visibleNpc?.npc
+        ? { name: visibleNpc.npc.name, source: visibleNpc.npc.source ?? null }
+        : null,
+      eligibleCombatTarget: eligibleCombatTarget
+        ? {
+            name: eligibleCombatTarget.name,
+            source: eligibleCombatTarget.mob?.source ?? null,
+            disposition: eligibleCombatTarget.disposition ?? null
+          }
+        : null,
       visibleMobs: healthState.room.occupants
         .filter((occupant) => occupant.kind === 'mob')
         .map((mob) => ({
@@ -771,6 +847,121 @@ async function main() {
           costly: mob.costly
         }))
     };
+    let escapeProbe = null;
+    if (escapeProbeOnly) {
+      const state = session.character;
+      const escapeTarget = findSafeCombatNpc(
+        state.room.occupants,
+        undefined,
+        state.combat.attackers
+      );
+      const targetIsRecordedAttacker =
+        escapeTarget !== null &&
+        state.combat.attackers.some(
+          (attacker) => mobKey(attacker) === mobKey(escapeTarget.name)
+        );
+      const exits = state.room.exits.map((exit) => exit.direction);
+      const refusal = !responseObserved
+        ? 'No authoritative starting room was resolved'
+        : state.phase !== 'in-game'
+          ? 'The character is not in-game'
+          : state.vitals.hp === null || state.vitals.hp <= 0 || state.vitals.hpMax === null
+            ? 'Positive current and maximum health are required'
+            : state.combat.attackers.length < 1
+            ? 'At least one authoritative attacker is required'
+              : !escapeTarget || !targetIsRecordedAttacker
+                ? 'No eligible realm-backed hostile matches the authoritative attacker list'
+                : exits.length === 0
+                  ? 'The current room has no server-listed exit'
+                  : null;
+      if (refusal !== null) {
+        escapeProbe = {
+          passed: false,
+          attempted: false,
+          result: `Refused without gameplay action: ${refusal}`
+        };
+      } else {
+        const before = roomKey();
+        const movesBefore = monitor.moveCount;
+        const eventOffset = monitor.events.length;
+        session.configure(
+          createEscapeProbeAutomation(profile.config.automation),
+          profile.config.connection.login,
+          profile.config.ui.rewrites,
+          profile.config.connection.locate
+        );
+        const triggerAccepted = session.ask('health', true);
+        const movementRequested = await waitFor(
+          () => monitor.moveCount > movesBefore,
+          Math.min(10_000, Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs))
+        );
+        const roomChanged =
+          movementRequested &&
+          (await waitFor(
+            () => roomKey() !== before,
+            Math.min(10_000, Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs))
+          ));
+        session.configure(
+          roomProbeAutomation,
+          profile.config.connection.login,
+          profile.config.ui.rewrites,
+          profile.config.connection.locate
+        );
+        const postLocationRequestAccepted = roomChanged
+          ? false
+          : session.ask('pro', true);
+        if (postLocationRequestAccepted) {
+          const priorEvidence = latestLocationEvidence;
+          await waitFor(
+            () =>
+              latestLocationEvidence !== priorEvidence &&
+              /^\d+\/\d+$/.test(roomKey()),
+            Math.min(5_000, Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs))
+          );
+        }
+        const healthObservationsBefore = healthObservationCount;
+        const postHealthRequestAccepted = session.ask('health', true);
+        let postHealthObserved = false;
+        if (postHealthRequestAccepted) {
+          postHealthObserved = await waitFor(
+            () => healthObservationCount > healthObservationsBefore,
+            Math.min(5_000, Math.max(0, monitor.limits.maxRuntimeMs - monitor.elapsedRuntimeMs))
+          );
+        }
+        const movementCommands = monitor.events
+          .slice(eventOffset)
+          .filter((event) => event.kind === 'command' && /^(?:n|s|e|w|ne|nw|se|sw|u|d|north|south|east|west|northeast|northwest|southeast|southwest|up|down)$/i.test(event.value))
+          .map((event) => event.value);
+        escapeProbe = {
+          passed:
+            triggerAccepted &&
+            movementRequested &&
+            roomChanged &&
+            movementCommands.length === 1 &&
+            !monitor.failed,
+          attempted: true,
+          reason: `One or more hostile attackers; ${escapeTarget.name} matched realm and attacker evidence`,
+          target: escapeTarget.name,
+          temporaryRetreat: { enabled: true, whenOutnumbered: 1 },
+          before,
+          after: roomKey(),
+          exits,
+          movementCommands,
+          movementCount: monitor.moveCount - movesBefore,
+          triggerAccepted,
+          movementRequested,
+          roomChanged,
+          postLocationRequestAccepted,
+          postHealthRequestAccepted,
+          postHealthObserved,
+          hp: session.character.vitals.hp,
+          attackers: session.character.combat.attackers,
+          result: roomChanged
+            ? `SessionManager retreat sent one direction and observed room change to ${roomKey()}`
+            : 'No authoritative room change was observed after the bounded retreat attempt'
+        };
+      }
+    }
     let navigation = null;
     if (navigationProbeOnly) {
       const state = session.character;
@@ -891,7 +1082,6 @@ async function main() {
         // required; ordinary PvE does not require a mapped escape from Kefka.
         // AutoCombat can ask Routines for the `st` sheet; in this mode it is a
         // status probe, not an attempted Walker step.
-        monitor.authorizeStatusProbe();
         combatVictoryEvidence = false;
         combatTargetName = eligibility.target.name;
         combatTargetDied = false;
@@ -1183,6 +1373,7 @@ async function main() {
       locationRequestState: session.locationRequestState(),
       locationProbeAttempts,
       healthProbe,
+      ...(escapeProbeOnly ? { escapeProbe } : {}),
       providerRequests: monitor.providerRequests,
       result: responseObserved
         ? pveProbeOnly

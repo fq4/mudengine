@@ -53,6 +53,22 @@ export function createRoomProbeAutomation(enableQueue = false): AutomationConfig
   };
 }
 
+/** Temporarily enable one stationary retreat for an attacker in a bounded live probe. */
+export function createEscapeProbeAutomation(base: AutomationConfig): AutomationConfig {
+  const automation = createRoomProbeAutomation(true);
+  return {
+    ...automation,
+    safety: {
+      ...base.safety,
+      retreat: {
+        ...base.safety.retreat,
+        enabled: true,
+        whenOutnumbered: 1
+      }
+    }
+  };
+}
+
 /** Show coordinates only when both are authoritative; otherwise retain the parsed room name. */
 export function roomIdentityKey(room: Pick<Room, 'map' | 'number' | 'name'>): string {
   if (room.map !== null && room.number !== null) return `${room.map}/${room.number}`;
@@ -373,7 +389,6 @@ export class LiveHarnessMonitor {
   private readonly authorizedCombatTargets = new Set<string>();
   private recoveryAuthorized = false;
   private equipmentAuthorized = false;
-  private statusProbeAuthorized = false;
 
   constructor(readonly limits: LiveHarnessLimits) {}
 
@@ -392,10 +407,6 @@ export class LiveHarnessMonitor {
 
   authorizeEquipmentChanges(): void {
     this.equipmentAuthorized = true;
-  }
-
-  authorizeStatusProbe(): void {
-    this.statusProbeAuthorized = true;
   }
 
   authorizeGossipReplies(): void {
@@ -444,7 +455,7 @@ export class LiveHarnessMonitor {
     return { ok: true };
   }
 
-  command(command: string, at = Date.now()): void {
+  command(command: string, at = Date.now(), coalesceKey?: string): void {
     const value = command.trim().replace(/\s+/g, ' ');
     if (!value) return;
     const publicMessage = /^(?:[.>/-]|gos|gossip|say|tell|whisper|yell|shout|broadcast|emote|pose|ooc|channel|reply|osay)\b/i.test(
@@ -483,7 +494,9 @@ export class LiveHarnessMonitor {
             })`
           : `Unsafe live-test command: ${value}`
       );
-    if (movement.test(value) && !(this.statusProbeAuthorized && value.toLowerCase() === 'st')) {
+    // Queue intent distinguishes the server's `st` sheet from the `st` exit alias.
+    const statusSheetProbe = value.toLowerCase() === 'st' && coalesceKey === 'probe:st';
+    if (movement.test(value) && !statusSheetProbe) {
       this.moves += 1;
       if (this.moves > this.limits.maxMoves)
         this.fail('moves', `Movement limit reached: ${this.moves}`);

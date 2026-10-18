@@ -933,3 +933,36 @@ and interrupted combat reports are persisted under
   another controlled disposable character. Then run the bounded command above
   and inspect the generated JSON artifact; exact target death, XP, sustained
   progress, recovery, and attacker settlement remain unverified.
+
+### Continuation: verified escape, unresolved target outcome (2026-10-18)
+
+- The false movement-limit count was caused by three status-sheet `st` probes
+  being included among 10 directional movement commands. The monitor now
+  receives the queue intent key and excludes only `st` tagged `probe:st`;
+  untagged `st` is still counted. The corrected bounded run had no movement
+  violation.
+- That run reached Arena and selected realm-backed `a thin carrion beast`;
+  SessionManager approved and dispatched the exact target. XP was observed and
+  engagement ended, but `big carrion beast` remained in the attacker list.
+  Exact-target death was not observed and later guarded scenarios were skipped.
+  No victory is claimed.
+- Two provider-free `--escape-probe-only --max-ms 60000 --max-moves 1` runs
+  subsequently retreated from `1/2150` to `1/2146` with exactly one `u` move,
+  clearing authoritative attacker pressure. One began with two attackers and
+  one with one. Both reported zero provider calls and zero violations; the
+  temporary retreat threshold was not persisted to the profile.
+- Latest read-only preflight: `1/2146`, HP `39/51`, no active target or
+  attackers, with mapped north/east exits. It used zero provider calls and
+  issued no gameplay command.
+- The standalone conservative PvE command remains:
+
+```powershell
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --pve-probe-only --max-ms 100000 --post-timeout-observe-ms 30000 --max-moves 0
+```
+
+Run it only after fresh state and combat eligibility checks. The `39/51` state
+is above 60% but below full health; do not repeat the same ambiguous Arena
+fight. Establish safe recovery or a controlled encounter and make the next run
+distinguish exact-target progress and terminal evidence. Low-health recovery,
+exact-target death, and a complete autonomous gameplay loop are still
+unverified.

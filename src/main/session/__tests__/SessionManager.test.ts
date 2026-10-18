@@ -2836,6 +2836,35 @@ describe('running away', () => {
     expect(notices.find((notice) => RAN.test(notice))).toMatch(/Running n:/);
   });
 
+  it('retreats from a stationary fight when opted-in health safety reaches its threshold', async () => {
+    const { sink, notices, traces } = collect();
+    manager = new SessionManager(sink, undefined, escaping());
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const socket = await client();
+    const chunks: Buffer[] = [];
+    socket.on('data', (chunk) => chunks.push(chunk));
+    const wire = () => Buffer.concat(chunks).toString('latin1');
+    socket.write('Health: 100/100 [100%]\r\n');
+    socket.write('Rat Cellar\r\nAlso here: cave rat.\r\nObvious exits: north, south\r\n');
+    socket.write('*Combat Engaged*\r\n');
+    socket.write('The cave rat bites you for 1 damage!\r\n');
+    await until(() => manager!.character.combat.attackers.length > 0);
+    socket.write('[HP=10]:\r\n');
+
+    await settled(10);
+    const evidence = JSON.stringify({
+      hp: manager!.character.vitals.hp,
+      inCombat: manager!.character.inCombat,
+      attackers: manager!.character.combat.attackers,
+      notices,
+      safety: traces.at(-1)?.safety
+    });
+    expect(notices.find((notice) => RAN.test(notice)), evidence).toMatch(
+      /^Running n: health at 10%/
+    );
+    expect(wire()).toMatch(/\bn\r\n/);
+  });
+
   /*
    * The room said nothing, and there is nothing behind us on the trail. So
    * nothing is sent — and the point is that it *says so*: a refusal reported

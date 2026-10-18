@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createEscapeProbeAutomation,
   createRoomProbeAutomation,
   exactCombatApproval,
   isExactCombatTargetDeath,
@@ -84,6 +85,26 @@ describe('createRoomProbeAutomation', () => {
       collectKeys: false
     });
     expect(config.party.requestPartyHealth).toBe(false);
+  });
+
+  it('enables only the temporary retreat in the escape probe', () => {
+    const base = structuredClone(DEFAULT_CONFIG.automation);
+    base.safety.retreat.enabled = false;
+    base.safety.retreat.whenOutnumbered = 0;
+
+    const automation = createEscapeProbeAutomation(base);
+
+    expect(automation.enabled).toBe(true);
+    expect(automation.safety.retreat).toMatchObject({
+      enabled: true,
+      whenOutnumbered: 1
+    });
+    expect(base.safety.retreat).toMatchObject({
+      enabled: false,
+      whenOutnumbered: 0
+    });
+    expect(automation.combat).toMatchObject({ engage: 'none', retaliate: false });
+    expect(automation.movement.fightOnArrival).toBe(false);
   });
 });
 
@@ -667,14 +688,19 @@ describe('LiveHarnessMonitor', () => {
 
   it('allows a production status-sheet probe without exempting actual directions', () => {
     const monitor = new LiveHarnessMonitor({ ...limits, maxMoves: 0 });
-    monitor.authorizeStatusProbe();
-    monitor.command('st');
+    monitor.command('st', Date.now(), 'probe:st');
     expect(monitor.moveCount).toBe(0);
     expect(monitor.failed).toBe(false);
 
     monitor.command('south');
     expect(monitor.moveCount).toBe(1);
     expect(monitor.violations.map(({ code }) => code)).toEqual(['moves']);
+  });
+
+  it('still counts an untagged st command as movement', () => {
+    const monitor = new LiveHarnessMonitor(limits);
+    monitor.command('st');
+    expect(monitor.moveCount).toBe(1);
   });
 
   it('allows combat commands only for an explicitly authorized target', () => {
