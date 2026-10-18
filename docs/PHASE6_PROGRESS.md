@@ -686,3 +686,33 @@ npm run check:secrets
   target and two attackers. The probe sent no movement, attack, or recovery
   command and used zero provider requests/tokens/cost with zero violations.
   Hostile pressure therefore remains a live blocker.
+
+## Bounded hostile-state follow-up (2026-10-18)
+
+- A fresh read-only probe resolved GreaterMUD room `1/2150` through `pro`.
+  Health was `18/51`; combat was inactive, and the one listed attacker,
+  `large filthbug`, uniquely matched a visible, realm-backed hostile.
+- One bounded provider-free exact-target attempt obtained approval and
+  dispatched `a large filthbug` through SessionManager. The target was active
+  at the end of the 60-second window; HP was `20/51`, with one attacker. No XP
+  or `mob-dies` evidence was recorded, so the attempt did not establish a
+  victory. Recovery was skipped because combat/attacker settlement was
+  unresolved.
+- A subsequent read-only probe reported `20/51` HP, no active target or
+  engagement, and two listed attackers: `small kobold thief` and `large
+  filthbug`. Both were visible realm-backed hostile mobs. This is not evidence
+  that the encounter settled: the authoritative attacker list remains
+  non-empty. No more combat, movement, or recovery was attempted.
+- The read-only and PvE probes used zero provider requests/tokens/cost, no
+  movement, and zero policy violations. This does not verify exact-target
+  death, low-health recovery, safe escape, or an integrated gameplay objective.
+- Focused approval, harness, AutoCombat, and SessionManager tests passed
+  558/558. The full serial suite passed 7,057 tests with 2 skipped across 253
+  files; realm tests passed 18/18. Typecheck, production build, secret scan,
+  script syntax, and `git diff --check` passed. The existing renderer
+  chunk-size warning remains.
+- A final zero-movement check after validation still found HP `22/51`, no
+  active engagement or target, and the same two hostiles in the authoritative
+  attacker list. Room `1/2150` was confirmed by `pro`; only read-only location,
+  status, and health queries were sent. The unresolved pressure remains the
+  next live blocker.

@@ -71,6 +71,14 @@ export class ApprovalStore {
     item.status = 'executed';
     return true;
   }
+  markFailed(id: string): boolean {
+    const item = this.history.find(
+      (candidate) => candidate.id === id && candidate.status === 'approved'
+    );
+    if (!item) return false;
+    item.status = 'failed';
+    return true;
+  }
   grant(
     command: string,
     contextHash: string,

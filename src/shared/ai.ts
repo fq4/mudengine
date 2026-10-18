@@ -88,7 +88,7 @@ export interface AiApproval {
   action?: AiAction;
   createdAt: number;
   expiresAt: number;
-  status: 'pending' | 'approved' | 'executed' | 'rejected' | 'expired';
+  status: 'pending' | 'approved' | 'executed' | 'failed' | 'rejected' | 'expired';
 }
 export interface AiTemporaryGrant {
   id: string;

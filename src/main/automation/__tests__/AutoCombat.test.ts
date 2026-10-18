@@ -216,6 +216,51 @@ describe('opening a fight', () => {
     expect(auto.requestedEngagementActive).toBe(false);
   });
 
+  it('revalidates an exact attacker-backed mob through the combat owner', () => {
+    const auto = make(combat({ enabled: false, engage: 'none' }));
+    const attacker = {
+      ...fighter('kobold thief', 100, []),
+      uncertain: true,
+      mob: {
+        ...fighter('kobold thief', 100, []).mob!,
+        source: 'hybrid' as const,
+        disposition: 'hostile' as const,
+        uncertain: true
+      }
+    };
+    const current = state({
+      room: { ...EMPTY_CHARACTER.room, occupants: [attacker] },
+      combat: { ...EMPTY_CHARACTER.combat, attackers: ['kobold thief'] }
+    });
+
+    expect(auto.requestEngagement('kobold thief', current)).toBeNull();
+    expect(auto.requestedEngagementActive).toBe(true);
+    drain();
+    expect(sent).toEqual(['a kobold thief']);
+  });
+
+  it('refuses attacker evidence when a player shares the visible mob name', () => {
+    const auto = make(combat({ enabled: false, engage: 'none' }));
+    const target = {
+      ...fighter('kobold thief', 100, []),
+      uncertain: true,
+      mob: {
+        ...fighter('kobold thief', 100, []).mob!,
+        uncertain: true
+      }
+    };
+    const player = { ...target, kind: 'player' as const, mob: undefined };
+    const current = state({
+      room: { ...EMPTY_CHARACTER.room, occupants: [target, player] },
+      combat: { ...EMPTY_CHARACTER.combat, attackers: ['kobold thief'] }
+    });
+
+    expect(auto.requestEngagement('kobold thief', current)).toContain('uniquely visible');
+    expect(auto.requestedEngagementActive).toBe(false);
+    drain();
+    expect(sent).toEqual([]);
+  });
+
   it('refuses an ambiguous or missing explicit target and respects the master switch', () => {
     const ambiguous = make(combat({ enabled: false }));
     const duplicates = state({

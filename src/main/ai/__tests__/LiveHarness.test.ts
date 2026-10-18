@@ -3,6 +3,7 @@ import {
   createRoomProbeAutomation,
   exactCombatApproval,
   isExactCombatTargetDeath,
+  isExactCombatTargetDeathEvidence,
   LiveHarnessMonitor,
   navigateToWithWalker,
   requestRoomIdentity,
@@ -198,6 +199,25 @@ describe('isExactCombatTargetDeath', () => {
     expect(isExactCombatTargetDeath('lashworm', null)).toBe(false);
     expect(isExactCombatTargetDeath('', 'lashworm')).toBe(false);
     expect(isExactCombatTargetDeath('   ', '   ')).toBe(false);
+  });
+});
+
+describe('isExactCombatTargetDeathEvidence', () => {
+  it('matches both realm-resolved and server-fallback death group names', () => {
+    expect(isExactCombatTargetDeathEvidence({ mob: 'nasty giant rat' }, 'nasty giant rat')).toBe(
+      true
+    );
+    expect(
+      isExactCombatTargetDeathEvidence({ attacker: 'nasty giant rat' }, 'nasty giant rat')
+    ).toBe(true);
+  });
+
+  it('does not infer the target from an unrelated or unnamed death', () => {
+    expect(isExactCombatTargetDeathEvidence({ attacker: 'cave rat' }, 'nasty giant rat')).toBe(
+      false
+    );
+    expect(isExactCombatTargetDeathEvidence({ attacker: 'nasty giant rat' }, null)).toBe(false);
+    expect(isExactCombatTargetDeathEvidence({}, 'nasty giant rat')).toBe(false);
   });
 });
 

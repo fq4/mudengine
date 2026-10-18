@@ -1,5 +1,6 @@
 import type { RoomOccupant } from '../../shared/character';
 import { mobKey } from '../../shared/world';
+import { isAuthoritativeHostileMob, isVerifiedAttackingMob } from '../../shared/combatTarget';
 
 /** Select only an authoritative, non-player NPC from the current room. */
 export function findSafeNpc(
@@ -89,43 +90,14 @@ export function summarizeCombatCandidates(
 }
 
 function safeCombatHostiles(occupants: readonly RoomOccupant[]): RoomOccupant[] {
-  return occupants.filter(
-    (occupant) =>
-      occupant.kind === 'mob' &&
-      occupant.mob !== undefined &&
-      !occupant.uncertain &&
-      !occupant.charmed &&
-      occupant.costly !== 'always' &&
-      occupant.disposition === 'hostile'
-  );
+  return occupants.filter(isAuthoritativeHostileMob);
 }
 
 function verifiedAttackerHostiles(
   occupants: readonly RoomOccupant[],
   attackers: readonly string[]
 ): RoomOccupant[] {
-  const attackerKeys = new Set(attackers.map(mobKey));
-  if (attackerKeys.size === 0) return [];
-
-  return occupants.filter((occupant) => {
-    const key = mobKey(occupant.name);
-    if (
-      !attackerKeys.has(key) ||
-      occupant.kind !== 'mob' ||
-      occupant.mob?.source !== 'hybrid' ||
-      occupant.mob.disposition === null ||
-      occupant.charmed ||
-      occupant.mob.charmed ||
-      occupant.costly === 'always' ||
-      occupant.mob.costly === 'always'
-    ) {
-      return false;
-    }
-
-    // A combat log name is evidence only when it identifies one visible room
-    // occupant, with no player or unknown occupant sharing that name.
-    return occupants.filter((candidate) => mobKey(candidate.name) === key).length === 1;
-  });
+  return occupants.filter((occupant) => isVerifiedAttackingMob(occupants, occupant, attackers));
 }
 
 function uniqueNameMatch<T extends { name: string }>(

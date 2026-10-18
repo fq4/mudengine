@@ -104,10 +104,10 @@ export class AutonomousAgent {
     this.delegatedOperationStatus = check;
   }
   approvalResolved(message: string): void {
+    this.state.lastActionResult = message;
     if (this.state.status !== 'paused' || this.state.currentAction?.phase !== 'requested') return;
     this.state.status = this.state.enabled ? 'idle' : 'disabled';
     this.state.currentAction = { ...this.state.currentAction, message };
-    this.state.lastActionResult = message;
   }
   async tick(observation: AiObservation): Promise<AiDecision | null> {
     if (

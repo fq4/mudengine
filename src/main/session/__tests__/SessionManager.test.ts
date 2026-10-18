@@ -282,6 +282,11 @@ describe('AI reconnect lifecycle', () => {
     };
     manager = new SessionManager(sink, undefined, automation);
     await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const socket = await client();
+    let wire = '';
+    socket.on('data', (chunk) => {
+      wire += chunk.toString('latin1');
+    });
     const target: RoomOccupant = {
       name: 'kobold thief',
       kind: 'mob',
@@ -315,10 +320,65 @@ describe('AI reconnect lifecycle', () => {
     });
 
     expect(pending).toMatchObject({ ok: false, pendingApproval: true });
-    expect(manager.aiSnapshot.state.pendingApprovals[0]?.action).toMatchObject({
+    const approval = manager.aiSnapshot.state.pendingApprovals[0];
+    expect(approval?.action).toMatchObject({
       name: 'engage_enemy',
       args: { name: 'kobold thief' }
     });
+
+    manager.aiApprove(approval!.id);
+    await until(() => wire.includes('a kobold thief\r\n'));
+    expect(manager.aiSnapshot.state.approvalHistory.at(-1)?.status).toBe('executed');
+    expect((manager as any).combat.requestedEngagementActive).toBe(true);
+  });
+
+  it('records an approved action refused by fresh execution checks as failed', async () => {
+    const { sink } = collect();
+    manager = new SessionManager(sink, undefined, DEFAULT_CONFIG.automation);
+    await manager.connect({ host: '127.0.0.1', port, encoding: 'cp437' });
+    const socket = await client();
+    let wire = '';
+    socket.on('data', (chunk) => {
+      wire += chunk.toString('latin1');
+    });
+    const target: RoomOccupant = {
+      name: 'acid slime',
+      kind: 'mob',
+      disposition: 'hostile',
+      uncertain: false,
+      costly: 'never',
+      charmed: false,
+      hidden: false,
+      free: false,
+      mob: {
+        name: 'acid slime',
+        rawName: 'acid slime',
+        source: 'hybrid',
+        charmed: false,
+        disposition: 'hostile',
+        uncertain: false,
+        costly: 'never'
+      }
+    };
+    const current = (manager as any).tracker.current as CharacterState;
+    current.phase = 'in-game';
+    current.vitals = { ...current.vitals, hp: 40, hpMax: 51 };
+    current.room.occupants = [target];
+    (manager as any).aiAgent.state.objective = 'Engage the hostile NPC acid slime';
+
+    const pending = await manager.aiAction({
+      name: 'engage_enemy',
+      args: { name: 'acid slime' },
+      reason: 'engage the verified hostile NPC'
+    });
+    expect(pending).toMatchObject({ ok: false, pendingApproval: true });
+    const approval = manager.aiSnapshot.state.pendingApprovals[0]!;
+    current.vitals = { ...current.vitals, hp: null };
+
+    manager.aiApprove(approval.id);
+    await until(() => manager!.aiSnapshot.state.approvalHistory.at(-1)?.status === 'failed');
+    expect(manager.aiSnapshot.state.lastActionResult).toContain('Approved AI action refused');
+    expect(wire).not.toContain('a acid slime\r\n');
   });
 
   it('routes a supported broad objective through its bounded scheduler plan', async () => {

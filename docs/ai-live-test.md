@@ -800,3 +800,27 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   attackers remained. Only status/location/health reads were sent; usage was
   zero provider requests/tokens/cost, with no violations. No gameplay action
   was attempted.
+- Later bounded read-only probe: `pro` again resolved room `1/2150`; health was
+  `18/51`, combat was not engaged, and `large filthbug` was both the listed
+  attacker and one visible, realm-backed hostile mob. A separate
+  `--pve-probe-only --max-ms 60000 --max-moves 0` run approved and dispatched
+  exactly `a large filthbug`. At the monitor bound, the target remained active
+  at `20/51` HP with one attacker; no XP or exact-target death event was
+  recorded. The harness marked the encounter unresolved and skipped recovery.
+  The follow-up `--room-probe-only` found `20/51` HP, no active target or
+  engagement, and two attackers (`small kobold thief`, `large filthbug`), both
+  visible and realm-classified hostile. No further gameplay action was issued.
+  These probes used zero provider requests/tokens/cost, no movement, and zero
+  policy violations. The non-empty attacker list blocks another combat,
+  navigation, or recovery attempt.
+- Verification after this follow-up: focused approval/harness/AutoCombat/
+  SessionManager tests passed 558/558; full serial suite 7,057 passed and 2
+  skipped across 253 files; realm tests 18/18. Typecheck, production build,
+  secret scan, script syntax, and diff checks passed. The production renderer
+  retains its existing chunk-size warning. No live victory or recovery is
+  claimed.
+- After validation, a final zero-movement read again located Kefka at
+  `1/2150`, with HP `22/51`, no active target/engagement, and two attackers
+  (`small kobold thief`, `large filthbug`). It used zero provider requests,
+  tokens, and cost, with no violations. Since hostile pressure remains, no
+  combat, navigation, or recovery action was sent.

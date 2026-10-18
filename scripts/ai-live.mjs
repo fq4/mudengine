@@ -19,7 +19,7 @@ import { SessionManager } from '../src/main/session/SessionManager.ts';
 import { RealmLibrary } from '../src/main/world/RealmLibrary.ts';
 import {
   exactCombatApproval,
-  isExactCombatTargetDeath,
+  isExactCombatTargetDeathEvidence,
   LiveHarnessMonitor,
   navigateToWithWalker,
   requestRoomIdentity,
@@ -101,6 +101,7 @@ const monitor = new LiveHarnessMonitor({
 let combatVictoryEvidence = false;
 let combatTargetName = null;
 let combatTargetDied = false;
+const combatEvidenceEvents = [];
 let combatBlocksNavigation = false;
 let recoveryBlocksNavigation = false;
 let currentRoom = null;
@@ -153,10 +154,25 @@ const sink = {
       );
       if (recentLoginBlockSummaries.length > 8) recentLoginBlockSummaries.shift();
     }
-    if (block.type === 'user-gain-experience') combatVictoryEvidence = true;
+    if (block.type === 'user-gain-experience') {
+      combatVictoryEvidence = true;
+      combatEvidenceEvents.push({
+        type: block.type,
+        experience: block.groups.exp ?? null
+      });
+    }
+    if (block.type === 'mob-dies') {
+      combatEvidenceEvents.push({
+        type: block.type,
+        mob: block.groups.mob ?? null,
+        attacker: block.groups.attacker ?? null,
+        candidates: block.groups.mobs ?? null
+      });
+    }
+    if (combatEvidenceEvents.length > 20) combatEvidenceEvents.shift();
     if (
       block.type === 'mob-dies' &&
-      isExactCombatTargetDeath(block.groups.mob ?? '', combatTargetName)
+      isExactCombatTargetDeathEvidence(block.groups, combatTargetName)
     )
       combatTargetDied = true;
     if (
@@ -350,6 +366,7 @@ const runIntegratedAdventureObjective = async () => {
   combatVictoryEvidence = false;
   combatTargetName = null;
   combatTargetDied = false;
+  combatEvidenceEvents.length = 0;
   session.aiGoal(objective);
   const complete = await waitFor(
     (state) => {
@@ -668,7 +685,18 @@ async function main() {
       hpMax: healthState.vitals.hpMax,
       combatEngaged: healthState.combat.engaged,
       targetPresent: healthState.combat.target !== null,
-      attackerCount: healthState.combat.attackers.length
+      attackerCount: healthState.combat.attackers.length,
+      attackers: healthState.combat.attackers,
+      visibleMobs: healthState.room.occupants
+        .filter((occupant) => occupant.kind === 'mob')
+        .map((mob) => ({
+          name: mob.name,
+          source: mob.mob?.source ?? null,
+          disposition: mob.disposition ?? null,
+          uncertain: mob.uncertain,
+          charmed: mob.charmed,
+          costly: mob.costly
+        }))
     };
     let navigation = null;
     if (navigationProbeOnly) {
@@ -780,6 +808,7 @@ async function main() {
         combatVictoryEvidence = false;
         combatTargetName = eligibility.target.name;
         combatTargetDied = false;
+        combatEvidenceEvents.length = 0;
         monitor.authorizeCombatTarget(combatTargetName);
         session.aiAgent.state.objective = `Engage the verified PvE enemy ${combatTargetName}`;
         let dispatch = await session.aiAction({
@@ -801,7 +830,10 @@ async function main() {
               const approvalResult = snapshot().state.approvalHistory.find(
                 (entry) => entry.id === approval.id
               );
-              if (approvalResult && ['executed', 'rejected', 'expired'].includes(approvalResult.status)) {
+              if (
+                approvalResult &&
+                ['executed', 'failed', 'rejected', 'expired'].includes(approvalResult.status)
+              ) {
                 approvalCompleted = approvalResult.status === 'executed';
                 break;
               }
@@ -811,7 +843,7 @@ async function main() {
               ok: approvalCompleted,
               message: approvalCompleted
                 ? 'Exact-target combat approval executed through SessionManager'
-                : 'The exact-target combat approval did not complete'
+                : `Exact-target combat action was not executed: ${snapshot().state.lastActionResult}`
             };
           }
         }
@@ -860,14 +892,15 @@ async function main() {
           target: combatTargetName,
           targetDied: combatTargetDied,
           experienceObserved: combatVictoryEvidence,
+          combatEvidenceEvents: [...combatEvidenceEvents],
           outcome,
           unresolved,
           finalHp: finalVitals.hp,
           finalHpMax: finalVitals.hpMax,
-          target: combatTargetName,
           combatEngaged: finalCombat.engaged,
           activeTargetPresent: finalCombat.target !== null,
           attackerCount: finalCombat.attackers.length,
+          attackers: finalCombat.attackers,
           result: `${dispatch.message}; outcome=${outcome}; target=${combatTargetName}; targetDeath=${combatTargetDied}; XP=${combatVictoryEvidence}; HP=${finalVitals.hp ?? 'unknown'}/${finalVitals.hpMax ?? 'unknown'}; engaged=${finalCombat.engaged}; activeTargetPresent=${finalCombat.target !== null}; attackers=${finalCombat.attackers.length}; room=${beforeRoom}->${afterRoom}; ${summarizeCombatCandidates(room?.occupants ?? [], finalCombat.attackers)}`
         };
       }
@@ -876,6 +909,78 @@ async function main() {
         ...pveProbe,
         providerRequests: monitor.providerRequests
       });
+      const combatSettled =
+        pveProbe?.outcome === 'ended' && pveProbe?.unresolved === false;
+      const hpFraction =
+        pveProbe?.finalHp !== null &&
+        pveProbe?.finalHp !== undefined &&
+        pveProbe?.finalHpMax !== null &&
+        pveProbe?.finalHpMax !== undefined &&
+        pveProbe.finalHpMax > 0
+          ? pveProbe.finalHp / pveProbe.finalHpMax
+          : null;
+      const { restBelow, restTo } = profile.config.automation.health;
+      if (!combatSettled) {
+        report.scenarios.push({
+          name: 'bounded-provider-free-post-combat-recovery',
+          passed: false,
+          result: pveProbe?.unresolved
+            ? 'Skipped because combat or attacker settlement is unresolved; no recovery command was requested'
+            : 'Skipped because no settled PvE encounter is available for post-combat recovery'
+        });
+      } else if (hpFraction === null) {
+        report.scenarios.push({
+          name: 'bounded-provider-free-post-combat-recovery',
+          passed: false,
+          result: 'Skipped because authoritative HP is unavailable'
+        });
+      } else if (restBelow <= 0 || hpFraction >= restBelow) {
+        report.scenarios.push({
+          name: 'bounded-provider-free-post-combat-recovery',
+          passed: true,
+          result: `Rest not due at HP ${pveProbe.finalHp}/${pveProbe.finalHpMax}; configured restBelow=${restBelow}`
+        });
+      } else {
+        const recoveryAutomation = createRoomProbeAutomation(true);
+        recoveryAutomation.health = {
+          ...recoveryAutomation.health,
+          restBelow,
+          restTo
+        };
+        session.configure(
+          recoveryAutomation,
+          profile.config.connection.login,
+          profile.config.ui.rewrites,
+          profile.config.connection.locate
+        );
+        monitor.authorizeRecovery();
+        const commandsBeforeRecovery = monitor.events.filter(
+          (event) => event.kind === 'command'
+        ).length;
+        const recovery = await session.aiAction({
+          name: 'recover_health',
+          reason: 'bounded provider-free post-combat recovery'
+        });
+        const recoveryTarget = restTo > 0 ? restTo : restBelow;
+        const recoveryReady = recovery.ok
+          ? await waitForRecoveryFraction(recoveryTarget)
+          : false;
+        const restCommandObserved = monitor.events
+          .filter((event) => event.kind === 'command')
+          .slice(commandsBeforeRecovery)
+          .some(
+            (event) => event.kind === 'command' && /^rest$/i.test(event.value)
+          );
+        report.scenarios.push({
+          name: 'bounded-provider-free-post-combat-recovery',
+          passed:
+            recovery.ok &&
+            restCommandObserved &&
+            recoveryReady &&
+            !monitor.failed,
+          result: `${recovery.message}; restCommandObserved=${restCommandObserved}; restTargetReached=${recoveryReady}; target=${Math.round(recoveryTarget * 100)}%; ${recoveryDiagnostic()}`
+        });
+      }
     }
     report.scenarios.push({
       name: 'configured-room-location',
@@ -1160,6 +1265,7 @@ async function main() {
     combatVictoryEvidence = false;
     combatTargetName = arenaEligibility.target.name;
     combatTargetDied = false;
+    combatEvidenceEvents.length = 0;
     monitor.authorizeCombatTarget(arenaEligibility.target.name);
     // The harness supplies the explicit authorized objective; the executor's
     // target, health, classification, and escape checks remain authoritative.

@@ -19,6 +19,14 @@ describe('ApprovalStore', () => {
   it('approves one exact pending action only for the same state', () => { const store = new ApprovalStore(); const item = store.request('open vault', 'inspect', 'high', 'state'); expect(store.approve(item.id, 'changed')).toBeNull(); const next = store.request('open vault', 'inspect', 'high', 'state'); expect(store.approve(next.id, 'state')?.status).toBe('approved'); expect(store.snapshot().pending).toHaveLength(0); });
   it('retains decision context through approval history', () => { const store = new ApprovalStore(); const item = store.request('buy potion', 'recover supplies', 'high', 'state', Date.now(), { target: 'General Store', knownFacts: ['Current room: 1/2', 'No active combat target'], prediction: 'May spend in-game currency' }); expect(item).toMatchObject({ target: 'General Store', knownFacts: ['Current room: 1/2', 'No active combat target'], prediction: 'May spend in-game currency' }); store.approve(item.id, 'state'); expect(store.snapshot().history[0]).toMatchObject({ target: 'General Store', prediction: 'May spend in-game currency', status: 'approved' }); });
   it('records execution separately after an approved action is accepted', () => { const store = new ApprovalStore(); const item = store.request('open vault', 'inspect', 'high', 'state'); store.approve(item.id, 'state'); expect(store.markExecuted(item.id)).toBe(true); expect(store.snapshot().history.at(-1)?.status).toBe('executed'); });
+  it('records an approved action refusal as failed rather than executed', () => {
+    const store = new ApprovalStore();
+    const item = store.request('ai-action:engage_enemy', 'fight', 'high', 'state');
+    store.approve(item.id, 'state');
+    expect(store.markFailed(item.id)).toBe(true);
+    expect(store.markExecuted(item.id)).toBe(false);
+    expect(store.snapshot().history.at(-1)?.status).toBe('failed');
+  });
   it('retains the exact structured action for approval dispatch', () => {
     const store = new ApprovalStore();
     const action = { name: 'send_message', reason: 'contact the group', args: { channel: 'local', message: 'hello' } } as const;

@@ -184,6 +184,14 @@ export function isExactCombatTargetDeath(deathName: string, targetName: string |
   return deathKey.length > 0 && deathKey === mobKey(targetName);
 }
 
+/** Resolve the classifier's exact mob name across its two death-block shapes. */
+export function isExactCombatTargetDeathEvidence(
+  groups: { mob?: string; attacker?: string },
+  targetName: string | null
+): boolean {
+  return isExactCombatTargetDeath(groups.mob ?? groups.attacker ?? '', targetName);
+}
+
 export interface RoomIdentityRequestResult {
   resolved: boolean;
   requestSent: boolean;

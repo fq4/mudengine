@@ -639,3 +639,26 @@ After cloning, paste the prompt in `docs/PHASE6_CONTINUATION_PROMPT.md`. Phase 6
   zero violations. Do not start combat, navigation, or recovery yet; recheck
   with this zero-movement probe before deciding whether hostile pressure has
   cleared.
+- Latest bounded follow-up (2026-10-18) supersedes that snapshot: a read-only
+  probe found one uniquely matching visible hostile, `large filthbug`, at
+  `18/51` HP. Exact-target approval dispatched it through SessionManager;
+  after the 60-second bound the encounter was still active, with no XP or
+  target-death event. Post-combat recovery was correctly skipped. A subsequent
+  read-only probe showed `20/51` HP, no active target/engagement, and two
+  visible hostile attackers (`small kobold thief`, `large filthbug`). All three
+  probes used zero provider requests/tokens/cost, zero movement, and reported
+  zero policy violations. The combat is unresolved; do not send another attack,
+  movement, or rest command until fresh authoritative state shows no attackers.
+- Verification after these changes: focused approval, harness, AutoCombat,
+  and SessionManager tests passed 558/558; the serial full suite passed 7,057
+  tests with 2 skipped across 253 files; realm tests passed 18/18. Typecheck,
+  production build, secret scan, live-script syntax, and diff checks passed.
+  The existing renderer chunk-size warning remains. Low-health recovery,
+  verified exact-target death, safe escape under pressure, and a complete live
+  objective remain unverified.
+- Final zero-movement recheck after validation again resolved `1/2150` through
+  `pro`: HP `22/51`, no active target/engagement, and the same two visible
+  hostiles (`small kobold thief`, `large filthbug`) in the attacker list. It
+  sent only location/status/health reads with zero provider usage and zero
+  violations. Hostile pressure has not cleared; do not attempt combat,
+  navigation, or recovery.

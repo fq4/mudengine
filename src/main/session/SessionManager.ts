@@ -3664,7 +3664,8 @@ export class SessionManager {
     if (approval.action) {
       const approvedAction = approval.action;
       void this.executeAiAction(approvedAction, 'approved').then((result) => {
-        this.aiApprovals.markExecuted(approval.id);
+        if (result.ok) this.aiApprovals.markExecuted(approval.id);
+        else this.aiApprovals.markFailed(approval.id);
         const message = result.ok
           ? `Approved AI action completed: ${result.message}`
           : `Approved AI action refused: ${result.message}`;
@@ -3689,11 +3690,17 @@ export class SessionManager {
             this.aiAgent.state.status = ok ? 'idle' : 'error';
           }
         }
+      }).catch((error: unknown) => {
+        this.aiApprovals.markFailed(approval.id);
+        this.aiAgent.approvalResolved(
+          `Approved AI action failed: ${error instanceof Error ? error.message : String(error)}`
+        );
       });
       return this.aiSnapshot;
     }
     const classification = classifyCommand(approval.command, this.aiPermissionLayers);
     if (classification.authorization === 'rejected') {
+      this.aiApprovals.markFailed(approval.id);
       this.aiAgent.approvalResolved(`Approval invalidated: ${classification.reason}`);
       return this.aiSnapshot;
     }
@@ -3707,6 +3714,7 @@ export class SessionManager {
         this.aiApprovals.markExecuted(approval.id);
       }
     });
+    if (!queued) this.aiApprovals.markFailed(approval.id);
     this.aiAgent.approvalResolved(
       queued
         ? `Approved command queued: ${approval.command}`
@@ -3727,6 +3735,7 @@ export class SessionManager {
     }
     const classification = classifyCommand(approval.command, this.aiPermissionLayers);
     if (classification.authorization !== 'ask-first') {
+      this.aiApprovals.markFailed(approval.id);
       this.aiAgent.approvalResolved(`Temporary authorization refused: ${classification.reason}`);
       return this.aiSnapshot;
     }
@@ -3750,6 +3759,7 @@ export class SessionManager {
         this.aiApprovals.markExecuted(approval.id);
       }
     });
+    if (!queued) this.aiApprovals.markFailed(approval.id);
     this.aiAgent.approvalResolved(
       queued
         ? `Approved command queued with temporary authorization: ${approval.command}`
@@ -4474,7 +4484,8 @@ export class SessionManager {
         // may test low-health outcomes; unknown health and
         // player/PvP targets remain hard refusals in CombatSafety.
         0,
-        true
+        true,
+        this.tracker.current.combat.attackers
       );
       const target = eligibility.target;
       if (!eligibility.ok || !target)

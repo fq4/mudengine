@@ -67,6 +67,7 @@
  * derived from exactly the work this module does.
  */
 import type { CommandQueue } from './CommandQueue';
+import { isAuthoritativeHostileMob, isVerifiedAttackingMob } from '../../shared/combatTarget';
 import { canPayFor } from './mana';
 import { countMobs, countThreats } from './RuleEngine';
 import { t } from '../app/i18n';
@@ -885,12 +886,9 @@ export class AutoCombat {
     if (matches.length !== 1) return false;
     const target = matches[0];
     return (
-      target?.kind === 'mob' &&
-      target.mob !== undefined &&
-      !target.uncertain &&
-      !target.charmed &&
-      target.disposition === 'hostile' &&
-      target.costly !== 'always'
+      target !== undefined &&
+      (isAuthoritativeHostileMob(target) ||
+        isVerifiedAttackingMob(state.room.occupants, target, state.combat.attackers))
     );
   }
 
