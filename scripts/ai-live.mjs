@@ -31,6 +31,8 @@ import {
   createEscapeProbeAutomation,
   createRecoveryProbeAutomation,
   createRoomProbeAutomation,
+  createSupervisedCombatProbeAutomation,
+  hasSupervisedCombatEscape,
   readOnlyNavigationPreflight,
   roomIdentityKey,
   summarizeCombatFightRecord,
@@ -38,6 +40,7 @@ import {
   summarizeCombatOccupants,
   summarizeCombatState,
   shouldObserveForVerifiedAttacker,
+  shouldRequestDocumentedRoomFallback,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../src/main/ai/LiveHarness.ts';
@@ -47,8 +50,7 @@ import YAML from 'yaml';
 import { resolveProfile } from '../src/shared/profiles.ts';
 import { mobKey, roomId } from '../src/shared/world.ts';
 import {
-  assessCombatEligibility,
-  hasMappedCombatEscape
+  assessCombatEligibility
 } from '../src/main/ai/CombatSafety.ts';
 import {
   findSafeCombatNpc,
@@ -496,6 +498,7 @@ const loginDiagnostic = () => {
   const { phase, room, vitals, combat } = session.character;
   return [
     `phase=${phase}`,
+    `serverFamily=${session.family ?? 'unknown'}`,
     `room=${room.map ?? 'unknown'}/${room.number ?? 'unknown'}`,
     `HP=${vitals.hp ?? 'unknown'}/${vitals.hpMax ?? 'unknown'}`,
     `combatEngaged=${combat.engaged}`,
@@ -542,6 +545,7 @@ const runScenario = async (name, objective, expected) => {
   if (monitor.failed) throw new Error(monitor.violations[0].message);
   return passed;
 };
+let integratedArenaObjectiveRun = false;
 const runIntegratedAdventureObjective = async () => {
   const before = roomKey();
   const objective =
@@ -558,17 +562,17 @@ const runIntegratedAdventureObjective = async () => {
         const targetName = approval.action?.args?.name;
         if (approval.action?.name !== 'engage_enemy' || typeof targetName !== 'string') continue;
         const room = session.character.room;
-        const escapeAvailable =
-          room?.exits.some(
-            (exit) =>
-              exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
-          ) ?? false;
+        const escapeAvailable = hasSupervisedCombatEscape(
+          room?.exits ?? [],
+          profile.config.automation.safety.retreat
+        );
         const eligibility = assessCombatEligibility(
           room?.occupants ?? [],
           session.character.vitals,
           targetName,
           0.6,
-          escapeAvailable
+          escapeAvailable,
+          session.character.combat.attackers
         );
         if (!eligibility.ok || !eligibility.target) continue;
         combatTargetName = eligibility.target.name;
@@ -805,7 +809,10 @@ async function main() {
     roomProbe = await requestRoomIdentity({
       roomKey,
       request: () => session.askWhereIAm(true),
-      ...(session.family === 'greatermud'
+      ...(shouldRequestDocumentedRoomFallback({
+        serverFamily: session.family,
+        locateMethod: profile.config.connection.locate
+      })
         ? { fallbackRequest: () => session.ask('pro', true) }
         : {}),
       waitFor: (timeoutMs) => waitFor(() => /^\d+\/\d+$/.test(roomKey()), timeoutMs),
@@ -1341,7 +1348,7 @@ async function main() {
         };
         combatEligibilityReason = eligibility.reason;
         session.configure(
-          createRoomProbeAutomation(true),
+          createSupervisedCombatProbeAutomation(profile.config.automation),
           profile.config.connection.login,
           profile.config.ui.rewrites,
           profile.config.connection.locate
@@ -1908,6 +1915,30 @@ async function main() {
       ? `Observed authoritative mobs; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}`
       : 'No authoritative mob target visible in the arena'
   });
+  const arenaTarget = findSafeCombatNpc(
+    arenaRoom?.occupants ?? [],
+    undefined,
+    session.character.combat.attackers
+  );
+  const arenaEscapeAvailable = hasSupervisedCombatEscape(
+    arenaRoom?.exits ?? [],
+    profile.config.automation.safety.retreat
+  );
+  const arenaEligibility = assessCombatEligibility(
+    arenaRoom?.occupants ?? [],
+    session.character.vitals,
+    arenaTarget?.name,
+    MINIMUM_COMBAT_HEALTH_FRACTION,
+    arenaEscapeAvailable,
+    session.character.combat.attackers
+  );
+  report.scenarios.push({
+    name: 'newhaven-arena-combat-preflight',
+    passed: arenaNavigation && arenaInspection,
+    result: arenaEligibility.ok
+      ? `Eligible target ${arenaEligibility.target?.name}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}; health and escape route verified`
+      : `Safely refused before combat: ${arenaEligibility.reason}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}`
+  });
   const arenaNpc = findSafeNpc(arenaRoom?.occupants ?? []);
   if (arenaNpc?.npc?.name) {
     const npcInspection = await session.aiAction({
@@ -1928,42 +1959,57 @@ async function main() {
         'Skipped safely: no authoritative room resident identity is visible; combat mobs are checked separately'
     });
   }
-  const arenaTarget = findSafeCombatNpc(arenaRoom?.occupants ?? []);
-  const arenaEscapeAvailable = hasMappedCombatEscape(arenaRoom);
-  const arenaEligibility = assessCombatEligibility(
-    arenaRoom?.occupants ?? [],
-    session.character.vitals,
-    arenaTarget?.name,
-    MINIMUM_COMBAT_HEALTH_FRACTION,
-    arenaEscapeAvailable,
+  // Let the provider-driven objective act on the live target before scripted fallback.
+  if (!monitor.failed) {
+    await runIntegratedAdventureObjective();
+    integratedArenaObjectiveRun = true;
+  }
+  const integratedCombatAttempted = combatTargetName !== null;
+  const currentArenaRoom = session.character.room;
+  const currentArenaTarget = findSafeCombatNpc(
+    currentArenaRoom?.occupants ?? [],
+    undefined,
     session.character.combat.attackers
   );
-  report.scenarios.push({
-    name: 'newhaven-arena-combat-preflight',
-    passed: arenaNavigation && arenaInspection,
-    result: arenaEligibility.ok
-      ? `Eligible target ${arenaEligibility.target?.name}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}; health and escape route verified`
-      : `Safely refused before combat: ${arenaEligibility.reason}; ${summarizeCombatCandidates(arenaRoom?.occupants ?? [], session.character.combat.attackers)}`
-  });
-  if (arenaEligibility.ok && arenaEligibility.target) {
+  const currentArenaEscapeAvailable = hasSupervisedCombatEscape(
+    currentArenaRoom?.exits ?? [],
+    profile.config.automation.safety.retreat
+  );
+  const currentArenaEligibility = assessCombatEligibility(
+    currentArenaRoom?.occupants ?? [],
+    session.character.vitals,
+    currentArenaTarget?.name,
+    MINIMUM_COMBAT_HEALTH_FRACTION,
+    currentArenaEscapeAvailable,
+    session.character.combat.attackers
+  );
+  if (integratedCombatAttempted) {
+    report.scenarios.push({
+      name: 'newhaven-arena-bounded-combat',
+      passed: true,
+      skipped: true,
+      result:
+        'The provider-driven integrated objective already attempted exact-target combat; no second engagement was requested'
+    });
+  } else if (currentArenaEligibility.ok && currentArenaEligibility.target) {
     combatVictoryEvidence = false;
-    combatTargetName = arenaEligibility.target.name;
+    combatTargetName = currentArenaEligibility.target.name;
     combatTargetDied = false;
     combatEvidenceEvents.length = 0;
     combatFightEvidence.length = 0;
-    monitor.authorizeCombatTarget(arenaEligibility.target.name);
+    monitor.authorizeCombatTarget(currentArenaEligibility.target.name);
     // The harness supplies the explicit authorized objective; the executor's
     // target, health, classification, and escape checks remain authoritative.
-    session.aiAgent.state.objective = `Engage the verified PvE enemy ${arenaEligibility.target.name}`;
+    session.aiAgent.state.objective = `Engage the verified PvE enemy ${currentArenaEligibility.target.name}`;
     let combatDispatch = await session.aiAction({
       name: 'engage_enemy',
-      args: { name: arenaEligibility.target.name },
+      args: { name: currentArenaEligibility.target.name },
       reason: 'bounded authorized Newhaven Arena PvE test'
     });
     if (!combatDispatch.ok) {
       const approval = exactCombatApproval(
         snapshot().state.pendingApprovals,
-        arenaEligibility.target.name
+        currentArenaEligibility.target.name
       );
       if (approval) {
         session.aiApprove(approval.id);
@@ -2248,15 +2294,18 @@ async function main() {
       result: residentSkipReason
     });
   }
-  if (combatBlocksNavigation || recoveryBlocksNavigation || monitor.failed) {
-    report.scenarios.push({
-      name: 'integrated-arena-objective',
-      passed: !monitor.failed,
-      skipped: true,
-      result: 'Skipped because prior combat or recovery is unresolved; no objective was launched'
-    });
-  } else {
-    await runIntegratedAdventureObjective();
+  if (!integratedArenaObjectiveRun) {
+    if (combatBlocksNavigation || recoveryBlocksNavigation || monitor.failed) {
+      report.scenarios.push({
+        name: 'integrated-arena-objective',
+        passed: !monitor.failed,
+        skipped: true,
+        result: 'Skipped because prior combat or recovery is unresolved; no objective was launched'
+      });
+    } else {
+      await runIntegratedAdventureObjective();
+      integratedArenaObjectiveRun = true;
+    }
   }
   const invalid = await session.aiAction({
     name: 'navigate_to',

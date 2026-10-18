@@ -1068,3 +1068,82 @@ integrated combat objective, and resumption into a subsequent goal remain
 open. Next: have a bounded live objective pursue a verified target when
 present, then verify safe recovery and a subsequent objective without
 weakening identity, hostility, or combat policy.
+
+## Supervised combat safety and live exact-target victory (2026-10-18)
+
+- Read-only profile inspection found recovery only below `0.35` to `0.70` and
+  retreat disabled with `whenOutnumbered=0`. With user authorization, the
+  saved Kefka gameplay settings were changed to `restBelow=0.70`,
+  `restTo=0.80`, retreat enabled at `whenOutnumbered=2`; the existing
+  health-based retreat floor remains `0.30`. No credentials, provider
+  budgets, or combat policy were changed.
+- The PvE diagnostic previously replaced those saved settings with default
+  thresholds. `createSupervisedCombatProbeAutomation` now preserves only the
+  configured health-rest thresholds and retreat settings while continuing to
+  disable unrelated automation, automatic engagement, consumables, and loops.
+  Its regression test verifies both inheritance and isolation.
+- The capped full live harness passed its inspection, navigation, NPC,
+  refusal, manual-priority, budget, and emergency-stop scenarios with zero
+  violations. Its Arena objective safely skipped combat because the visible
+  mob was uncertain and not a verified attacker. Recovery was a no-op at
+  `51/51`; the objective reported the new `0.70` rest threshold. Provider use
+  was 4 requests, 12,039 tokens, estimated `$0.0019818` of the unchanged
+  `$0.05` ceiling.
+- A fresh read-only observation then showed one `large giant rat` attacker in
+  `1/2150` at `51/51`. It resolved to hybrid entity IDs `[1,109,1116]`,
+  hostile disposition, uncertain classification, and `costly: sometimes`.
+  The current attacker evidence uniquely matched that entity, so the existing
+  exact-target policy approved it. The bounded probe dispatched
+  `a large giant rat` through SessionManager; parsed hit/miss events were
+  target-matched, the tracker recorded 12 damage and `killedBy: 'sentence'`,
+  and the server awarded 450 XP. The character remained at `51/51`; the target
+  and all attackers cleared. The main settle window elapsed, but the bounded
+  post-timeout observer captured the verified terminal outcome about 6 seconds
+  later. The diagnostic artifact contains bounded parsed state, not raw lines.
+  Provider use and policy violations were zero.
+- This confirms another real exact-target victory and that the diagnostic
+  session remains inspectable through its post-deadline observation. It does
+  not prove provider-selected combat, low-health recovery under the saved
+  thresholds, automatic retreat at two attackers, or a subsequent autonomous
+  objective. The live post-fight recovery step correctly did not rest at full
+  health. Final live state at probe completion: `1/2150`, `51/51`, no active
+  target or attackers.
+- Focused session/recovery/navigation/safety tests passed 611/611; the changed
+  LiveHarness suite passed 55/55. Full suite, realm suite, typecheck/build,
+  secret scan, syntax, and diff checks are still required before pushing.
+
+## 2026-10-18 — integrated exact-target victory and safe withdrawal
+
+- The integrated objective initially stopped at a pending approval because
+  the harness supervisor omitted current attacker evidence when rechecking an
+  uncertain hybrid mob. Passing the live attacker list fixed the supervisor
+  without changing SessionManager's authoritative target validation or
+  approval gate. Regression coverage also verifies that an action-relevant
+  invalidation obtains a fresh approval and that generic approved commands
+  still reach CommandQueue.
+- The next bounded provider-driven run completed the connected objective:
+  `big giant rat` was engaged through SessionManager approval and the harness
+  observed exact-target death and XP evidence. Recovery correctly did not run
+  at `51/51`. The same run then completed one-room and two-room navigation,
+  used Walker to reach `1/2147`, and inspected Corwyn. It used 4 provider
+  requests and estimated `$0.0020163` under the unchanged `$0.05` cap; safety
+  violations: zero.
+- A later provider-free attempt found two rat attackers in `1/2150`, selected
+  the exact `big giant rat` from fresh attacker-backed observations, and
+  executed the approved command. Combat became active, then MudEngine issued
+  one `u`; the character arrived at `1/2146`, `51/51`, with no attackers.
+  No hit/miss, damage, XP, or exact death was observed, and the probe correctly
+  reported failure rather than a victory. A sanitized diagnostic artifact
+  retains bounded target identity, commands, combat transitions, and state
+  snapshots.
+- Verified: full suite 7,086 passed, 2 skipped; realm 18/18; typecheck and
+  production build passed; secret scan found no configured password in 54
+  user-scoped files; script syntax and diff checks passed. The existing
+  renderer chunk warning remains.
+- Still unverified: low-health recovery after actual damage in the connected
+  objective, exact cause logging for the two-attacker withdrawal, and
+  resuming a later objective after that recovery. Current live state is
+  `1/2146`, `51/51`, with no active target or attackers. Next, retain the
+  retreat policy, add/verify bounded reason telemetry, and wait for a fresh
+  legitimate target opportunity before testing damage, recovery, and
+  subsequent objective selection.

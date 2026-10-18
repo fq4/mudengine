@@ -35,11 +35,16 @@ export class ApprovalStore {
   expire(now = Date.now()): void {
     this.expireAll(now);
   }
-  revalidate(contextHash: string, now = Date.now()): number {
+  revalidate(
+    contextHash: string,
+    now = Date.now(),
+    contextForApproval?: (approval: AiApproval) => string
+  ): number {
     const before = this.pending.length;
     this.expireAll(now);
     for (const item of [...this.pending])
-      if (item.contextHash !== contextHash) this.finish(item, 'expired');
+      if (item.contextHash !== (contextForApproval?.(item) ?? contextHash))
+        this.finish(item, 'expired');
     for (const grant of this.grants)
       if (grant.status === 'active' && grant.contextHash !== contextHash) grant.status = 'revoked';
     return before - this.pending.length;

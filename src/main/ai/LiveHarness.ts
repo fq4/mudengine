@@ -1,8 +1,13 @@
 import type { AiApproval } from '../../shared/ai';
 import type { Block } from '../../shared/blocks';
 import type { CharacterState, Combat, Room, RoomOccupant, Vitals } from '../../shared/character';
-import { DEFAULT_CONFIG, type AutomationConfig } from '../../shared/config';
+import {
+  DEFAULT_CONFIG,
+  type AutomationConfig,
+  type LocateMethod
+} from '../../shared/config';
 import type { FightRecord } from '../../shared/fights';
+import type { RealmFamily } from '../../shared/realm';
 import type { WalkProgress } from '../../shared/walk';
 import { mobKey } from '../../shared/world';
 import { combatOutcome, type CombatOutcome } from './CombatOutcome';
@@ -70,6 +75,23 @@ export function createEscapeProbeAutomation(base: AutomationConfig): AutomationC
   };
 }
 
+/** Keep production rest and retreat thresholds active in a supervised fight probe. */
+export function createSupervisedCombatProbeAutomation(base: AutomationConfig): AutomationConfig {
+  const automation = createRoomProbeAutomation(true);
+  return {
+    ...automation,
+    health: {
+      ...automation.health,
+      restBelow: base.health.restBelow,
+      restTo: base.health.restTo
+    },
+    safety: {
+      ...automation.safety,
+      retreat: { ...base.safety.retreat }
+    }
+  };
+}
+
 /** Temporarily enable health-only resting in a bounded recovery probe. */
 export function createRecoveryProbeAutomation(): AutomationConfig {
   const automation = createRoomProbeAutomation(true);
@@ -87,6 +109,28 @@ export function createRecoveryProbeAutomation(): AutomationConfig {
 export function roomIdentityKey(room: Pick<Room, 'map' | 'number' | 'name'>): string {
   if (room.map !== null && room.number !== null) return `${room.map}/${room.number}`;
   return room.name ?? '';
+}
+
+/** Accept a visible fallback exit only when configured retreat automation can trigger. */
+export function hasSupervisedCombatEscape(
+  exits: readonly Pick<Room['exits'][number], 'targetMap' | 'targetRoom' | 'requirement'>[],
+  retreat: Pick<
+    AutomationConfig['safety']['retreat'],
+    'enabled' | 'belowHealth' | 'belowMana' | 'whenOutnumbered'
+  >
+): boolean {
+  if (
+    exits.some(
+      (exit) =>
+        exit.targetMap !== null && exit.targetRoom !== null && exit.requirement === null
+    )
+  )
+    return true;
+  return (
+    retreat.enabled &&
+    (retreat.belowHealth > 0 || retreat.belowMana > 0 || retreat.whenOutnumbered > 0) &&
+    exits.some((exit) => exit.requirement === null)
+  );
 }
 
 export function readOnlyNavigationPreflight(
@@ -389,6 +433,13 @@ export interface RoomIdentityRequestResult {
   resolved: boolean;
   requestSent: boolean;
   fallbackRequestSent?: boolean;
+}
+
+export function shouldRequestDocumentedRoomFallback(options: {
+  serverFamily: RealmFamily | null;
+  locateMethod: LocateMethod;
+}): boolean {
+  return options.serverFamily === 'greatermud' || options.locateMethod === 'sys-status';
 }
 
 /** Resolve coordinates from the configured locator, then an optional documented fallback. */

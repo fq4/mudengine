@@ -3523,12 +3523,25 @@ export class SessionManager {
         JSON.stringify({
           room: this.tracker.current.room,
           target: this.tracker.current.combat.target
-        })
+        }),
+        Date.now(),
+        (approval) => this.aiApprovalContext(approval.action)
       )
     )
       this.aiAgent.approvalResolved(
         'Approval expired or game state changed; reassess before acting'
       );
+  }
+  private aiApprovalContext(action?: AiAction): string {
+    const state = this.tracker.current;
+    const isCombat = action?.name === 'engage_enemy';
+    return JSON.stringify({
+      room: isCombat
+        ? { map: state.room.map, number: state.room.number }
+        : state.room,
+      target: state.combat.target,
+      ...(isCombat ? { actionTarget: action.args?.name } : {})
+    });
   }
   get aiSnapshot(): AiSnapshot {
     this.revalidateAiApprovals();
@@ -3655,12 +3668,8 @@ export class SessionManager {
     return this.routines.askHealth('AI: authoritative health preflight');
   }
   aiApprove(id: string): AiSnapshot {
-    const context = () =>
-      JSON.stringify({
-        room: this.tracker.current.room,
-        target: this.tracker.current.combat.target
-      });
-    const approval = this.aiApprovals.approve(id, context());
+    const pending = this.aiApprovals.snapshot().pending.find((item) => item.id === id);
+    const approval = this.aiApprovals.approve(id, this.aiApprovalContext(pending?.action));
     if (!approval) {
       this.aiAgent.approvalResolved('Approval expired or game state changed');
       return this.aiSnapshot;
@@ -3713,7 +3722,9 @@ export class SessionManager {
       priority: 'user',
       reason: `Approved AI action: ${approval.reason}`,
       expiresAt: approval.expiresAt,
-      stillWanted: () => approval.contextHash === context() && Date.now() < approval.expiresAt,
+      stillWanted: () =>
+        approval.contextHash === this.aiApprovalContext(approval.action) &&
+        Date.now() < approval.expiresAt,
       onSent: () => {
         this.aiApprovals.markExecuted(approval.id);
       }
@@ -3866,8 +3877,12 @@ export class SessionManager {
     if (current) {
       const lifecycle = this.aiAgent.state.currentAction;
       const delegated = this.delegatedAiStatus(current.name);
-      if (delegated === 'active') return;
-      if (lifecycle?.phase === 'accepted' || lifecycle?.phase === 'executing') {
+      const staleApproval =
+        lifecycle?.phase === 'requested' &&
+        lifecycle.message.startsWith('Approval expired or game state changed');
+      if (delegated === 'active' && !staleApproval) return;
+      if (lifecycle?.phase === 'executing') return;
+      if (lifecycle?.phase === 'accepted') {
         const ok = delegated !== 'failed';
         this.finishAutonomous(ok, progress);
         this.aiAgent.state.currentAction = {
@@ -3902,7 +3917,11 @@ export class SessionManager {
     if (
       planStep?.action === 'engage_enemy' &&
       planStep.optional &&
-      !findSafeCombatNpc(this.tracker.current.room.occupants)
+      !findSafeCombatNpc(
+        this.tracker.current.room.occupants,
+        undefined,
+        this.tracker.current.combat.attackers
+      )
     ) {
       const plan = skipUnavailableOptionalSteps(
         this.aiAgent.state.plan ?? [],
@@ -4322,10 +4341,7 @@ export class SessionManager {
       policy.authorizationScope === 'capability' &&
       policy.authorization === 'ask-first'
     ) {
-      const contextHash = JSON.stringify({
-        room: this.tracker.current.room,
-        target: this.tracker.current.combat.target
-      });
+      const contextHash = this.aiApprovalContext(action);
       const approval = this.aiApprovals.request(
         `ai-action:${action.name}`,
         action.reason,
@@ -4524,6 +4540,12 @@ export class SessionManager {
           ok: false,
           message: `Refused: navigation destination "${destination || '—'}" is not an authoritative room address or available exit`
         };
+      if (
+        current.map !== null &&
+        current.number !== null &&
+        `${current.map}/${current.number}` === target
+      )
+        return { ok: true, message: 'Already at the authoritative destination; no movement required' };
       const route = this.planFromHere(target);
       if (typeof route === 'string')
         return { ok: false, message: `Refused: navigation to ${target} is unavailable: ${route}` };

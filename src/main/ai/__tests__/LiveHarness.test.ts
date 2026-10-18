@@ -4,7 +4,9 @@ import {
   createEscapeProbeAutomation,
   createRecoveryProbeAutomation,
   createRoomProbeAutomation,
+  createSupervisedCombatProbeAutomation,
   exactCombatApproval,
+  hasSupervisedCombatEscape,
   isExactCombatTargetDeath,
   isExactCombatTargetDeathEvidence,
   LiveHarnessMonitor,
@@ -17,6 +19,7 @@ import {
   summarizeCombatOccupants,
   summarizeCombatState,
   shouldObserveForVerifiedAttacker,
+  shouldRequestDocumentedRoomFallback,
   waitForCombatSettlement,
   waitForRecoveryHealth
 } from '../LiveHarness';
@@ -112,6 +115,34 @@ describe('createRoomProbeAutomation', () => {
     expect(automation.movement.fightOnArrival).toBe(false);
   });
 
+  it('preserves production recovery and retreat thresholds in a supervised combat probe', () => {
+    const base = structuredClone(DEFAULT_CONFIG.automation);
+    base.health.restBelow = 0.7;
+    base.health.restTo = 0.8;
+    base.safety.retreat.enabled = true;
+    base.safety.retreat.whenOutnumbered = 2;
+
+    const automation = createSupervisedCombatProbeAutomation(base);
+
+    expect(automation.enabled).toBe(true);
+    expect(automation.health).toMatchObject({
+      restBelow: 0.7,
+      restTo: 0.8,
+      meditateBelow: 0,
+      potions: [],
+      useWards: false
+    });
+    expect(automation.safety.retreat).toEqual(base.safety.retreat);
+    expect(automation.safety.fleeGoto).toEqual(DEFAULT_CONFIG.automation.safety.fleeGoto);
+    expect(automation.combat).toMatchObject({ engage: 'none', retaliate: false });
+    expect(automation.movement.fightOnArrival).toBe(false);
+    expect(automation.loops).toEqual([]);
+    expect(automation.events).toEqual([]);
+    expect(automation.rules).toEqual([]);
+    expect(base.health.restBelow).toBe(0.7);
+    expect(base.safety.retreat.whenOutnumbered).toBe(2);
+  });
+
   it('enables only health recovery in the recovery probe', () => {
     const automation = createRecoveryProbeAutomation();
 
@@ -136,6 +167,57 @@ describe('roomIdentityKey', () => {
     expect(roomIdentityKey({ map: 1, number: 2150, name: 'Arena' })).toBe('1/2150');
     expect(roomIdentityKey({ map: null, number: null, name: 'Arena' })).toBe('Arena');
     expect(roomIdentityKey({ map: null, number: null, name: null })).toBe('');
+  });
+});
+
+describe('hasSupervisedCombatEscape', () => {
+  const visibleUnmappedExit = [{ targetMap: null, targetRoom: null, requirement: null }] as const;
+  const blockedUnmappedExit = [
+    { targetMap: null, targetRoom: null, requirement: { kind: 'level', raw: 'level' } }
+  ] as const;
+
+  it('accepts an authoritative mapped exit without requiring retreat settings', () => {
+    expect(
+      hasSupervisedCombatEscape(
+        [{ targetMap: 1, targetRoom: 2146, requirement: null }],
+        DEFAULT_CONFIG.automation.safety.retreat
+      )
+    ).toBe(true);
+  });
+
+  it('accepts a visible unrestricted fallback exit only with an active retreat trigger', () => {
+    expect(
+      hasSupervisedCombatEscape(visibleUnmappedExit, {
+        enabled: true,
+        belowHealth: 0.3,
+        belowMana: 0,
+        whenOutnumbered: 2
+      })
+    ).toBe(true);
+    expect(
+      hasSupervisedCombatEscape(visibleUnmappedExit, {
+        enabled: true,
+        belowHealth: 0,
+        belowMana: 0,
+        whenOutnumbered: 0
+      })
+    ).toBe(false);
+    expect(
+      hasSupervisedCombatEscape(visibleUnmappedExit, {
+        enabled: false,
+        belowHealth: 0.3,
+        belowMana: 0,
+        whenOutnumbered: 2
+      })
+    ).toBe(false);
+    expect(
+      hasSupervisedCombatEscape(blockedUnmappedExit, {
+        enabled: true,
+        belowHealth: 0.3,
+        belowMana: 0,
+        whenOutnumbered: 2
+      })
+    ).toBe(false);
   });
 });
 
@@ -535,6 +617,33 @@ describe('summarizeCombatEvidence', () => {
 });
 
 describe('requestRoomIdentity', () => {
+  it('allows the configured profile locator to identify the documented fallback before family detection', () => {
+    expect(
+      shouldRequestDocumentedRoomFallback({
+        serverFamily: null,
+        locateMethod: 'sys-status'
+      })
+    ).toBe(true);
+  });
+
+  it('allows the fallback for a wire-identified GreaterMUD server', () => {
+    expect(
+      shouldRequestDocumentedRoomFallback({
+        serverFamily: 'greatermud',
+        locateMethod: 'rm'
+      })
+    ).toBe(true);
+  });
+
+  it('does not send the GreaterMUD fallback for another configured locator', () => {
+    expect(
+      shouldRequestDocumentedRoomFallback({
+        serverFamily: null,
+        locateMethod: 'rm'
+      })
+    ).toBe(false);
+  });
+
   it('does not send a location request when a room is already known', async () => {
     let requests = 0;
     const result = await requestRoomIdentity({

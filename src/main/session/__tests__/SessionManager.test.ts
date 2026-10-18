@@ -325,6 +325,7 @@ describe('AI reconnect lifecycle', () => {
       name: 'engage_enemy',
       args: { name: 'kobold thief' }
     });
+    current.room.description = 'The room description was refreshed.';
 
     manager.aiApprove(approval!.id);
     await until(() => wire.includes('a kobold thief\r\n'));
@@ -401,6 +402,189 @@ describe('AI reconnect lifecycle', () => {
       args: { destination: '1/2' }
     });
     expect((isolated as any).aiScheduler.state.current).toBeNull();
+    isolated.dispose();
+  });
+
+  it('completes an already-at-destination navigation step and continues the plan', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    state.vitals = { ...state.vitals, hp: 10, hpMax: 10 };
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    (isolated as any).preferred = new Set<string>();
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Navigate to 1/1 and inspect the room, then stop.');
+    (isolated as any).aiAutonomousMode = true;
+
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.plan[0]).toMatchObject({ action: 'navigate_to', status: 'completed' });
+    expect(agent.state.plan[1]).toMatchObject({ action: 'inspect_room', status: 'active' });
+    expect(agent.state.lastActionResult).toBe(
+      'Already at the authoritative destination; no movement required'
+    );
+    expect(isolated.walker.walking).toBe(false);
+
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.plan.map((step: { status: string }) => step.status)).toEqual([
+      'completed',
+      'completed'
+    ]);
+    expect(agent.state.objectiveComplete).toBe(true);
+    expect(agent.state.lastActionResult).toBe('Observed inspect room');
+    isolated.dispose();
+  });
+
+  it('keeps an optional hybrid hostile eligible when fresh attacker evidence exists', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    state.vitals = { ...state.vitals, hp: 20, hpMax: 51 };
+    state.room.occupants = [
+      {
+        name: 'kobold thief',
+        kind: 'mob',
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never',
+        charmed: false,
+        hidden: false,
+        free: false,
+        mob: {
+          name: 'kobold thief',
+          rawName: 'kobold thief',
+          source: 'hybrid',
+          charmed: false,
+          disposition: 'hostile',
+          uncertain: true,
+          costly: 'never'
+        }
+      }
+    ];
+    state.combat.attackers = ['kobold thief'];
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    (isolated as any).preferred = new Set<string>();
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Engage a suitable hostile mob if one is available, then stop.');
+    (isolated as any).aiAutonomousMode = true;
+
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.plan[0]).toMatchObject({ action: 'engage_enemy', status: 'active' });
+    expect(agent.state.plan[1]).toMatchObject({
+      action: 'inspect_combat_result',
+      status: 'pending'
+    });
+    expect(isolated.aiSnapshot.state.pendingApprovals[0]?.action).toMatchObject({
+      name: 'engage_enemy',
+      args: { name: 'kobold thief' }
+    });
+    expect(agent.state.status).toBe('paused');
+    isolated.dispose();
+  });
+
+  it('re-requests approval after an action-relevant state change instead of stalling', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    state.vitals = { ...state.vitals, hp: 20, hpMax: 51 };
+    state.room.occupants = [
+      {
+        name: 'kobold thief',
+        kind: 'mob',
+        disposition: 'hostile',
+        uncertain: true,
+        costly: 'never',
+        charmed: false,
+        hidden: false,
+        free: false,
+        mob: {
+          name: 'kobold thief',
+          rawName: 'kobold thief',
+          source: 'hybrid',
+          charmed: false,
+          disposition: 'hostile',
+          uncertain: true,
+          costly: 'never'
+        }
+      }
+    ];
+    state.combat.attackers = ['kobold thief'];
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    (isolated as any).preferred = new Set<string>();
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Engage a suitable hostile mob if one is available, then stop.');
+    (isolated as any).aiAutonomousMode = true;
+
+    await (isolated as any).aiAutonomousTick();
+    const firstApproval = isolated.aiSnapshot.state.pendingApprovals[0]!;
+    state.room.number = 2;
+
+    await isolated.aiTick();
+
+    const current = isolated.aiSnapshot.state;
+    expect(current.approvalHistory).toContainEqual(
+      expect.objectContaining({ id: firstApproval.id, status: 'expired' })
+    );
+    expect(current.pendingApprovals).toHaveLength(1);
+    expect(current.pendingApprovals[0]?.id).not.toBe(firstApproval.id);
+    expect(current.pendingApprovals[0]?.action).toMatchObject({
+      name: 'engage_enemy',
+      args: { name: 'kobold thief' }
+    });
+    expect(current.status).toBe('paused');
+    isolated.dispose();
+  });
+
+  it('does not settle a delegated action while its executor is still running', async () => {
+    const { sink } = collect();
+    const isolated = new SessionManager(sink);
+    const state = (isolated as any).tracker.current as CharacterState;
+    state.phase = 'in-game';
+    state.room.map = 1;
+    state.room.number = 1;
+    vi.spyOn((isolated as any).client, 'connected', 'get').mockReturnValue(true);
+    (isolated as any).preferred = new Set<string>();
+    const agent = (isolated as any).aiAgent;
+    agent.enable('Navigate to 1/1 and inspect the room, then stop.');
+    (isolated as any).aiAutonomousMode = true;
+    let resolveExecution!: (result: { ok: boolean; message: string }) => void;
+    const execution = new Promise<{ ok: boolean; message: string }>((resolve) => {
+      resolveExecution = resolve;
+    });
+    vi.spyOn(isolated as any, 'executeAiAction').mockImplementation(() => {
+      (isolated as any).aiNavigationDestination = '1/1';
+      return execution;
+    });
+
+    const inFlight = (isolated as any).aiAutonomousTick();
+    await (isolated as any).aiAutonomousTick();
+
+    expect(agent.state.currentAction).toMatchObject({
+      name: 'navigate_to',
+      phase: 'executing'
+    });
+    expect((isolated as any).aiScheduler.state.current).toMatchObject({
+      name: 'navigate_to'
+    });
+    expect(agent.state.plan[0]).toMatchObject({ action: 'navigate_to', status: 'active' });
+
+    resolveExecution({ ok: false, message: 'Walker refused route' });
+    await inFlight;
+
+    expect(agent.state.plan[0]).toMatchObject({ action: 'navigate_to', status: 'blocked' });
+    expect(agent.state.plan[1]).toMatchObject({ action: 'inspect_room', status: 'pending' });
+    expect(agent.state.status).toBe('error');
     isolated.dispose();
   });
 

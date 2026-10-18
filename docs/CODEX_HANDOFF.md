@@ -1061,3 +1061,92 @@ uncertain, and the real production recovery threshold has not been crossed in
 an autonomous encounter. Next highest-value work is to make an objective
 choose and pursue a verified target when one exists, then verify
 recovery/resumption and a subsequent objective in one bounded live session.
+
+## Latest continuation: bounded rat victory and production thresholds (2026-10-18)
+
+- The current `development` base was `d76d6a5`. Kefka's saved gameplay settings
+  were changed, without printing or committing profile data: rest starts below
+  `0.70` and targets `0.80`; retreat is enabled at two attackers. Existing
+  health retreat at `0.30` is unchanged. Provider ceilings and combat policy
+  were not changed.
+- `LiveHarness` now configures its supervised exact-target combat probe with
+  those saved rest and retreat values while leaving unrelated automation,
+  consumables, automatic combat, movement, and loops disabled.
+- A bounded provider-driven run verified inspection, Arena arrival/return,
+  one-/two-room navigation, Corwyn inspection, policy refusals, manual
+  priority, budget enforcement, and emergency stop. It used 4 requests,
+  12,039 tokens, about `$0.0019818`, with zero policy violations. The Arena
+  objective skipped combat because its one visible mob was uncertain and not
+  a verified attacker; recovery correctly did not run at full health under
+  `restBelow=0.70`.
+- A later read-only probe found Kefka at `1/2150`, `51/51`, with one
+  `large giant rat` attacker. The hybrid entity had IDs `[1,109,1116]`,
+  hostile disposition, uncertain classification, and `costly: sometimes`.
+  Fresh attacker evidence made this exact target eligible through the
+  existing policy gate. The supervised provider-free probe dispatched
+  `a large giant rat` through SessionManager approval. Parsed evidence showed
+  matching hits and misses, 12 tracked damage, exact named-sentence death,
+  450 XP, `Combat Off`, unchanged `51/51` HP, and no remaining attackers.
+  Its initial settle budget elapsed, but the bounded post-timeout observer
+  captured the terminal evidence about 6 seconds later; the result was
+  resolved, not left ambiguous. A bounded parsed diagnostic artifact was
+  persisted; no raw server lines were retained. Provider usage and policy
+  violations were zero.
+- The follow-up recovery decision correctly reported "not due" at `51/51`.
+  Live recovery at the new saved `0.70`/`0.80` thresholds and retreat at the
+  saved two-attacker threshold are not yet directly demonstrated. Provider-
+  selected combat, post-combat recovery after actual damage, and resumption
+  into a subsequent objective remain the highest-value work.
+- Focused SessionManager/Recovery/Walker/RecoverySafety suites passed 611/611;
+  the post-change LiveHarness suite passed 55/55. Run the full suite,
+  typecheck/build, secret scan, syntax, and diff checks before pushing this
+  checkpoint. Last live state at probe completion: `1/2150`, `51/51`, no
+  active target or attackers.
+
+## Current checkpoint: integrated combat and verified withdrawal (2026-10-18)
+
+- The provider-driven integrated run first exposed a harness approval-supervisor
+  bug: its second eligibility check omitted the current authoritative attacker
+  list, so an uncertain hybrid mob stayed pending even though the production
+  target gate and preflight recognized it. The supervisor now passes that
+  current evidence into the same eligibility check; SessionManager still
+  revalidates target identity and policy before execution. Stale approvals now
+  request fresh approval after a material state change rather than leaving an
+  active objective stuck. A related regression in generic-command approval
+  queueing (`context` was undefined) was fixed and covered.
+- After the harness correction, one connected live objective completed:
+  `big giant rat` was the exact verified attacker, its SessionManager approval
+  executed, and the parsed harness reported exact-target death plus XP evidence.
+  HP remained `51/51`, so recovery correctly reported not due; this run does
+  not demonstrate recovery after combat damage. In the same session, one-room
+  and two-room navigation succeeded, Walker reached `1/2147`, and MudEngine
+  inspected Corwyn. The full harness used 4 provider requests, 12,299 tokens,
+  estimated `$0.0020163`, with zero policy violations.
+- A separate provider-free exact-target attempt later saw two live rat
+  attackers. It dispatched `a big giant rat`, observed engagement, then sent
+  one `u` and settled in `1/2146` at `51/51` with no attackers. It recorded no
+  hit/miss, damage, XP, or death evidence; this is a verified withdrawal, not
+  a victory. The bounded artifact
+  `$MudEngineHome/state/live-diagnostics/combat-2026-10-18T22-43-30-780Z-10048.json`
+  preserves the parsed target identity, attacker list, commands, and state
+  snapshots without raw server lines. The exact trigger for the withdrawal
+  was not separately emitted.
+- Validation: full suite 7,086 passed and 2 skipped across 253 files; realm
+  suite 18/18; focused approval/escape regressions passed; typecheck, production
+  build, secret scan (54 user-scoped files, no configured password), script
+  syntax, and diff checks passed. The existing renderer chunk-size warning
+  remains.
+- Latest live state: `1/2146`, `51/51`, no active target or attackers; Corwyn
+  is visible. Next priority: capture the retreat reason explicitly and find a
+  bounded, legitimately eligible encounter that causes real HP loss, then
+  demonstrate recovery and selection of a subsequent objective in one
+  connected session. Do not disable retreat or claim recovery from the
+  full-health no-op.
+
+Resume with a fresh read-only probe, then the bounded provider-driven run only
+if its state remains appropriate:
+
+```powershell
+node --import ./scripts/lib/register.mjs scripts/ai-live.mjs --live --profile kefka --room-probe-only --max-ms 60000 --max-moves 0
+npm run test:ai-live -- --live --profile kefka --max-ms 120000 --max-moves 12 --max-requests 16 --max-tokens 60000 --max-cost 0.05
+```

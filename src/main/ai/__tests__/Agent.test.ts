@@ -246,6 +246,39 @@ describe('AutonomousAgent', () => {
     await agent.tick({ ...observation, room: { id: 3 }, event: 'arrival' });
     expect(decide).toHaveBeenCalledTimes(2);
   });
+  it('advances a multi-step objective when a delegated action completes without changing the observation', async () => {
+    const objective = 'Navigate to 1/2, inspect the room, then stop';
+    const decide = vi
+      .fn()
+      .mockResolvedValueOnce({
+        objective,
+        explanation: 'Reach the requested room',
+        action: { name: 'navigate_to', reason: 'navigate' }
+      })
+      .mockResolvedValueOnce({
+        objective,
+        explanation: 'Inspect the current room',
+        action: { name: 'inspect_room', reason: 'inspect' }
+      });
+    const provider: AiProvider = {
+      decide,
+      usage: () => ({ requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 })
+    };
+    const execute = vi.fn().mockResolvedValue({ ok: true, message: 'Already there.' });
+    const agent = new AutonomousAgent(provider, { execute });
+    agent.setDelegatedOperationStatus(() => 'completed');
+    agent.enable(objective);
+
+    await agent.tick(observation);
+    await agent.tick(observation);
+
+    expect(decide).toHaveBeenCalledTimes(2);
+    expect(execute.mock.calls.map(([action]) => action.name)).toEqual([
+      'navigate_to',
+      'inspect_room'
+    ]);
+    expect(agent.state.objectiveComplete).toBe(true);
+  });
   it('uses an explicit delegated lifecycle before re-planning navigation', async () => {
     const decide = vi
       .fn()

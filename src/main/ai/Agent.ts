@@ -132,6 +132,7 @@ export class AutonomousAgent {
     if (this.state.currentAction?.phase === 'accepted') {
       const delegatedStatus =
         this.delegatedOperationStatus?.(this.state.currentAction.name) ?? null;
+      let delegatedCompleted = false;
       if (
         delegatedStatus === 'active' ||
         (delegatedStatus === null && this.delegatedOperationActive?.(this.state.currentAction.name))
@@ -152,6 +153,7 @@ export class AutonomousAgent {
           false
         );
       } else {
+        delegatedCompleted = delegatedStatus === 'completed';
         this.state.currentAction = {
           ...this.state.currentAction,
           phase: 'completed',
@@ -175,9 +177,15 @@ export class AutonomousAgent {
       // A delegated subsystem may complete without changing the compact
       // observation (for example, equipment automation can determine that no
       // gear change is needed).  Its explicit lifecycle result must still be
-      // recorded, but an unchanged observation must not trigger another
-      // provider request.
-      if (hash === this.state.lastObservationHash) return null;
+      // recorded. If that completion advances a multi-step plan, the next
+      // planned step is itself a bounded reason to reassess the same state.
+      if (hash === this.state.lastObservationHash) {
+        const nextPlanStepReady =
+          delegatedCompleted &&
+          (this.state.plan ?? []).some((step) => step.status === 'active');
+        if (!nextPlanStepReady) return null;
+        this.state.lastObservationHash = undefined;
+      }
     }
     if (hash === this.state.lastObservationHash) return null;
     if (this.state.consecutiveFailures >= 2 && this.lastFailedAction) {
