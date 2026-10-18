@@ -621,4 +621,6 @@ Do not enable autonomous combat, social messaging, equipment changes, spending, 
   distinct modified names, and refusing missing/empty identities. No live
   session was started: Kefka's current room and combat state remain unconfirmed.
   This fixes a possible harness attribution miss; it does not establish that a
-  live death sentence was observed.
+  live death sentence was observed. The full suite passes 7,031 tests with 2
+  skipped across 253 files; build, typechecks, secret scan, script syntax, and
+  diff checks pass.

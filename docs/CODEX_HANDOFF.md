@@ -232,9 +232,10 @@ Do not enable unattended live testing for combat, PvP, social interaction, equip
   using the shared `mobKey` normalization: leading articles are harmless, but
   modifiers remain part of the identity and absent names do not count.
   Focused deterministic tests cover this matcher. It does not establish a live
-  target death.
-- Latest local validation after the blocked-recovery edge-case regression:
-  `npm test` passed 7,029 tests with 2
+  target death. The current full suite includes those regressions and passes
+  7,031 tests with 2 skipped across 253 files.
+- Latest local validation after the exact-target death matcher:
+  `npm test` passed 7,031 tests with 2
   skipped across 253 files. An earlier concurrent run hit two
   `SessionLog.test.ts` cleanup `ENOTEMPTY` errors; that file passed in
   isolation (14/14), and the final full run passed. The configured-threshold

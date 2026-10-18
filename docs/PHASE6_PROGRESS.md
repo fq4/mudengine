@@ -477,7 +477,7 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   leaves the scheduler blocked, while success re-arms the exception for a later
   failure cycle. Focused selector, scheduler, and SessionManager suites passed
   303/303; the blocked-scheduler recovery guards passed 289/289. The latest full
-  suite passes 7,029 tests with 2 skipped across 253 files. Typecheck,
+  suite passes 7,031 tests with 2 skipped across 253 files. Typecheck,
   production build, secret scan, harness syntax, and diff checks passed.
   Low-health recovery and the complete gameplay session are still unverified
   live.
@@ -491,7 +491,8 @@ AutoCombat, Recovery, EquipmentManager and friends own their loops.
   rejected. Deterministic tests cover these cases. This prevents a possible
   evidence-matching miss; it is not live evidence of exact-target death.
   Kefka's current placement/combat state is unconfirmed, so no live connection
-  was attempted.
+  was attempted. The full suite including this matcher passes 7,031 tests with
+  2 skipped across 253 files.
 
 ## Remaining work
 
